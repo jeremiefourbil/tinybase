@@ -839,6 +839,11 @@ RC Test5(void)
    rc = CloseFile(FILENAME, fh);
    assert(rc == 0);
 
+   printf("\nCleaning up...\n");
+   rc = DestroyFile(FILENAME);
+   assert(rc == 0);
+   printf("\nOK\n");
+
    printf("\ntest5 done ********************\n");
    return (0);
 }
@@ -858,15 +863,19 @@ RC Test6(void)
    printf("test6 starting ****************\n");
 
    rc = CreateFile(FILENAME, sizeof(TestRec)+1500);
+   PrintError(rc);
    assert(rc == 0);
 
    rc = OpenFile(FILENAME, fh);
+   PrintError(rc);
    assert(rc == 0);
 
    rc = AddRecs(fh, FEW_RECS);
+   PrintError(rc);
    assert(rc == 0);
 
    rc = PrintFile(fh);
+   PrintError(rc);
    assert(rc == 0);
 
    printf("\nopening file scan\n");
@@ -900,6 +909,11 @@ RC Test6(void)
 
    rc = CloseFile(FILENAME, fh);
    assert(rc == 0);
+
+   printf("\nCleaning up...\n");
+   rc = DestroyFile(FILENAME);
+   assert(rc == 0);
+   printf("\nOK\n");
 
    printf("\ntest6 done (ignore Purify) ********************\n");
    return (0);
