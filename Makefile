@@ -62,14 +62,15 @@ LIBRARY_IX     = $(LIB_DIR)libix.a
 LIBRARY_SM     = $(LIB_DIR)libsm.a
 LIBRARY_QL     = $(LIB_DIR)libql.a
 LIBRARY_PARSER = $(LIB_DIR)libparser.a
-LIBRARIES      = $(LIBRARY_PF) $(LIBRARY_RM) $(LIBRARY_IX) \
-                 $(LIBRARY_SM) $(LIBRARY_QL) $(LIBRARY_PARSER)
+LIBRARIES      = $(LIBRARY_PF) $(LIBRARY_RM) \
+                # $(LIBRARY_IX) $(LIBRARY_SM) $(LIBRARY_QL) $(LIBRARY_PARSER)
 
 UTILS          = $(UTILS_SOURCES:.cc=)
 TESTS          = $(TESTER_SOURCES:.cc=)
 EXECUTABLES    = $(UTILS) $(TESTS)
 
-LIBS           = -lparser -lql -lsm -lix -lrm -lpf
+LIBS           = -lrm -lpf \
+                    #-lparser -lql -lsm -lix
 
 #
 # Build targets
