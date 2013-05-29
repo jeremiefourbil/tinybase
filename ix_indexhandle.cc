@@ -1,4 +1,4 @@
-#include "ix.h"
+#include "ix_internal.h"
 
 IX_IndexHandle::IX_IndexHandle()
 {

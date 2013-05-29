@@ -1,0 +1,15 @@
+----------------------------------------
+----------------------------------------
+
+Val
+
+29/05/2013
+
+IX_Manager
+----------
+- Copie et adaptation de CreateIndex, DestroyIndex, OpenIndex, CloseIndex depuis RM_Manager
+- Ajout de friend class IX_Manager, des attributs pfFileHandle, fileHdr et bHdrChanged dans le header de IX_IndexHandle
+- Utilisation systématique de GenerateFileName() pour trouver le nom de fichier réel dans le RM_Manager
+- Test1 OK
+----------------------------------------
+ToDo: besoin de traiter les noeuds dans IX_Manager ? En particulier lors de la destruction de l'index

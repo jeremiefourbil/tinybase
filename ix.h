@@ -13,10 +13,24 @@
 #include "rm_rid.h"  // Please don't change these lines
 #include "pf.h"
 
+
+
+//
+// IX_FileHdr: Header structure for files
+//
+struct IX_FileHdr {
+    PageNum rootNum;
+    AttrType attrType;
+    int attrLength;
+};
+
+
+
 //
 // IX_IndexHandle: IX Index File interface
 //
 class IX_IndexHandle {
+    friend class IX_Manager;
 public:
     IX_IndexHandle();
     ~IX_IndexHandle();
@@ -29,6 +43,11 @@ public:
 
     // Force index files to disk
     RC ForcePages();
+
+private:
+    PF_FileHandle pfFileHandle;
+    IX_FileHdr fileHdr;
+    int bHdrChanged;
 };
 
 //
@@ -76,6 +95,8 @@ public:
     RC CloseIndex(IX_IndexHandle &indexHandle);
 
 private:
+    const char* GenerateFileName(const char *fileName, int indexNo);
+
     PF_Manager *pPfm;
 };
 
@@ -84,7 +105,7 @@ private:
 //
 void IX_PrintError(RC rc);
 
-//#define RM_INVIABLERID     (START_RM_WARN + 0) // inviable rid
+#define IX_INSUFFISANT_PAGE_SIZE     (START_IX_ERR + 0) //
 //#define RM_UNREADRECORD    (START_RM_WARN + 1) // unread record
 //#define RM_INVALIDRECSIZE  (START_RM_WARN + 2) // invalid record size
 //#define RM_INVALIDSLOTNUM  (START_RM_WARN + 3) // invalid slot number
