@@ -15,14 +15,20 @@
 
 
 
-//
-// IX_FileHdr: Header structure for files
-//
+enum NodeType {
+    ROOT,
+    INODE,
+    LASTINODE,
+    ROOTANDLASTINODE
+};
+
 struct IX_FileHdr {
     PageNum rootNum;
     AttrType attrType;
     int attrLength;
 };
+
+
 
 
 
@@ -45,6 +51,18 @@ public:
     RC ForcePages();
 
 private:
+    template <typename T>
+    RC InsertEntry_t(void *pData, const RID &rid);
+
+    template <typename T>
+    RC AllocateNodePage_t(NodeType nodeType, PageNum parent, PageNum &oPageNum);
+
+    RC GetPageBuffer(const PageNum &iPageNum, void *pData);
+
+    // Insert a new index entry
+    template <typename T>
+    RC InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid);
+
     PF_FileHandle pfFileHandle;
     IX_FileHdr fileHdr;
     int bHdrChanged;
@@ -95,6 +113,7 @@ public:
     RC CloseIndex(IX_IndexHandle &indexHandle);
 
 private:
+    RC CreateRoot();
     const char* GenerateFileName(const char *fileName, int indexNo);
 
     PF_Manager *pPfm;
@@ -105,8 +124,8 @@ private:
 //
 void IX_PrintError(RC rc);
 
-#define IX_INSUFFISANT_PAGE_SIZE     (START_IX_ERR + 0) //
-//#define RM_UNREADRECORD    (START_RM_WARN + 1) // unread record
+#define IX_INSUFFISANT_PAGE_SIZE        (START_IX_ERR + 0)
+#define IX_NULLPOINTER                  (START_IX_ERR + 1)
 //#define RM_INVALIDRECSIZE  (START_RM_WARN + 2) // invalid record size
 //#define RM_INVALIDSLOTNUM  (START_RM_WARN + 3) // invalid slot number
 //#define RM_RECORDNOTFOUND  (START_RM_WARN + 4) // record not found

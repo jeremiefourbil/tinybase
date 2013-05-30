@@ -28,7 +28,7 @@ static char *IX_WarnMsg[] = {
 
 static char *IX_ErrorMsg[] = {
   (char*)"impossible to create index",
-//  (char*)"no buffer space",
+  (char*)"null pointer"
 //  (char*)"incomplete read of page from file",
 //  (char*)"incomplete write of page to file",
 //  (char*)"incomplete read of header from file",

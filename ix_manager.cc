@@ -50,7 +50,7 @@ RC IX_Manager::CreateIndex(const char *fileName, int indexNo,
 
     // Write the file header (to the buffer pool)
     fileHdr = (IX_FileHdr *) pData;
-    fileHdr->rootNum = 0;
+    fileHdr->rootNum = IX_EMPTY;
     fileHdr->attrLength=attrLength;
     fileHdr->attrType=attrType;
 
