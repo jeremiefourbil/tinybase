@@ -217,7 +217,7 @@ err_return:
 }
 
 // DO NOT FORGET TO CLOSE IT !
-RC IX_IndexHandle::GetPageBuffer(const PageNum &iPageNum, char *pBuffer)
+RC IX_IndexHandle::GetPageBuffer(const PageNum &iPageNum, char * & pBuffer)
 {
     RC rc;
     PF_PageHandle pageHandle;

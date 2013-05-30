@@ -63,7 +63,7 @@ private:
     template <typename T>
     RC AllocateLeafPage_t(const PageNum parent, PageNum &oPageNum);
 
-    RC GetPageBuffer(const PageNum &iPageNum, char *pBuffer);
+    RC GetPageBuffer(const PageNum &iPageNum, char * &pBuffer);
     RC ReleaseBuffer(const PageNum &iPageNum, bool isDirty);
 
 
