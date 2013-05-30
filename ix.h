@@ -55,13 +55,17 @@ private:
     RC InsertEntry_t(void *pData, const RID &rid);
 
     template <typename T>
-    RC AllocateNodePage_t(NodeType nodeType, PageNum parent, PageNum &oPageNum);
-
-    RC GetPageBuffer(const PageNum &iPageNum, void *pData);
-
-    // Insert a new index entry
-    template <typename T>
     RC InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid);
+
+    template <typename T>
+    RC AllocateNodePage_t(const NodeType nodeType, const PageNum parent, PageNum &oPageNum);
+
+    template <typename T>
+    RC AllocateLeafPage_t(const PageNum parent, PageNum &oPageNum);
+
+    RC GetPageBuffer(const PageNum &iPageNum, char *pBuffer);
+    RC ReleaseBuffer(const PageNum &iPageNum, bool isDirty);
+
 
     PF_FileHandle pfFileHandle;
     IX_FileHdr fileHdr;

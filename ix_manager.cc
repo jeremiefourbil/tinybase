@@ -1,5 +1,7 @@
 #include "ix_internal.h"
 
+#include <sstream>
+
 IX_Manager::IX_Manager(PF_Manager &pfm) : pPfm(&pfm)
 {
 
@@ -221,6 +223,13 @@ RC IX_Manager::CloseIndex(IX_IndexHandle &indexHandle)
 
 const char* IX_Manager::GenerateFileName(const char *fileName, int indexNo)
 {
-    const char *output = "salut";
-    return fileName;
+    std::string outputFileName(fileName);
+    outputFileName.append(".");
+
+    std::ostringstream oss;
+    oss << indexNo;
+
+    outputFileName.append(oss.str());
+
+    return outputFileName.c_str();
 }

@@ -25,16 +25,22 @@ const int IX_HEADER_PAGE_NUM = 0;
 template <typename T>
 struct IX_PageNode {
     PageNum parent;
-    PageNum child[5];
-    T v[4];
     NodeType nodeType;
+
+    int nbFilledSlots;
+    T v[4];
+
+    PageNum child[5];
 };
 
 template <typename T>
 struct IX_PageLeaf {
     PageNum parent;
+
     PageNum previous;
     PageNum next;
+
+    int nbFilledSlots;
     T v[4];
 };
 
