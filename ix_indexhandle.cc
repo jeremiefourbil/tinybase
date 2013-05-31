@@ -73,43 +73,96 @@ err_return:
 }
 
 
-// Insert a new index entry
+// Insert a new data in the index
 template <typename T>
 RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid)
 {
 
     RC rc;
     char *pBuffer;
-
-    PageNum childPageNum;
-    char *pChildBuffer;
+    int slotIndex;
 
     // get the current node
     if(rc = GetPageBuffer(iPageNum, pBuffer))
         goto err_return;
 
-    // check if it has a child at position 0
-    childPageNum = ((IX_PageNode<T> *)pBuffer)->child[0];
-    if(childPageNum == IX_EMPTY)
+    // find the right place to insert data in the tree
+    slotIndex = 0;
+    while( slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots
+            && comparisonGeneric(((IX_PageNode<T> *)pBuffer)->v[slotIndex], *((T*) pData)) < 0 )
     {
-        // if empty, allocate a node page
-        if(rc = AllocateNodePage_t<T>(LASTINODE, IX_EMPTY, childPageNum))
+        ++slotIndex;
+    }
+
+    // PB: OVERFLOW !!!!
+    if(slotIndex > 4)
+        return 1;
+
+    // the child is a leaf
+    if(((IX_PageNode<T> *)pBuffer)->nodeType == LASTINODE || ((IX_PageNode<T> *)pBuffer)->nodeType == ROOTANDLASTINODE)
+    {
+        PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[slotIndex];
+
+        // the leaf is empty
+        if(((IX_PageNode<T> *)pBuffer)->child[slotIndex] == IX_EMPTY)
+        {
+            if(rc = AllocateLeafPage_t<T>(iPageNum, childPageNum))
+                goto err_return;
+        }
+
+        if(rc = InsertEntryInLeaf_t<T>(childPageNum, pData, rid))
+            goto err_return;
+
+    }
+    // the child is a node
+    else
+    {
+        PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[slotIndex];
+
+        // the node is empty
+        if(childPageNum == IX_EMPTY)
+        {
+
+            if(rc = AllocateNodePage_t<T>(LASTINODE, iPageNum, childPageNum))
+                goto err_return;
+        }
+
+        if(rc = InsertEntryInNode_t<T>(childPageNum, pData, rid))
             goto err_return;
     }
 
-    // get the child node
-    if(rc = GetPageBuffer(childPageNum, pChildBuffer))
+
+    if(rc = ReleaseBuffer(iPageNum, true))
         goto err_return;
 
+err_return:
+    return (rc);
 
-    if(rc = ReleaseBuffer(childPageNum, true))
+    return OK_RC;
+}
+
+// Insert a new data in the index
+template <typename T>
+RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid)
+{
+
+    RC rc;
+    char *pBuffer;
+    int slotIndex;
+
+    // get the current node
+    if(rc = GetPageBuffer(iPageNum, pBuffer))
         goto err_return;
 
+    // find the right place to insert data in the tree
+    slotIndex = ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots;
 
-//    for(int i=0; i<4; i++)
-//    {
-//        copyGeneric(((IX_PageNode<T> *)pReadData)->v[i],(*(T *) pData));
-//    }
+    // PB: OVERFLOW !!!!
+    if(slotIndex > 3)
+        return 1;
+
+
+    copyGeneric(*((T*) pData), ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex]);
 
 
     if(rc = ReleaseBuffer(iPageNum, true))

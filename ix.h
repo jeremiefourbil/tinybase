@@ -58,6 +58,9 @@ private:
     RC InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid);
 
     template <typename T>
+    RC InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid);
+
+    template <typename T>
     RC AllocateNodePage_t(const NodeType nodeType, const PageNum parent, PageNum &oPageNum);
 
     template <typename T>
@@ -117,7 +120,6 @@ public:
     RC CloseIndex(IX_IndexHandle &indexHandle);
 
 private:
-    RC CreateRoot();
     const char* GenerateFileName(const char *fileName, int indexNo);
 
     PF_Manager *pPfm;
