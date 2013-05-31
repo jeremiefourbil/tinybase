@@ -105,7 +105,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
     if(slotIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots)
     {
         copyGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]);
-        ((IX_PageNode<T> *)pBuffer)->nbFilledSlots = slotIndex;
+        ((IX_PageNode<T> *)pBuffer)->nbFilledSlots = slotIndex + 1;
     }
 
 
@@ -161,6 +161,8 @@ template <typename T>
 RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid)
 {
 
+    cout << "Leaf" << endl;
+
     RC rc;
     char *pBuffer;
     int slotIndex;
@@ -174,7 +176,12 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
 
     // PB: OVERFLOW !!!!
     if(slotIndex > 3)
-        return 1;
+    {
+        cout << "Overflow" << endl;
+        return OK_RC;
+    }
+
+    ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots = slotIndex+1;
 
     copyGeneric(*((T*) pData), ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex]);
     ((IX_PageLeaf<T> *)pBuffer)->rid[slotIndex] = rid;

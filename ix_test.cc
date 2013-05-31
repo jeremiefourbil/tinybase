@@ -226,6 +226,8 @@ RC InsertIntEntries(IX_IndexHandle &ih, int nEntries)
       if ((rc = ih.InsertEntry((void *)&value, rid)))
          return (rc);
 
+      printf("Value inserted: %d \n", value);
+
       if((i + 1) % PROG_UNIT == 0){
          // cast to long for PC's
          printf("\r\t%d%%    ", (int)((i+1)*100L/nEntries));
