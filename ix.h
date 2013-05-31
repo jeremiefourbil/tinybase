@@ -37,6 +37,7 @@ struct IX_FileHdr {
 //
 class IX_IndexHandle {
     friend class IX_Manager;
+    friend class IX_IndexScan;
 public:
     IX_IndexHandle();
     ~IX_IndexHandle();
@@ -66,8 +67,8 @@ private:
     template <typename T>
     RC AllocateLeafPage_t(const PageNum parent, PageNum &oPageNum);
 
-    RC GetPageBuffer(const PageNum &iPageNum, char * &pBuffer);
-    RC ReleaseBuffer(const PageNum &iPageNum, bool isDirty);
+    RC GetPageBuffer(const PageNum &iPageNum, char * &pBuffer) const;
+    RC ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const;
 
 
     PF_FileHandle pfFileHandle;
@@ -95,6 +96,12 @@ public:
 
     // Close index scan
     RC CloseScan();
+
+private:
+    IX_IndexHandle _indexHandle;
+    CompOp _compOp;
+    void * _value;
+    ClientHint  _pinHint;
 };
 
 //

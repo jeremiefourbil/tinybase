@@ -15,9 +15,9 @@ void copyGeneric(const int &v1, int &v2) { v2 = v1; }
 void copyGeneric(const float &v1, float &v2) { v2 = v1; }
 void copyGeneric(const char* v1, char* v2) { strcpy(v2, v1); }
 
-int comparisonGeneric(const int &v1, const int &v2) { return v1 < v2; }
-int comparisonGeneric(const float &v1, const float &v2) { return v1 < v2; }
-int comparisonGeneric(const char* v1, const char* v2) { return strcmp(v1,v2) < 0; }
+int comparisonGeneric(const int &v1, const int &v2) { return (v1 < v2) ? -1 : ((v1==v2) ? 0 : 1); }
+int comparisonGeneric(const float &v1, const float &v2) { return (v1 < v2) ? -1 : ((v1==v2) ? 0 : 1); }
+int comparisonGeneric(const char* v1, const char* v2) { return strcmp(v1,v2); }
 
 
 // Insert a new index entry
@@ -89,14 +89,19 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
     // find the right place to insert data in the tree
     slotIndex = 0;
     while( slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots
-            && comparisonGeneric(((IX_PageNode<T> *)pBuffer)->v[slotIndex], *((T*) pData)) < 0 )
+            && comparisonGeneric(((IX_PageNode<T> *)pBuffer)->v[slotIndex], *((T*) pData)) > 0 )
     {
         ++slotIndex;
     }
 
-    // PB: OVERFLOW !!!!
-    if(slotIndex > 4)
-        return 1;
+
+    // add value to the node and increment number of filled slots
+    if(slotIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots)
+    {
+        copyGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]);
+        ((IX_PageNode<T> *)pBuffer)->nbFilledSlots = slotIndex;
+    }
+
 
     // the child is a leaf
     if(((IX_PageNode<T> *)pBuffer)->nodeType == LASTINODE || ((IX_PageNode<T> *)pBuffer)->nodeType == ROOTANDLASTINODE)
@@ -108,6 +113,8 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
         {
             if(rc = AllocateLeafPage_t<T>(iPageNum, childPageNum))
                 goto err_return;
+
+            ((IX_PageNode<T> *)pBuffer)->child[slotIndex] = childPageNum;
         }
 
         if(rc = InsertEntryInLeaf_t<T>(childPageNum, pData, rid))
@@ -125,6 +132,8 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
 
             if(rc = AllocateNodePage_t<T>(LASTINODE, iPageNum, childPageNum))
                 goto err_return;
+
+            ((IX_PageNode<T> *)pBuffer)->child[slotIndex] = childPageNum;
         }
 
         if(rc = InsertEntryInNode_t<T>(childPageNum, pData, rid))
@@ -160,7 +169,6 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
     // PB: OVERFLOW !!!!
     if(slotIndex > 3)
         return 1;
-
 
     copyGeneric(*((T*) pData), ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex]);
 
@@ -270,7 +278,7 @@ err_return:
 }
 
 // DO NOT FORGET TO CLOSE IT !
-RC IX_IndexHandle::GetPageBuffer(const PageNum &iPageNum, char * & pBuffer)
+RC IX_IndexHandle::GetPageBuffer(const PageNum &iPageNum, char * & pBuffer) const
 {
     RC rc;
     PF_PageHandle pageHandle;
@@ -289,7 +297,7 @@ err_return:
     return (rc);
 }
 
-RC IX_IndexHandle::ReleaseBuffer(const PageNum &iPageNum, bool isDirty)
+RC IX_IndexHandle::ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const
 {
     RC rc;
 

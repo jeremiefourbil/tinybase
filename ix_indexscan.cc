@@ -17,6 +17,22 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle,
             ClientHint  pinHint)
 {
 
+    _indexHandle = indexHandle;
+    _compOp = compOp;
+    _value = value;
+    _pinHint = pinHint;
+
+
+
+
+
+
+
+
+
+
+
+    return OK_RC;
 }
 
 // Get the next matching entry return IX_EOF if no more matching
