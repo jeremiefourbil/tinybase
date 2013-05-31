@@ -41,10 +41,19 @@ struct IX_PageLeaf {
     PageNum next;
 
     int nbFilledSlots;
-    T v[4];
+    T v[4];  
 
-    PageNum pageRid[4];
+    RID rid[4];
 };
+
+
+void copyGeneric(const int &v1, int &v2);
+void copyGeneric(const float &v1, float &v2);
+void copyGeneric(const char* v1, char* v2);
+
+int comparisonGeneric(const int &v1, const int &v2);
+int comparisonGeneric(const float &v1, const float &v2);
+int comparisonGeneric(const char* v1, const char* v2);
 
 
 #endif // IX_INTERNAL_H

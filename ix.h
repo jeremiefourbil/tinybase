@@ -98,10 +98,26 @@ public:
     RC CloseScan();
 
 private:
+    template <typename T>
+    RC OpenScan_t();
+
+    template <typename T>
+    RC ScanNode_t(PageNum iPageNum);
+
+    template <typename T>
+    RC ScanLeaf_t(PageNum iPageNum);
+
+    template <typename T>
+    RC GetNextEntry_t(RID &rid);
+
     IX_IndexHandle _indexHandle;
     CompOp _compOp;
     void * _value;
     ClientHint  _pinHint;
+
+    PageNum _nextLeafNum;
+    int _nextLeafSlot;
+    int _nextRidSlot;
 };
 
 //
@@ -139,6 +155,7 @@ void IX_PrintError(RC rc);
 
 #define IX_INSUFFISANT_PAGE_SIZE        (START_IX_ERR + 0)
 #define IX_NULLPOINTER                  (START_IX_ERR + 1)
+#define IX_BADTYPE                      (START_IX_ERR + 2)
 //#define RM_INVALIDRECSIZE  (START_RM_WARN + 2) // invalid record size
 //#define RM_INVALIDSLOTNUM  (START_RM_WARN + 3) // invalid slot number
 //#define RM_RECORDNOTFOUND  (START_RM_WARN + 4) // record not found

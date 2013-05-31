@@ -11,19 +11,10 @@ IX_IndexHandle::~IX_IndexHandle()
 }
 
 
-void copyGeneric(const int &v1, int &v2) { v2 = v1; }
-void copyGeneric(const float &v1, float &v2) { v2 = v1; }
-void copyGeneric(const char* v1, char* v2) { strcpy(v2, v1); }
-
-int comparisonGeneric(const int &v1, const int &v2) { return (v1 < v2) ? -1 : ((v1==v2) ? 0 : 1); }
-int comparisonGeneric(const float &v1, const float &v2) { return (v1 < v2) ? -1 : ((v1==v2) ? 0 : 1); }
-int comparisonGeneric(const char* v1, const char* v2) { return strcmp(v1,v2); }
-
-
 // Insert a new index entry
 RC IX_IndexHandle::InsertEntry(void *pData, const RID &rid)
 {
-    RC rc = OK_RC;
+    RC rc;
 
     if (pData == NULL)
         return (IX_NULLPOINTER);
@@ -33,10 +24,15 @@ RC IX_IndexHandle::InsertEntry(void *pData, const RID &rid)
     {
     case INT:
         rc = InsertEntry_t<int>(pData, rid);
+        break;
     case FLOAT:
         rc = InsertEntry_t<float>(pData, rid);
+        break;
     case STRING:
         rc = InsertEntry_t<char[MAXSTRINGLEN]>(pData, rid);
+        break;
+    default:
+        rc = IX_BADTYPE;
     }
 
     return rc;
@@ -58,6 +54,8 @@ RC IX_IndexHandle::InsertEntry_t(void *pData, const RID &rid)
     {
         if(rc = AllocateNodePage_t<T>(ROOTANDLASTINODE, IX_EMPTY, pageNum))
             goto err_return;
+
+        fileHdr.rootNum = pageNum;
     }
 
     // let's call the recursion method, start with root
@@ -171,6 +169,7 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
         return 1;
 
     copyGeneric(*((T*) pData), ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex]);
+    ((IX_PageLeaf<T> *)pBuffer)->rid[slotIndex] = rid;
 
 
     if(rc = ReleaseBuffer(iPageNum, true))

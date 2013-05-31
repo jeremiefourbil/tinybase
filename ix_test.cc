@@ -477,6 +477,8 @@ RC VerifyIntIndex(IX_IndexHandle &ih, int nStart, int nEntries, int bExists)
          printf("Verify error: closing scan\n");
          return (rc);
       }
+
+      printf("Entry %d correctly found\n", value);
    }
 
    return (0);
