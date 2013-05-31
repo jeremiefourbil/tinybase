@@ -58,6 +58,7 @@ RC Test1(void);
 RC Test2(void);
 RC Test3(void);
 RC Test4(void);
+RC Test5(void);
 
 void PrintError(RC rc);
 void LsFiles(char *fileName);
@@ -75,13 +76,14 @@ RC PrintIndex(IX_IndexHandle &ih);
 //
 // Array of pointers to the test functions
 //
-#define NUM_TESTS       3               // number of tests
+#define NUM_TESTS       5               // number of tests
 int (*tests[])() =                      // RC doesn't work on some compilers
 {
    Test1,
    Test2,
    Test3,
-   Test4
+   Test4,
+   Test5
 };
 
 //
@@ -674,5 +676,38 @@ RC Test4(void)
       return (rc);
 
    printf("Passed Test 4\n\n");
+   return (0);
+}
+
+// Test 5 tests for displaying 
+
+#define XML_BOTTOM "</graphml>"
+
+RC Test5(void)
+{
+   RC rc;
+   IX_IndexHandle ih;
+   int index=0;
+
+   printf("Test5: test for making a graphml file... \n");
+
+   if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
+         (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
+         (rc = InsertIntEntries(ih, FEW_ENTRIES)))
+      return (rc);
+
+   // create the xml file
+   if((rc = ih.DisplayTree()))
+      return (rc);
+
+   if((rc = ixm.CloseIndex(ih)))
+      return rc;
+
+   LsFiles(FILENAME);
+
+   if ((rc = ixm.DestroyIndex(FILENAME, index)))
+      return (rc);
+
+   printf("Passed Test 5\n\n");
    return (0);
 }

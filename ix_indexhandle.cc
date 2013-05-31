@@ -1,5 +1,13 @@
 #include "ix_internal.h"
 
+#include <cstdio>
+#include <iostream>
+#include <fstream>
+
+using namespace std;
+
+#define XML_FILE "tree.graphml"
+
 IX_IndexHandle::IX_IndexHandle()
 {
 
@@ -22,7 +30,7 @@ RC IX_IndexHandle::InsertEntry(void *pData, const RID &rid)
 
     switch(fileHdr.attrType)
     {
-    case INT:
+        case INT:
         rc = InsertEntry_t<int>(pData, rid);
         break;
     case FLOAT:
@@ -64,9 +72,9 @@ RC IX_IndexHandle::InsertEntry_t(void *pData, const RID &rid)
 
     return rc;
 
-err_unpin:
+    err_unpin:
     pfFileHandle.UnpinPage(pageNum);
-err_return:
+    err_return:
     return (rc);
 }
 
@@ -87,7 +95,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
     // find the right place to insert data in the tree
     slotIndex = 0;
     while( slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots
-            && comparisonGeneric(((IX_PageNode<T> *)pBuffer)->v[slotIndex], *((T*) pData)) > 0 )
+        && comparisonGeneric(((IX_PageNode<T> *)pBuffer)->v[slotIndex], *((T*) pData)) > 0 )
     {
         ++slotIndex;
     }
@@ -142,7 +150,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
     if(rc = ReleaseBuffer(iPageNum, true))
         goto err_return;
 
-err_return:
+    err_return:
     return (rc);
 
     return OK_RC;
@@ -175,7 +183,7 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
     if(rc = ReleaseBuffer(iPageNum, true))
         goto err_return;
 
-err_return:
+    err_return:
     return (rc);
 
     return OK_RC;
@@ -223,9 +231,9 @@ RC IX_IndexHandle::AllocateNodePage_t(const NodeType nodeType, const PageNum par
     // Return ok
     return (0);
 
-err_unpin:
+    err_unpin:
     pfFileHandle.UnpinPage(oPageNum);
-err_return:
+    err_return:
     return (rc);
 }
 
@@ -270,9 +278,9 @@ RC IX_IndexHandle::AllocateLeafPage_t(const PageNum parent, PageNum &oPageNum)
     // Return ok
     return (0);
 
-err_unpin:
+    err_unpin:
     pfFileHandle.UnpinPage(oPageNum);
-err_return:
+    err_return:
     return (rc);
 }
 
@@ -290,9 +298,9 @@ RC IX_IndexHandle::GetPageBuffer(const PageNum &iPageNum, char * & pBuffer) cons
 
     return (0);
 
-err_unpin:
+    err_unpin:
     pfFileHandle.UnpinPage(iPageNum);
-err_return:
+    err_return:
     return (rc);
 }
 
@@ -313,9 +321,9 @@ RC IX_IndexHandle::ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const
 
     return (0);
 
-err_unpin:
+    err_unpin:
     pfFileHandle.UnpinPage(iPageNum);
-err_return:
+    err_return:
     return (rc);
 
 }
@@ -335,3 +343,160 @@ RC IX_IndexHandle::ForcePages()
     return OK_RC;
 }
 
+
+// Display Tree
+RC IX_IndexHandle::DisplayTree()
+{
+    RC rc = OK_RC;
+
+    int currentNodeId = 0;
+
+    switch(fileHdr.attrType)
+    {
+        case INT:
+        rc = DisplayTree_t<int>();
+        case FLOAT:
+        rc = DisplayTree_t<float>();
+        case STRING:
+        rc = DisplayTree_t<char[MAXSTRINGLEN]>();
+    }
+
+    return rc;
+}
+
+// display tree
+template <typename T>
+RC IX_IndexHandle::DisplayTree_t()
+{
+    RC rc;
+    char *pBuffer;
+    int currentNodeId = 0;
+    int currentEdgeId = 0;
+    ofstream xmlFile;
+
+    if(rc = GetPageBuffer(fileHdr.rootNum, pBuffer))
+        goto err_return;
+
+    xmlFile.open(XML_FILE);
+    xmlFile << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+    xmlFile << "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"  xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd\"";
+
+    xmlFile.close();
+
+    DisplayNode_t<T>(fileHdr.rootNum, currentNodeId, currentEdgeId);
+
+    if(rc = ReleaseBuffer(fileHdr.rootNum, false))
+        goto err_return;
+
+    return OK_RC;
+
+    err_return:
+    return (rc);
+}
+
+// display node
+template <typename T>
+RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum, int &fatherNodeId, int &currentEdgeId)
+{
+    RC rc;
+    char *pBuffer;
+    int slotIndex;
+    int slotChildIndex;
+    ofstream xmlFile;
+
+    // get the current node
+    if(rc = GetPageBuffer(pageNum, pBuffer))
+        goto err_return;
+
+    // XML section
+    xmlFile.open(XML_FILE);
+
+    xmlFile << "<node id=" << fatherNodeId +1 << "/>";
+
+    // for(slotIndex = 0;slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots; slotIndex++)
+    // {
+        // TODO display the value of the key
+    // }
+    // edge between the current node and the father
+
+    xmlFile << "<edge id=\"" << currentEdgeId <<"\"" << " source=\"" << fatherNodeId << "\" target=\"" << fatherNodeId+1 << "\">";
+
+    xmlFile.close();
+
+    for(slotChildIndex = 0; slotChildIndex <= ((IX_PageNode<T> *)pBuffer)->nbFilledSlots; slotChildIndex++)
+    {
+        // the child is a leaf
+        if(((IX_PageNode<T> *)pBuffer)->nodeType == LASTINODE || ((IX_PageNode<T> *)pBuffer)->nodeType == ROOTANDLASTINODE)
+        {
+            PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[slotIndex];
+        // the leaf is empty
+            if(childPageNum != IX_EMPTY)
+            {
+                fatherNodeId++;
+                currentEdgeId++;
+                if(rc = DisplayLeaf_t<T>(childPageNum, fatherNodeId, currentEdgeId))
+                    goto err_return;
+            }
+        }
+    // the child is a node
+        else
+        {
+            PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[slotIndex];
+        // the node is empty
+            if(childPageNum == IX_EMPTY)
+            {
+                fatherNodeId++;
+                currentEdgeId++;
+                if(rc = DisplayNode_t<T>(childPageNum, fatherNodeId, currentEdgeId))
+                    goto err_return;
+            }
+        }
+    }
+
+    if(rc = ReleaseBuffer(pageNum, false))
+        goto err_return;
+
+    return OK_RC;
+
+    err_return:
+    return (rc);
+}
+
+// display leaf
+template <typename T>
+RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum, int &fatherNodeId, int &currentEdgeId)
+{
+    RC rc;
+    char *pBuffer;
+    int slotIndex;
+    ofstream xmlFile;
+
+    // XML section
+    xmlFile.open(XML_FILE);
+
+    xmlFile << "<node id=\"" << fatherNodeId+1 << "/>";
+
+    // for(slotIndex = 0;slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots; slotIndex++)
+    // {
+        // TODO display the value of the key
+    // }
+    // edge between the current node and the father
+
+    xmlFile << "<edge id=\"" << currentEdgeId << "\"" << " source=\"" << fatherNodeId << "\" target=\"" << fatherNodeId+1 << "\">";
+    xmlFile.close();
+
+    if(rc = GetPageBuffer(pageNum, pBuffer))
+        goto err_return;
+    for(slotIndex = 0; slotIndex < ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots; slotIndex++)
+    {
+        // print xml line
+    }
+
+    if(rc = ReleaseBuffer(pageNum, false))
+        goto err_return;
+
+    return OK_RC;
+
+    err_return:
+    return (rc);
+}

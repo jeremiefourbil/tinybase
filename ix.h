@@ -51,6 +51,9 @@ public:
     // Force index files to disk
     RC ForcePages();
 
+    // Display
+    RC DisplayTree();
+
 private:
     template <typename T>
     RC InsertEntry_t(void *pData, const RID &rid);
@@ -70,6 +73,12 @@ private:
     RC GetPageBuffer(const PageNum &iPageNum, char * &pBuffer) const;
     RC ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const;
 
+    template <typename T>
+    RC DisplayTree_t();
+    template <typename T>
+    RC DisplayNode_t(const PageNum pageNum, int &fatherNodeId, int &currentEdgeId);
+    template <typename T>
+    RC DisplayLeaf_t(const PageNum page, int &fatherNodeId, int &currentEdgeId);
 
     PF_FileHandle pfFileHandle;
     IX_FileHdr fileHdr;
