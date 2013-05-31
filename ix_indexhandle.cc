@@ -355,10 +355,13 @@ RC IX_IndexHandle::DisplayTree()
     {
         case INT:
         rc = DisplayTree_t<int>();
+        break;
         case FLOAT:
         rc = DisplayTree_t<float>();
+        break;
         case STRING:
         rc = DisplayTree_t<char[MAXSTRINGLEN]>();
+        break;
     }
 
     return rc;
@@ -377,14 +380,21 @@ RC IX_IndexHandle::DisplayTree_t()
     if(rc = GetPageBuffer(fileHdr.rootNum, pBuffer))
         goto err_return;
 
-    xmlFile.open(XML_FILE);
-    xmlFile << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
-    xmlFile << "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"  xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd\"";
-
+    xmlFile.open(XML_FILE, ios::app);
+    xmlFile << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
+    xmlFile << "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"  xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd\">" << endl;
+    // XML section
+    xmlFile << "<graph>" << endl;
+    xmlFile << "<node id=\"" << currentNodeId << "\"/>" << endl;
     xmlFile.close();
 
     DisplayNode_t<T>(fileHdr.rootNum, currentNodeId, currentEdgeId);
 
+    xmlFile.open(XML_FILE, ios::app);
+    xmlFile << "</graph>" << endl;
+    xmlFile << "</graphml>" << endl;
+    xmlFile.close();
+    
     if(rc = ReleaseBuffer(fileHdr.rootNum, false))
         goto err_return;
 
@@ -409,9 +419,9 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum, int &fatherNodeId, int &
         goto err_return;
 
     // XML section
-    xmlFile.open(XML_FILE);
+    xmlFile.open(XML_FILE, ios::app);
 
-    xmlFile << "<node id=" << fatherNodeId +1 << "/>";
+    xmlFile << "<node id=\"" << fatherNodeId +1 << "\"/>" << endl;
 
     // for(slotIndex = 0;slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots; slotIndex++)
     // {
@@ -419,7 +429,7 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum, int &fatherNodeId, int &
     // }
     // edge between the current node and the father
 
-    xmlFile << "<edge id=\"" << currentEdgeId <<"\"" << " source=\"" << fatherNodeId << "\" target=\"" << fatherNodeId+1 << "\">";
+    xmlFile << "<edge id=\"" << currentEdgeId <<"\"" << " source=\"" << fatherNodeId << "\" target=\"" << fatherNodeId+1 << "\"/>" << endl;
 
     xmlFile.close();
 
@@ -428,7 +438,7 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum, int &fatherNodeId, int &
         // the child is a leaf
         if(((IX_PageNode<T> *)pBuffer)->nodeType == LASTINODE || ((IX_PageNode<T> *)pBuffer)->nodeType == ROOTANDLASTINODE)
         {
-            PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[slotIndex];
+            PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[slotChildIndex];
         // the leaf is empty
             if(childPageNum != IX_EMPTY)
             {
@@ -441,7 +451,7 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum, int &fatherNodeId, int &
     // the child is a node
         else
         {
-            PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[slotIndex];
+            PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[slotChildIndex];
         // the node is empty
             if(childPageNum == IX_EMPTY)
             {
@@ -472,9 +482,9 @@ RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum, int &fatherNodeId, int &
     ofstream xmlFile;
 
     // XML section
-    xmlFile.open(XML_FILE);
+    xmlFile.open(XML_FILE, ios::app);
 
-    xmlFile << "<node id=\"" << fatherNodeId+1 << "/>";
+    xmlFile << "<node id=\"" << fatherNodeId+1 << "\"/>" << endl;
 
     // for(slotIndex = 0;slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots; slotIndex++)
     // {
@@ -482,7 +492,7 @@ RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum, int &fatherNodeId, int &
     // }
     // edge between the current node and the father
 
-    xmlFile << "<edge id=\"" << currentEdgeId << "\"" << " source=\"" << fatherNodeId << "\" target=\"" << fatherNodeId+1 << "\">";
+    xmlFile << "<edge id=\"" << currentEdgeId << "\"" << " source=\"" << fatherNodeId << "\" target=\"" << fatherNodeId+1 << "\"/>" << endl;
     xmlFile.close();
 
     if(rc = GetPageBuffer(pageNum, pBuffer))
