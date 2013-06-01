@@ -95,7 +95,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
     // find the right place to insert data in the tree
     slotIndex = 0;
     while( slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots
-        && comparisonGeneric(((IX_PageNode<T> *)pBuffer)->v[slotIndex], *((T*) pData)) > 0 )
+        && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]) > 0 )
     {
         ++slotIndex;
     }
@@ -106,6 +106,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
     {
         copyGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]);
         ((IX_PageNode<T> *)pBuffer)->nbFilledSlots = slotIndex + 1;
+        slotIndex++;
     }
 
 
