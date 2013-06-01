@@ -531,6 +531,7 @@ RC Test2(void)
    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
          (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
          (rc = InsertIntEntries(ih, FEW_ENTRIES)) ||
+         (rc = ih.DisplayTree()) ||
          (rc = ixm.CloseIndex(ih)) ||
          (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
 

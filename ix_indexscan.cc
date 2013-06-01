@@ -93,9 +93,15 @@ RC IX_IndexScan::ScanNode_t(PageNum iPageNum)
     // find the next branch to follow
     slotIndex = 0;
     while( slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots
-            && comparisonGeneric(((IX_PageNode<T> *)pBuffer)->v[slotIndex], *((T*) _value)) > 0 )
+            && comparisonGeneric(*((T*) _value), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]) >= 0 )
     {
         ++slotIndex;
+    }
+
+    // the last pointer of the node is reached
+    if(slotIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots)
+    {
+        slotIndex++;
     }
 
     // the child is a leaf

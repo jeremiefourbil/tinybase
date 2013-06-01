@@ -87,41 +87,49 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
     RC rc;
     char *pBuffer;
     int slotIndex;
+    int pointerIndex;
 
     // get the current node
     if(rc = GetPageBuffer(iPageNum, pBuffer))
         goto err_return;
 
-    // find the right place to insert data in the tree
+    // find the right place to insert the value in the node
     slotIndex = 0;
-    while( slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots
-        && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]) > 0 )
+    pointerIndex = 0;
+
+    if(((IX_PageNode<T> *)pBuffer)->nbFilledSlots == 0)
+        pointerIndex = 1;
+
+    while(slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]) > 0)
     {
-        ++slotIndex;
+       slotIndex++;
     }
 
+    while(pointerIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[pointerIndex]) >= 0)
+    {
+       pointerIndex++;
+    }
 
     // add value to the node and increment number of filled slots
-    if(slotIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots)
+    if(slotIndex < 4 && slotIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots)
     {
         copyGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]);
         ((IX_PageNode<T> *)pBuffer)->nbFilledSlots = slotIndex + 1;
-        slotIndex++;
+        pointerIndex = slotIndex+1;
     }
-
 
     // the child is a leaf
     if(((IX_PageNode<T> *)pBuffer)->nodeType == LASTINODE || ((IX_PageNode<T> *)pBuffer)->nodeType == ROOTANDLASTINODE)
     {
-        PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[slotIndex];
+        PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[pointerIndex];
 
         // the leaf is empty
-        if(((IX_PageNode<T> *)pBuffer)->child[slotIndex] == IX_EMPTY)
+        if(((IX_PageNode<T> *)pBuffer)->child[pointerIndex] == IX_EMPTY)
         {
             if(rc = AllocateLeafPage_t<T>(iPageNum, childPageNum))
                 goto err_return;
 
-            ((IX_PageNode<T> *)pBuffer)->child[slotIndex] = childPageNum;
+            ((IX_PageNode<T> *)pBuffer)->child[pointerIndex] = childPageNum;
         }
 
         if(rc = InsertEntryInLeaf_t<T>(childPageNum, pData, rid))
@@ -131,7 +139,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
     // the child is a node
     else
     {
-        PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[slotIndex];
+        PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[pointerIndex];
 
         // the node is empty
         if(childPageNum == IX_EMPTY)
@@ -140,7 +148,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
             if(rc = AllocateNodePage_t<T>(LASTINODE, iPageNum, childPageNum))
                 goto err_return;
 
-            ((IX_PageNode<T> *)pBuffer)->child[slotIndex] = childPageNum;
+            ((IX_PageNode<T> *)pBuffer)->child[pointerIndex] = childPageNum;
         }
 
         if(rc = InsertEntryInNode_t<T>(childPageNum, pData, rid))
@@ -162,7 +170,7 @@ template <typename T>
 RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid)
 {
 
-    cout << "Leaf" << endl;
+//    cout << "Leaf" << endl;
 
     RC rc = OK_RC;
 
