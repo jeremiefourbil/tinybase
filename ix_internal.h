@@ -55,5 +55,9 @@ int comparisonGeneric(const int &v1, const int &v2);
 int comparisonGeneric(const float &v1, const float &v2);
 int comparisonGeneric(const char* v1, const char* v2);
 
+void printGeneric(const int &v1);
+void printGeneric(const float &v1);
+void printGeneric(const char* v1);
+
 
 #endif // IX_INTERNAL_H

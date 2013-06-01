@@ -452,7 +452,9 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum,const int &fatherNodeId, 
 
     xmlFile << "<node id=\"" << currentNodeId << "\">" << endl;
 
-    xmlFile << "<data key=\"d0\"><y:ShapeNode><y:BorderStyle type=\"line\" width=\"1.0\" color=\"#000000\"/><y:NodeLabel>" << endl;
+    xmlFile << "<data key=\"d0\"><y:ShapeNode><y:BorderStyle type=\"line\" width=\"1.0\" color=\"#000000\"/>" << endl;
+    xmlFile << "<y:Geometry height=\"80.0\" />" << endl;
+    xmlFile << "<y:NodeLabel>" << endl;
 
     for(slotIndex = 0;slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots; slotIndex++)
     {
@@ -521,7 +523,10 @@ RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum,const int &fatherNodeId, 
 
     xmlFile << "<node id=\"" << currentNodeId << "\">" << endl;
 
-    xmlFile << "<data key=\"d0\"><y:ShapeNode><y:BorderStyle type=\"line\" width=\"1.0\" color=\"#000000\"/><y:NodeLabel>" << endl;
+    xmlFile << "<data key=\"d0\"><y:ShapeNode><y:BorderStyle type=\"line\" width=\"1.0\" color=\"#008000\"/>" << endl;
+    xmlFile << "<y:Geometry height=\"80.0\" />" << endl;
+    xmlFile << "<y:NodeLabel>" << endl;
+
     for(slotIndex = 0;slotIndex < ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots; slotIndex++)
     {
         xmlFile << ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex] << endl;
