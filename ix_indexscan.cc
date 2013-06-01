@@ -98,17 +98,27 @@ RC IX_IndexScan::ScanNode_t(PageNum iPageNum)
         goto err_return;
 
     pointerIndex = 0;
-    // find the next branch
-    if(((IX_PageNode<T> *)pBuffer)->nbFilledSlots == 0 || comparisonGeneric(*((T*) _value), ((IX_PageNode<T> *)pBuffer)->v[pointerIndex]) < 0)
-        pointerIndex = 0;
-    else
+//    // find the next branch
+//    if(((IX_PageNode<T> *)pBuffer)->nbFilledSlots == 0 || comparisonGeneric(*((T*) _value), ((IX_PageNode<T> *)pBuffer)->v[pointerIndex]) < 0)
+//        pointerIndex = 0;
+//    else
+//    {
+//        while(pointerIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots && comparisonGeneric(*((T*) _value), ((IX_PageNode<T> *)pBuffer)->v[pointerIndex]) > 0)
+//        {
+//           pointerIndex++;
+//        }
+//        pointerIndex++;
+//    }
+
+    while(pointerIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots && comparisonGeneric(*((T*) _value), ((IX_PageNode<T> *)pBuffer)->v[pointerIndex]) >= 0)
     {
-        while(pointerIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots && comparisonGeneric(*((T*) _value), ((IX_PageNode<T> *)pBuffer)->v[pointerIndex]) > 0)
-        {
-           pointerIndex++;
-        }
-        pointerIndex++;
+       pointerIndex++;
     }
+
+    if(pointerIndex == 3 && comparisonGeneric(*((T*) _value), ((IX_PageNode<T> *)pBuffer)->v[pointerIndex]) >= 0)
+        pointerIndex++;
+
+    cout << "Pointer index: " << pointerIndex << endl;
 
 
     // the child is a leaf
