@@ -163,7 +163,8 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
 
     cout << "Leaf" << endl;
 
-    RC rc;
+    RC rc = OK_RC;
+
     char *pBuffer;
     int slotIndex;
 
@@ -178,7 +179,9 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
     if(slotIndex > 3)
     {
         cout << "Overflow" << endl;
-        return OK_RC;
+        rc = ReleaseBuffer(iPageNum, false);
+        return rc;
+//        goto err_release;
     }
 
     ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots = slotIndex+1;
@@ -190,10 +193,15 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
     if(rc = ReleaseBuffer(iPageNum, true))
         goto err_return;
 
+    return rc;
+
+
+    err_release:
+        rc = ReleaseBuffer(iPageNum, false);
     err_return:
     return (rc);
 
-    return OK_RC;
+    return rc;
 }
 
 template <typename T>
