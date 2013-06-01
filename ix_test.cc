@@ -59,6 +59,7 @@ RC Test2(void);
 RC Test3(void);
 RC Test4(void);
 RC Test5(void);
+RC Test6(void);
 
 void PrintError(RC rc);
 void LsFiles(char *fileName);
@@ -76,14 +77,15 @@ RC PrintIndex(IX_IndexHandle &ih);
 //
 // Array of pointers to the test functions
 //
-#define NUM_TESTS       5               // number of tests
+#define NUM_TESTS       6               // number of tests
 int (*tests[])() =                      // RC doesn't work on some compilers
 {
    Test1,
    Test2,
    Test3,
    Test4,
-   Test5
+   Test5,
+   Test6
 };
 
 //
@@ -697,6 +699,70 @@ RC Test5(void)
    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
          (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
          (rc = InsertIntEntries(ih, FEW_ENTRIES)))
+      return (rc);
+
+   // create the xml file
+   if((rc = ih.DisplayTree()))
+      return (rc);
+
+   if((rc = ixm.CloseIndex(ih)))
+      return rc;
+
+   LsFiles(FILENAME);
+
+   if ((rc = ixm.DestroyIndex(FILENAME, index)))
+      return (rc);
+
+   printf("Passed Test 5\n\n");
+   return (0);
+}
+
+
+RC InsertSequelOfInt(IX_IndexHandle &ih, int entries[],const int entriesLength)
+{
+   RC  rc;
+   int i;
+   int value;
+
+   printf("             Adding %d int entries\n", entriesLength);
+   for(i = 0; i < entriesLength; i++) {
+      value = entries[i];
+      RID rid(value, value*2);
+      if ((rc = ih.InsertEntry((void *)&value, rid)))
+         return (rc);
+
+      printf("Value inserted: %d \n", value);
+
+      if((i + 1) % PROG_UNIT == 0){
+         // cast to long for PC's
+         printf("\r\t%d%%    ", (int)((i+1)*100L/entriesLength));
+         fflush(stdout);
+      }
+   }
+   printf("\r\t%d%%      \n", (int)(i*100L/entriesLength));
+
+   // Return ok
+   return (0);
+}
+
+// Test 6 tests for displaying with a specific sequel 
+
+#define XML_BOTTOM "</graphml>"
+
+RC Test6(void)
+{
+   RC rc;
+   IX_IndexHandle ih;
+   int index=0;
+
+   int sequelLength = FEW_ENTRIES;
+   int sequel[FEW_ENTRIES] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24,19,19,23,18};
+
+   printf("Test6: test for making a graphml file with a specific sequel... \n");
+
+   if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
+         (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
+         (rc = InsertSequelOfInt(ih, sequel, sequelLength)))
       return (rc);
 
    // create the xml file
