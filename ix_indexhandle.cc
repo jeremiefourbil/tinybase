@@ -356,8 +356,6 @@ RC IX_IndexHandle::DisplayTree()
 {
     RC rc = OK_RC;
 
-    int currentNodeId = 0;
-
     switch(fileHdr.attrType)
     {
         case INT:
@@ -381,21 +379,24 @@ RC IX_IndexHandle::DisplayTree_t()
     RC rc;
     char *pBuffer;
     int currentNodeId = 0;
+    int fatherNodeId = 0;
     int currentEdgeId = 0;
     ofstream xmlFile;
 
     if(rc = GetPageBuffer(fileHdr.rootNum, pBuffer))
         goto err_return;
 
-    xmlFile.open(XML_FILE, ios::app);
+    xmlFile.open(XML_FILE);
     xmlFile << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
-    xmlFile << "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"  xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd\">" << endl;
-    // XML section
+    xmlFile << "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"  xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd\" xmlns:y=\"http://www.yworks.com/xml/graphml\">" << endl;
+    xmlFile << "<key id=\"d0\" for=\"node\" yfiles.type=\"nodegraphics\"/>" << endl;
     xmlFile << "<graph>" << endl;
     xmlFile << "<node id=\"" << currentNodeId << "\"/>" << endl;
     xmlFile.close();
 
-    DisplayNode_t<T>(fileHdr.rootNum, currentNodeId, currentEdgeId);
+    currentNodeId++;
+
+    DisplayNode_t<T>(fileHdr.rootNum, fatherNodeId, currentNodeId, currentEdgeId);
 
     xmlFile.open(XML_FILE, ios::app);
     xmlFile << "</graph>" << endl;
@@ -413,13 +414,17 @@ RC IX_IndexHandle::DisplayTree_t()
 
 // display node
 template <typename T>
-RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum, int &fatherNodeId, int &currentEdgeId)
+RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum,const int &fatherNodeId, int &currentNodeId, int &currentEdgeId)
 {
     RC rc;
     char *pBuffer;
     int slotIndex;
     int slotChildIndex;
+    int newFatherNodeId = currentNodeId;
     ofstream xmlFile;
+
+    // debug
+    cout << "(" << pageNum << "," << fatherNodeId << "," << currentNodeId << ")" << endl;
 
     // get the current node
     if(rc = GetPageBuffer(pageNum, pBuffer))
@@ -428,15 +433,16 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum, int &fatherNodeId, int &
     // XML section
     xmlFile.open(XML_FILE, ios::app);
 
-    xmlFile << "<node id=\"" << fatherNodeId +1 << "\"/>" << endl;
+    xmlFile << "<node id=\"" << currentNodeId << "\">" << endl;
 
-    // for(slotIndex = 0;slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots; slotIndex++)
-    // {
-        // TODO display the value of the key
-    // }
-    // edge between the current node and the father
+    xmlFile << "<data key=\"d0\"><y:ShapeNode><y:BorderStyle type=\"line\" width=\"1.0\" color=\"#000000\"/><y:NodeLabel>" << endl;
 
-    xmlFile << "<edge id=\"" << currentEdgeId <<"\"" << " source=\"" << fatherNodeId << "\" target=\"" << fatherNodeId+1 << "\"/>" << endl;
+    for(slotIndex = 0;slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots; slotIndex++)
+    {
+        xmlFile << ((IX_PageNode<T> *)pBuffer)->v[slotIndex] << endl;
+    }
+    xmlFile << "</y:NodeLabel><y:Shape type=\"rectangle\"/></y:ShapeNode></data></node>" << endl;
+    xmlFile << "<edge id=\"" << currentEdgeId <<"\"" << " source=\"" << fatherNodeId << "\" target=\"" << currentNodeId << "\"/>" << endl;
 
     xmlFile.close();
 
@@ -449,9 +455,9 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum, int &fatherNodeId, int &
         // the leaf is empty
             if(childPageNum != IX_EMPTY)
             {
-                fatherNodeId++;
+                currentNodeId++;
                 currentEdgeId++;
-                if(rc = DisplayLeaf_t<T>(childPageNum, fatherNodeId, currentEdgeId))
+                if(rc = DisplayLeaf_t<T>(childPageNum, newFatherNodeId, currentNodeId, currentEdgeId))
                     goto err_return;
             }
         }
@@ -462,9 +468,9 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum, int &fatherNodeId, int &
         // the node is empty
             if(childPageNum == IX_EMPTY)
             {
-                fatherNodeId++;
+                currentNodeId++;
                 currentEdgeId++;
-                if(rc = DisplayNode_t<T>(childPageNum, fatherNodeId, currentEdgeId))
+                if(rc = DisplayNode_t<T>(childPageNum, newFatherNodeId, currentNodeId, currentEdgeId))
                     goto err_return;
             }
         }
@@ -481,33 +487,33 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum, int &fatherNodeId, int &
 
 // display leaf
 template <typename T>
-RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum, int &fatherNodeId, int &currentEdgeId)
+RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum,const int &fatherNodeId, int &currentNodeId, int &currentEdgeId)
 {
     RC rc;
     char *pBuffer;
     int slotIndex;
     ofstream xmlFile;
 
-    // XML section
-    xmlFile.open(XML_FILE, ios::app);
-
-    xmlFile << "<node id=\"" << fatherNodeId+1 << "\"/>" << endl;
-
-    // for(slotIndex = 0;slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots; slotIndex++)
-    // {
-        // TODO display the value of the key
-    // }
-    // edge between the current node and the father
-
-    xmlFile << "<edge id=\"" << currentEdgeId << "\"" << " source=\"" << fatherNodeId << "\" target=\"" << fatherNodeId+1 << "\"/>" << endl;
-    xmlFile.close();
+    cout << "[" << pageNum << "," << fatherNodeId << "," << currentNodeId << "]" << endl;
 
     if(rc = GetPageBuffer(pageNum, pBuffer))
         goto err_return;
-    for(slotIndex = 0; slotIndex < ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots; slotIndex++)
+
+    // XML section
+    xmlFile.open(XML_FILE, ios::app);
+
+    xmlFile << "<node id=\"" << currentNodeId << "\">" << endl;
+
+    xmlFile << "<data key=\"d0\"><y:ShapeNode><y:BorderStyle type=\"line\" width=\"1.0\" color=\"#000000\"/><y:NodeLabel>" << endl;
+    for(slotIndex = 0;slotIndex < ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots; slotIndex++)
     {
-        // print xml line
+        xmlFile << ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex] << endl;
     }
+    xmlFile << "</y:NodeLabel><y:Shape type=\"rectangle\"/></y:ShapeNode></data></node>" << endl;
+
+    xmlFile << "<edge id=\"" << currentEdgeId << "\"" << " source=\"" << fatherNodeId << "\" target=\"" << currentNodeId << "\"/>" << endl;
+    xmlFile.close();
+
 
     if(rc = ReleaseBuffer(pageNum, false))
         goto err_return;
