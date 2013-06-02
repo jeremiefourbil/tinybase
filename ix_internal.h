@@ -44,6 +44,15 @@ struct IX_PageLeaf {
     T v[4];  
 
     RID rid[4];
+
+    PageNum bucket[4];
+};
+
+struct IX_PageBucketHdr {
+    PageNum parent;
+    PageNum next;
+
+    int nbFilledSlots;
 };
 
 

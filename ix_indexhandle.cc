@@ -19,6 +19,11 @@ IX_IndexHandle::~IX_IndexHandle()
 }
 
 
+// ***********************
+// Insertion in tree
+// ***********************
+
+
 // Insert a new index entry
 RC IX_IndexHandle::InsertEntry(void *pData, const RID &rid)
 {
@@ -46,6 +51,8 @@ RC IX_IndexHandle::InsertEntry(void *pData, const RID &rid)
     return rc;
 }
 
+
+// templated insertion
 template <typename T>
 RC IX_IndexHandle::InsertEntry_t(void *pData, const RID &rid)
 {
@@ -79,7 +86,7 @@ RC IX_IndexHandle::InsertEntry_t(void *pData, const RID &rid)
 }
 
 
-// Insert a new data in the index
+// Node insertion
 template <typename T>
 RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid)
 {
@@ -95,20 +102,14 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
 
     // find the right place to insert the value in the node
     slotIndex = 0;
-    pointerIndex = 0;
-
-    if(((IX_PageNode<T> *)pBuffer)->nbFilledSlots == 0)
-        pointerIndex = 1;
-
-    while(slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]) > 0)
+    while(slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]) >= 0)
     {
        slotIndex++;
     }
 
-    while(pointerIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[pointerIndex]) >= 0)
-    {
-       pointerIndex++;
-    }
+    pointerIndex = slotIndex;
+    if(slotIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots-1 && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]) >= 0)
+        pointerIndex++;
 
     // add value to the node and increment number of filled slots
     if(slotIndex < 4 && slotIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots)
@@ -165,19 +166,18 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
     return OK_RC;
 }
 
-// Insert a new data in the index
+// Leaf insertion
 template <typename T>
 RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid)
 {
-
-//    cout << "Leaf" << endl;
-
     RC rc = OK_RC;
 
     char *pBuffer;
     int slotIndex;
 
-    // get the current node
+    PageNum bucketPageNum;
+
+    // get the current leaf
     if(rc = GetPageBuffer(iPageNum, pBuffer))
         goto err_return;
 
@@ -198,6 +198,20 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
     copyGeneric(*((T*) pData), ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex]);
     ((IX_PageLeaf<T> *)pBuffer)->rid[slotIndex] = rid;
 
+    // RID bucket management
+    bucketPageNum =  ((IX_PageLeaf<T> *)pBuffer)->bucket[slotIndex];
+
+    if(bucketPageNum == IX_EMPTY)
+    {
+        if(rc = AllocateBucketPage(iPageNum, bucketPageNum))
+            goto err_return;
+
+        ((IX_PageLeaf<T> *)pBuffer)->bucket[slotIndex] = bucketPageNum;
+    }
+
+    if(rc = InsertEntryInBucket(bucketPageNum, rid))
+        goto err_return;
+
 
     if(rc = ReleaseBuffer(iPageNum, true))
         goto err_return;
@@ -209,10 +223,61 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
         rc = ReleaseBuffer(iPageNum, false);
     err_return:
     return (rc);
-
-    return rc;
 }
 
+RC IX_IndexHandle::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
+{
+    RC rc = OK_RC;
+
+    char *pBuffer;
+
+    // get the current bucket
+    if(rc = GetPageBuffer(iPageNum, pBuffer))
+        goto err_return;
+
+
+    ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots = ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots + 1;
+
+
+    if(rc = ReleaseBuffer(iPageNum, true))
+        goto err_return;
+
+    return rc;
+
+
+    err_release:
+        rc = ReleaseBuffer(iPageNum, false);
+    err_return:
+    return (rc);
+}
+
+
+// ***********************
+// Delete an entry
+// ***********************
+
+// Delete a new index entry
+RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid)
+{
+    return OK_RC;
+}
+
+
+// ***********************
+// Force pages
+// ***********************
+
+// Force index files to disk
+RC IX_IndexHandle::ForcePages()
+{
+    return OK_RC;
+}
+
+// ***********************
+// Page allocations
+// ***********************
+
+// node page
 template <typename T>
 RC IX_IndexHandle::AllocateNodePage_t(const NodeType nodeType, const PageNum parent, PageNum &oPageNum)
 {
@@ -261,6 +326,7 @@ RC IX_IndexHandle::AllocateNodePage_t(const NodeType nodeType, const PageNum par
     return (rc);
 }
 
+// leaf page
 template <typename T>
 RC IX_IndexHandle::AllocateLeafPage_t(const PageNum parent, PageNum &oPageNum)
 {
@@ -282,11 +348,11 @@ RC IX_IndexHandle::AllocateLeafPage_t(const PageNum parent, PageNum &oPageNum)
     ((IX_PageLeaf<T> *)pReadData)->parent = parent;
     ((IX_PageLeaf<T> *)pReadData)->previous = IX_EMPTY;
     ((IX_PageLeaf<T> *)pReadData)->next = IX_EMPTY;
-    ((IX_PageNode<T> *)pReadData)->nbFilledSlots = 0;
+    ((IX_PageLeaf<T> *)pReadData)->nbFilledSlots = 0;
 
-    for(int i=0; i<5; i++)
+    for(int i=0; i<4; i++)
     {
-        ((IX_PageNode<T> *)pReadData)->child[i] = IX_EMPTY;
+        ((IX_PageLeaf<T> *)pReadData)->bucket[i] = IX_EMPTY;
     }
 
     // Mark the page dirty since we changed the next pointer
@@ -308,6 +374,52 @@ RC IX_IndexHandle::AllocateLeafPage_t(const PageNum parent, PageNum &oPageNum)
     return (rc);
 }
 
+// RID bucket page
+RC IX_IndexHandle::AllocateBucketPage(const PageNum parent, PageNum &oPageNum)
+{
+    RC rc;
+    PF_PageHandle pageHandle;
+    char *pReadData;
+
+    if (rc = pfFileHandle.AllocatePage(pageHandle))
+        goto err_return;
+
+    if (rc = pageHandle.GetPageNum(oPageNum))
+        goto err_unpin;
+
+    if (rc = pageHandle.GetData(pReadData))
+        goto err_unpin;
+
+    // Fill node
+
+    ((IX_PageBucketHdr *)pReadData)->parent = parent;
+    ((IX_PageBucketHdr *)pReadData)->next = IX_EMPTY;
+    ((IX_PageBucketHdr *)pReadData)->nbFilledSlots = 0;
+
+    // Mark the page dirty since we changed the next pointer
+    if (rc = pfFileHandle.MarkDirty(oPageNum))
+        goto err_unpin;
+
+    // Unpin the page
+    if (rc = pfFileHandle.UnpinPage(oPageNum))
+        goto err_return;
+
+    bHdrChanged = TRUE;
+
+    // Return ok
+    return (0);
+
+    err_unpin:
+    pfFileHandle.UnpinPage(oPageNum);
+    err_return:
+    return (rc);
+}
+
+// ***********************
+// Buffer management
+// ***********************
+
+// get the buffer
 // DO NOT FORGET TO CLOSE IT !
 RC IX_IndexHandle::GetPageBuffer(const PageNum &iPageNum, char * & pBuffer) const
 {
@@ -328,6 +440,7 @@ RC IX_IndexHandle::GetPageBuffer(const PageNum &iPageNum, char * & pBuffer) cons
     return (rc);
 }
 
+// release the buffer
 RC IX_IndexHandle::ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const
 {
     RC rc;
@@ -352,21 +465,9 @@ RC IX_IndexHandle::ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const
 
 }
 
-
-
-
-// Delete a new index entry
-RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid)
-{
-    return OK_RC;
-}
-
-// Force index files to disk
-RC IX_IndexHandle::ForcePages()
-{
-    return OK_RC;
-}
-
+// ***********************
+// Display the tree
+// ***********************
 
 // Display Tree
 RC IX_IndexHandle::DisplayTree()

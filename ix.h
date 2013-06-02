@@ -64,11 +64,15 @@ private:
     template <typename T>
     RC InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid);
 
+    RC InsertEntryInBucket(PageNum iPageNum, const RID &rid);
+
     template <typename T>
     RC AllocateNodePage_t(const NodeType nodeType, const PageNum parent, PageNum &oPageNum);
 
     template <typename T>
     RC AllocateLeafPage_t(const PageNum parent, PageNum &oPageNum);
+
+    RC AllocateBucketPage(const PageNum parent, PageNum &oPageNum);
 
     RC GetPageBuffer(const PageNum &iPageNum, char * &pBuffer) const;
     RC ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const;
@@ -119,6 +123,8 @@ private:
     template <typename T>
     RC GetNextEntry_t(RID &rid);
 
+    RC ReadBucket(PageNum iPageNum);
+
     IX_IndexHandle _indexHandle;
     CompOp _compOp;
     void * _value;
@@ -126,7 +132,7 @@ private:
 
     PageNum _nextLeafNum;
     int _nextLeafSlot;
-    int _nextRidSlot;
+    int _nextBucketSlot;
 };
 
 //
