@@ -41,9 +41,9 @@ RC IX_IndexHandle::InsertEntry(void *pData, const RID &rid)
     case FLOAT:
         rc = InsertEntry_t<float>(pData, rid);
         break;
-    case STRING:
-        rc = InsertEntry_t<char[MAXSTRINGLEN]>(pData, rid);
-        break;
+    // case STRING:
+    //     rc = InsertEntry_t<char[MAXSTRINGLEN]>(pData, rid);
+    //     break;
     default:
         rc = IX_BADTYPE;
     }
@@ -212,6 +212,8 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
     if(rc = InsertEntryInBucket(bucketPageNum, rid))
         goto err_return;
 
+    // sort the current leaf
+    sortGeneric(((IX_PageLeaf<T> *)pBuffer)->v, ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots);
 
     if(rc = ReleaseBuffer(iPageNum, true))
         goto err_return;
@@ -225,6 +227,7 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
     return (rc);
 }
 
+// bucket insertion
 RC IX_IndexHandle::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
 {
     RC rc = OK_RC;
@@ -482,9 +485,9 @@ RC IX_IndexHandle::DisplayTree()
         case FLOAT:
         rc = DisplayTree_t<float>();
         break;
-        case STRING:
-        rc = DisplayTree_t<char[MAXSTRINGLEN]>();
-        break;
+        // case STRING:
+        // rc = DisplayTree_t<char[MAXSTRINGLEN]>();
+        // break;
     }
 
     return rc;
