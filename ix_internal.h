@@ -59,5 +59,8 @@ void printGeneric(const int &v1);
 void printGeneric(const float &v1);
 void printGeneric(const char* v1);
 
+void sortGeneric(int *array, const int &arrayLength);
+void sortGeneric(float *array, const int &arrayLength);
+void sortGeneric(char **array, const int &arrayLength);
 
 #endif // IX_INTERNAL_H
