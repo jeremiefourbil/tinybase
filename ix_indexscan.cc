@@ -18,9 +18,9 @@ IX_IndexScan::~IX_IndexScan()
 
 // Open index scan
 RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle,
-            CompOp compOp,
-            void *value,
-            ClientHint  pinHint)
+                          CompOp compOp,
+                          void *value,
+                          ClientHint  pinHint)
 {
     RC rc;
 
@@ -97,7 +97,7 @@ RC IX_IndexScan::ScanNode_t(PageNum iPageNum)
     pointerIndex = 0;
     while(pointerIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots && comparisonGeneric(*((T*) _value), ((IX_PageNode<T> *)pBuffer)->v[pointerIndex]) >= 0)
     {
-       pointerIndex++;
+        pointerIndex++;
     }
 
     if(pointerIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots-1 && comparisonGeneric(*((T*) _value), ((IX_PageNode<T> *)pBuffer)->v[pointerIndex]) >= 0)
@@ -230,6 +230,7 @@ RC IX_IndexScan::GetNextEntry_t(RID &rid)
     RC rc = OK_RC;
 
     char *pBuffer;
+    char *pSecondBuffer;
     PageNum leafNum;
 
     if(_nextLeafNum == IX_EMPTY)
@@ -252,6 +253,74 @@ RC IX_IndexScan::GetNextEntry_t(RID &rid)
         _nextLeafNum = IX_EMPTY;
         _nextLeafSlot = IX_EMPTY;
         _nextBucketSlot = IX_EMPTY;
+
+
+        switch (_compOp)
+        {
+        case EQ_OP:
+            _nextLeafNum = IX_EMPTY;
+            _nextLeafSlot = IX_EMPTY;
+            _nextBucketSlot = IX_EMPTY;
+            break;
+        case LT_OP:
+        case LE_OP:
+            if(_nextLeafSlot > 0)
+            {
+                _nextLeafSlot--;
+                _nextBucketSlot = 0;
+            }
+            else
+            {
+                _nextLeafNum = ((IX_PageLeaf<T> *)pBuffer)->previous;
+
+                if(_nextLeafNum != IX_EMPTY)
+                {
+                    if(rc = _indexHandle.GetPageBuffer(_nextLeafNum, pSecondBuffer))
+                        goto err_return;
+
+                    _nextLeafSlot = ((IX_PageLeaf<T> *)pSecondBuffer)->nbFilledSlots;
+                    _nextBucketSlot = 0;
+
+                    if(rc = _indexHandle.ReleaseBuffer(_nextLeafNum, false))
+                        goto err_return;
+                }
+
+            }
+            break;
+        case GT_OP:
+        case GE_OP:
+            if(_nextLeafSlot < ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots)
+            {
+                _nextLeafSlot++;
+                _nextBucketSlot = 0;
+            }
+            else
+            {
+                _nextLeafNum = ((IX_PageLeaf<T> *)pBuffer)->next;
+
+                if(_nextLeafNum != IX_EMPTY)
+                {
+                    if(rc = _indexHandle.GetPageBuffer(_nextLeafNum, pSecondBuffer))
+                        goto err_return;
+
+                    _nextLeafSlot = 0;
+                    _nextBucketSlot = 0;
+
+                    if(rc = _indexHandle.ReleaseBuffer(_nextLeafNum, false))
+                        goto err_return;
+                }
+            }
+
+            break;
+        case NE_OP:
+        case NO_OP:
+            _nextLeafNum = IX_EMPTY;
+            _nextLeafSlot = IX_EMPTY;
+            _nextBucketSlot = IX_EMPTY;
+            break;
+        }
+
+
     }
     else if(rc)
     {

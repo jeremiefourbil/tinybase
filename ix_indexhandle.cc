@@ -41,9 +41,9 @@ RC IX_IndexHandle::InsertEntry(void *pData, const RID &rid)
     case FLOAT:
         rc = InsertEntry_t<float>(pData, rid);
         break;
-    // case STRING:
-    //     rc = InsertEntry_t<char[MAXSTRINGLEN]>(pData, rid);
-    //     break;
+     case STRING:
+         rc = InsertEntry_t<char[MAXSTRINGLEN]>(pData, rid);
+         break;
     default:
         rc = IX_BADTYPE;
     }
@@ -263,8 +263,8 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
 
 
     // sort the current leaf
-    // Val: disabled sort (pb = does not sort the RIDs and children)
-//    sortGeneric(((IX_PageLeaf<T> *)pBuffer)->v, ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots);
+    // Val: disabled sort (pb = does not sort the children)
+    sortGeneric(((IX_PageLeaf<T> *)pBuffer)->v, ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots);
 
     if(rc = ReleaseBuffer(iPageNum, true))
         goto err_return;

@@ -67,6 +67,6 @@ void printGeneric(const char* v1);
 
 void sortGeneric(int *array, const int &arrayLength);
 void sortGeneric(float *array, const int &arrayLength);
-void sortGeneric(char **array, const int &arrayLength);
+void sortGeneric(char array[4][MAXSTRINGLEN], const int &arrayLength);
 
 #endif // IX_INTERNAL_H
