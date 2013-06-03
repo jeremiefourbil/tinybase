@@ -264,7 +264,7 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
 
     // sort the current leaf
     // Val: disabled sort (pb = does not sort the children)
-    sortGeneric(((IX_PageLeaf<T> *)pBuffer)->v, ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots);
+//    sortGeneric(((IX_PageLeaf<T> *)pBuffer)->v, ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots);
 
     if(rc = ReleaseBuffer(iPageNum, true))
         goto err_return;
@@ -319,7 +319,233 @@ RC IX_IndexHandle::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
 // Delete a new index entry
 RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid)
 {
+    RC rc;
+
+    if (pData == NULL)
+        return (IX_NULLPOINTER);
+
+
+    switch(fileHdr.attrType)
+    {
+        case INT:
+        rc = DeleteEntry_t<int>(pData, rid);
+        break;
+    case FLOAT:
+        rc = DeleteEntry_t<float>(pData, rid);
+        break;
+     case STRING:
+         rc = DeleteEntry_t<char[MAXSTRINGLEN]>(pData, rid);
+         break;
+    default:
+        rc = IX_BADTYPE;
+    }
+
+    return rc;
+}
+
+
+// templated Deletion
+template <typename T>
+RC IX_IndexHandle::DeleteEntry_t(void *pData, const RID &rid)
+{
+    RC rc;
+    PageNum pageNum;
+
+    if (pData == NULL)
+        return (IX_NULLPOINTER);
+
+    pageNum = fileHdr.rootNum;
+
+    // no root, create one
+    if(pageNum == IX_EMPTY)
+    {
+        return(IX_ENTRY_DOES_NOT_EXIST);
+    }
+
+    // let's call the recursion method, start with root
+
+    if(rc = DeleteEntryInNode_t<T>(pageNum, pData, rid))
+        goto err_return;
+
+    return rc;
+
+    err_return:
+    return (rc);
+}
+
+
+// Node Deletion
+template <typename T>
+RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid)
+{
+
+    RC rc;
+    char *pBuffer;
+    int slotIndex;
+    int pointerIndex;
+
+    // get the current node
+    if(rc = GetPageBuffer(iPageNum, pBuffer))
+        goto err_return;
+
+    // find the right branch
+    slotIndex = 0;
+    while(slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]) >= 0)
+    {
+       slotIndex++;
+    }
+
+    pointerIndex = slotIndex;
+    if(slotIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots-1 && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]) >= 0)
+        pointerIndex++;
+
+    // the child is a leaf
+    if(((IX_PageNode<T> *)pBuffer)->nodeType == LASTINODE || ((IX_PageNode<T> *)pBuffer)->nodeType == ROOTANDLASTINODE)
+    {
+        PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[pointerIndex];
+
+        // the leaf is empty
+        if(((IX_PageNode<T> *)pBuffer)->child[pointerIndex] == IX_EMPTY)
+        {
+            rc = IX_ENTRY_DOES_NOT_EXIST;
+            goto err_release;
+        }
+
+        if(rc = DeleteEntryInLeaf_t<T>(childPageNum, pData, rid))
+            goto err_return;
+
+    }
+    // the child is a node
+    else
+    {
+        PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[pointerIndex];
+
+        // the node is empty
+        if(childPageNum == IX_EMPTY)
+        {
+            rc = IX_ENTRY_DOES_NOT_EXIST;
+            goto err_release;
+        }
+
+        if(rc = DeleteEntryInNode_t<T>(childPageNum, pData, rid))
+            goto err_return;
+    }
+
+
+    if(rc = ReleaseBuffer(iPageNum, true))
+        goto err_return;
+
+    return rc;
+
+    err_release:
+        ReleaseBuffer(iPageNum, false);
+    err_return:
+        return (rc);
+
     return OK_RC;
+}
+
+// Leaf Deleteion
+template <typename T>
+RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid)
+{
+    RC rc = OK_RC;
+
+    char *pBuffer;
+    int slotIndex;
+    bool foundInLeaf = false;
+
+    // get the current leaf
+    if(rc = GetPageBuffer(iPageNum, pBuffer))
+        goto err_return;
+
+    // find the right place to Delete data in the tree
+    for(int i=0; i<((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots; i++)
+    {
+        if(comparisonGeneric(((IX_PageLeaf<T> *)pBuffer)->v[i], *(T *) pData) == 0)
+        {
+            slotIndex = i;
+            foundInLeaf = true;
+        }
+    }
+
+    if(!foundInLeaf)
+    {
+        rc = IX_ENTRY_DOES_NOT_EXIST;
+        goto err_release;
+    }
+
+
+    if(rc = DeleteEntryInBucket(((IX_PageLeaf<T> *)pBuffer)->bucket[slotIndex], rid))
+    {
+        goto err_release;
+    }
+
+    if(rc = ReleaseBuffer(iPageNum, true))
+        goto err_return;
+
+    return rc;
+
+    err_release:
+        ReleaseBuffer(iPageNum, false);
+    err_return:
+    return (rc);
+}
+
+// bucket Deleteion
+RC IX_IndexHandle::DeleteEntryInBucket(PageNum iPageNum, const RID &rid)
+{
+    RC rc = OK_RC;
+
+    char *pBuffer;
+    RID tempRid;
+    int i;
+    bool foundRid = false;
+
+    // get the current bucket
+    if(rc = GetPageBuffer(iPageNum, pBuffer))
+        goto err_return;
+
+    i=0;
+    for(i=0; i<((IX_PageBucketHdr *)pBuffer)->nbFilledSlots; i++)
+    {
+        memcpy((void*) &tempRid,
+               pBuffer + sizeof(IX_PageBucketHdr) + i * sizeof(RID),
+               sizeof(RID));
+
+        if(tempRid == rid)
+        {
+            foundRid = true;
+            break;
+        }
+    }
+
+    // the rid was found, move the last rid to it's place
+    if(foundRid && ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots > 1)
+    {
+        memcpy(pBuffer + sizeof(IX_PageBucketHdr) + i * sizeof(RID),
+               pBuffer + sizeof(IX_PageBucketHdr) + ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots * sizeof(RID),
+               sizeof(rid));
+
+        ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots = ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots - 1;
+    }
+
+    if(!foundRid)
+    {
+        rc = IX_ENTRY_DOES_NOT_EXIST;
+        goto err_release;
+    }
+
+    if(rc = ReleaseBuffer(iPageNum, true))
+        goto err_return;
+
+    return rc;
+
+
+    err_release:
+        ReleaseBuffer(iPageNum, false);
+    err_return:
+    return (rc);
 }
 
 

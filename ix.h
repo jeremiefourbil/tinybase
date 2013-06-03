@@ -55,6 +55,7 @@ public:
     RC DisplayTree();
 
 private:
+    // insertion
     template <typename T>
     RC InsertEntry_t(void *pData, const RID &rid);
 
@@ -66,6 +67,19 @@ private:
 
     RC InsertEntryInBucket(PageNum iPageNum, const RID &rid);
 
+    // deletion
+    template <typename T>
+    RC DeleteEntry_t(void *pData, const RID &rid);
+
+    template <typename T>
+    RC DeleteEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid);
+
+    template <typename T>
+    RC DeleteEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid);
+
+    RC DeleteEntryInBucket(PageNum iPageNum, const RID &rid);
+
+    // allocation
     template <typename T>
     RC AllocateNodePage_t(const NodeType nodeType, const PageNum parent, PageNum &oPageNum);
 
@@ -74,9 +88,11 @@ private:
 
     RC AllocateBucketPage(const PageNum parent, PageNum &oPageNum);
 
+    // page management
     RC GetPageBuffer(const PageNum &iPageNum, char * &pBuffer) const;
     RC ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const;
 
+    // debugging
     template <typename T>
     RC DisplayTree_t();
     template <typename T>
@@ -171,6 +187,7 @@ void IX_PrintError(RC rc);
 #define IX_INSUFFISANT_PAGE_SIZE        (START_IX_ERR + 0)
 #define IX_NULLPOINTER                  (START_IX_ERR + 1)
 #define IX_BADTYPE                      (START_IX_ERR + 2)
+#define IX_ENTRY_DOES_NOT_EXIST         (START_IX_ERR + 3)
 //#define RM_INVALIDRECSIZE  (START_RM_WARN + 2) // invalid record size
 //#define RM_INVALIDSLOTNUM  (START_RM_WARN + 3) // invalid slot number
 //#define RM_RECORDNOTFOUND  (START_RM_WARN + 4) // record not found

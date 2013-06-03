@@ -357,7 +357,7 @@ RC IX_IndexScan::ReadBucket(PageNum iPageNum, RID &rid)
     cout << "Nb Filled Slot: " << ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots << endl;
 
     memcpy((void*) &rid,
-           pBuffer + sizeof(IX_PageBucketHdr) + _nextBucketSlot * sizeof(RID), sizeof(rid));
+           pBuffer + sizeof(IX_PageBucketHdr) + _nextBucketSlot * sizeof(RID), sizeof(RID));
 
 
     // set the next parameters
