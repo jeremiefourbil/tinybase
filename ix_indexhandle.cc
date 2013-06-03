@@ -459,13 +459,13 @@ RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid)
     switch(fileHdr.attrType)
     {
         case INT:
-        rc = DeleteEntry_t<int>(pData, rid);
+        rc = DeleteEntry_t<int>(* ((int *) pData), rid);
         break;
     case FLOAT:
-        rc = DeleteEntry_t<float>(pData, rid);
+        rc = DeleteEntry_t<float>(* ((float *) pData), rid);
         break;
      case STRING:
-         rc = DeleteEntry_t<char[MAXSTRINGLEN]>(pData, rid);
+         rc = DeleteEntry_t<char[MAXSTRINGLEN]>((char*) pData, rid);
          break;
     default:
         rc = IX_BADTYPE;
@@ -477,13 +477,10 @@ RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid)
 
 // templated Deletion
 template <typename T>
-RC IX_IndexHandle::DeleteEntry_t(void *pData, const RID &rid)
+RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
 {
     RC rc;
     PageNum pageNum;
-
-    if (pData == NULL)
-        return (IX_NULLPOINTER);
 
     pageNum = fileHdr.rootNum;
 
@@ -495,7 +492,7 @@ RC IX_IndexHandle::DeleteEntry_t(void *pData, const RID &rid)
 
     // let's call the recursion method, start with root
 
-    if(rc = DeleteEntryInNode_t<T>(pageNum, pData, rid))
+    if(rc = DeleteEntryInNode_t<T>(pageNum, iValue, rid))
         goto err_return;
 
     return rc;
@@ -507,49 +504,49 @@ RC IX_IndexHandle::DeleteEntry_t(void *pData, const RID &rid)
 
 // Node Deletion
 template <typename T>
-RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid)
+RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid)
 {
 
     RC rc;
-    char *pBuffer;
+    IX_PageNode<T> * pBuffer;
     int slotIndex;
     int pointerIndex;
 
     // get the current node
-    if(rc = GetPageBuffer(iPageNum, pBuffer))
+    if(rc = GetNodePageBuffer(iPageNum, pBuffer))
         goto err_return;
 
     // find the right branch
     slotIndex = 0;
-    while(slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]) >= 0)
+    while(slotIndex < pBuffer->nbFilledSlots && comparisonGeneric(iValue, pBuffer->v[slotIndex]) >= 0)
     {
        slotIndex++;
     }
 
     pointerIndex = slotIndex;
-    if(slotIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots-1 && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]) >= 0)
+    if(slotIndex == pBuffer->nbFilledSlots-1 && comparisonGeneric(iValue, pBuffer->v[slotIndex]) >= 0)
         pointerIndex++;
 
     // the child is a leaf
-    if(((IX_PageNode<T> *)pBuffer)->nodeType == LASTINODE || ((IX_PageNode<T> *)pBuffer)->nodeType == ROOTANDLASTINODE)
+    if(pBuffer->nodeType == LASTINODE || pBuffer->nodeType == ROOTANDLASTINODE)
     {
-        PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[pointerIndex];
+        PageNum childPageNum = pBuffer->child[pointerIndex];
 
         // the leaf is empty
-        if(((IX_PageNode<T> *)pBuffer)->child[pointerIndex] == IX_EMPTY)
+        if(pBuffer->child[pointerIndex] == IX_EMPTY)
         {
             rc = IX_ENTRY_DOES_NOT_EXIST;
             goto err_release;
         }
 
-        if(rc = DeleteEntryInLeaf_t<T>(childPageNum, pData, rid))
+        if(rc = DeleteEntryInLeaf_t<T>(childPageNum, iValue, rid))
             goto err_return;
 
     }
     // the child is a node
     else
     {
-        PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[pointerIndex];
+        PageNum childPageNum = pBuffer->child[pointerIndex];
 
         // the node is empty
         if(childPageNum == IX_EMPTY)
@@ -558,7 +555,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, void *pData, const RID 
             goto err_release;
         }
 
-        if(rc = DeleteEntryInNode_t<T>(childPageNum, pData, rid))
+        if(rc = DeleteEntryInNode_t<T>(childPageNum, iValue, rid))
             goto err_return;
     }
 
@@ -578,23 +575,23 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, void *pData, const RID 
 
 // Leaf Deletion
 template <typename T>
-RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid)
+RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid)
 {
     RC rc = OK_RC;
 
-    char *pBuffer;
+    IX_PageLeaf<T> *pBuffer;
     int slotIndex;
     bool foundInLeaf = false;
     PageNum bucketPageNum;
 
     // get the current leaf
-    if(rc = GetPageBuffer(iPageNum, pBuffer))
+    if(rc = GetLeafPageBuffer(iPageNum, pBuffer))
         goto err_return;
 
     // find the right place to Delete data in the tree
-    for(int i=0; i<((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots; i++)
+    for(int i=0; i<pBuffer->nbFilledSlots; i++)
     {
-        if(comparisonGeneric(((IX_PageLeaf<T> *)pBuffer)->v[i], *(T *) pData) == 0)
+        if(comparisonGeneric(pBuffer->v[i], iValue) == 0)
         {
             slotIndex = i;
             foundInLeaf = true;
@@ -607,7 +604,7 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
         goto err_release;
     }
 
-    bucketPageNum = ((IX_PageLeaf<T> *)pBuffer)->bucket[slotIndex];
+    bucketPageNum = pBuffer->bucket[slotIndex];
     if(rc = DeleteEntryInBucket(bucketPageNum, rid))
     {
         goto err_release;
@@ -616,12 +613,13 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
     // have to delete bucket page and leaf value
     if(bucketPageNum = IX_EMPTY)
     {
-        rc = pfFileHandle.DisposePage(((IX_PageLeaf<T> *)pBuffer)->bucket[slotIndex]);
-        ((IX_PageLeaf<T> *)pBuffer)->bucket[slotIndex] = IX_EMPTY;
+        rc = pfFileHandle.DisposePage(pBuffer->bucket[slotIndex]);
+        pBuffer->bucket[slotIndex] = IX_EMPTY;
 
         // swap the last record and the deleted record
-        swapLeafEntries<T>(slotIndex, (IX_PageLeaf<T> *)pBuffer, ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots-1, (IX_PageLeaf<T> *) pBuffer);
-        ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots = ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots - 1;
+        swapLeafEntries<T>(slotIndex, pBuffer, pBuffer->nbFilledSlots-1, pBuffer);
+        pBuffer->nbFilledSlots = pBuffer->nbFilledSlots - 1;
+        sortLeaf(pBuffer);
     }
 
     if(rc = ReleaseBuffer(iPageNum, true))
@@ -1192,5 +1190,5 @@ void swapLeafEntries(int i, IX_PageLeaf<T> * pBuffer1, int j, IX_PageLeaf<T> *pB
 template <typename T>
 void sortLeaf(IX_PageLeaf<T> * pBuffer)
 {
-    sortGeneric(pBuffer->v, pBuffer->nbFilledSlots);
+    sortGeneric(pBuffer->bucket, pBuffer->v, pBuffer->nbFilledSlots);
 }

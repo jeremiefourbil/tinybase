@@ -97,13 +97,13 @@ private:
 
     // deletion
     template <typename T>
-    RC DeleteEntry_t(void *pData, const RID &rid);
+    RC DeleteEntry_t(T iValue, const RID &rid);
 
     template <typename T>
-    RC DeleteEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid);
+    RC DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid);
 
     template <typename T>
-    RC DeleteEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid);
+    RC DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid);
 
     RC DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid);
 
