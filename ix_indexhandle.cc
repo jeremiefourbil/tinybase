@@ -279,7 +279,7 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
 }
 
 template <typename T>
-RC IX_IndexHandle::RedistributeValuesAndBucket(void *pBuffer1, void *pBuffer2, T &medianValue)
+RC IX_IndexHandle::RedistributeValuesAndBuckets(void *pBuffer1, void *pBuffer2, T &medianValue)
 {
     return OK_RC;
 }

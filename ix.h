@@ -78,7 +78,7 @@ private:
     RC ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const;
 
     template <typename T>
-    RC IX_IndexHandle::RedistributeValuesAndBucket(void *pBuffer1, void *pBuffer2, T &medianValue);
+    RC RedistributeValuesAndBuckets(void *pBuffer1, void *pBuffer2, T &medianValue);
 
     template <typename T>
     RC DisplayTree_t();
