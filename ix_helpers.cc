@@ -41,14 +41,15 @@ void sortGeneric(float *array, const int &arrayLength)
   }
 }
 
-void sortGeneric(char **array, const int &arrayLength)
+void sortGeneric(char array[4][MAXSTRINGLEN], const int &arrayLength)
 {
   for (int i = 1; i < arrayLength; i++)
   {
-    char* tmp = array[i];
+    char* tmp;
+    strcpy(tmp, array[i]);
     int j = i;
     for (; j && strcmp(tmp,array[j - 1]); --j)
-      array[j] = array[j - 1];
-    array[j] = tmp;
+        strcpy(array[j], array[j - 1]);
+    strcpy(array[j],tmp);
   }
 }
