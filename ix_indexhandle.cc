@@ -58,6 +58,8 @@ RC IX_IndexHandle::InsertEntry_t(void *pData, const RID &rid)
 {
     RC rc;
     PageNum pageNum;
+    PageNum newChildPageNum;
+    T medianValue;
 
     if (pData == NULL)
         return (IX_NULLPOINTER);
@@ -74,7 +76,8 @@ RC IX_IndexHandle::InsertEntry_t(void *pData, const RID &rid)
     }
 
     // let's call the recursion method, start with root
-    if(rc = InsertEntryInNode_t<T>(pageNum, pData, rid))
+
+    if(rc = InsertEntryInNode_t<T>(pageNum, pData, rid, newChildPageNum, medianValue))
         goto err_return;
 
     return rc;
@@ -88,7 +91,7 @@ RC IX_IndexHandle::InsertEntry_t(void *pData, const RID &rid)
 
 // Node insertion
 template <typename T>
-RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid)
+RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid, PageNum &newChildPageNum,T &medianValue)
 {
 
     RC rc;
@@ -133,7 +136,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
             ((IX_PageNode<T> *)pBuffer)->child[pointerIndex] = childPageNum;
         }
 
-        if(rc = InsertEntryInLeaf_t<T>(childPageNum, pData, rid))
+        if(rc = InsertEntryInLeaf_t<T>(childPageNum, pData, rid, newChildPageNum, medianValue))
             goto err_return;
 
     }
@@ -152,7 +155,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
             ((IX_PageNode<T> *)pBuffer)->child[pointerIndex] = childPageNum;
         }
 
-        if(rc = InsertEntryInNode_t<T>(childPageNum, pData, rid))
+        if(rc = InsertEntryInNode_t<T>(childPageNum, pData, rid, newChildPageNum, medianValue))
             goto err_return;
     }
 
@@ -168,7 +171,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
 
 // Leaf insertion
 template <typename T>
-RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid)
+RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid, PageNum &newChildPageNum,T &medianValue)
 {
     RC rc = OK_RC;
 
@@ -177,6 +180,11 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
     bool alreadyInLeaf = false;
 
     PageNum bucketPageNum;
+
+    char *newPageBuffer;
+
+    // fixe la valeur de newChildPageNum s'il n'y a pas de split
+    newChildPageNum = IX_EMPTY;
 
     // get the current leaf
     if(rc = GetPageBuffer(iPageNum, pBuffer))
@@ -199,9 +207,37 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
         // PB: OVERFLOW !!!!
         if(slotIndex > 3)
         {
-            cout << "Overflow" << endl;
-            rc = ReleaseBuffer(iPageNum, false);
-            return rc;
+        cout << "Overflow" << endl;
+        
+        PageNum currentPrevPageNum;
+        PageNum currentNextPageNum;
+        ((IX_PageLeaf<T> *)pBuffer)->next = currentNextPageNum;
+        ((IX_PageLeaf<T> *)pBuffer)->previous = currentPrevPageNum;
+
+        // creer une nouvelle page
+        if (rc = AllocateLeafPage_t<T>(iPageNum, newChildPageNum))
+            goto err_return;
+
+        // on met à jour le lien entre la feuille courante et la nouvelle feuille
+        ((IX_PageLeaf<T> *)pBuffer)->next = newChildPageNum;
+
+        // on relâche la feuille courante
+        if(rc = ReleaseBuffer(iPageNum, false))
+            goto err_return;
+
+        // on charge la nouvelle feuille pour pouvoir mettre à jour les liens
+        if(rc = GetPageBuffer(newChildPageNum, newPageBuffer))
+            goto err_return;
+        ((IX_PageLeaf<T> *)newPageBuffer)->next = currentNextPageNum;
+        ((IX_PageLeaf<T> *)newPageBuffer)->previous = bucketPageNum;
+
+        // on rempli la moitié des valeurs de l'ancienne feuille dans la nouvelle feuille
+
+        // on rempli aussi la valeur des buckets pour garder la cohérence
+
+        rc = ReleaseBuffer(newChildPageNum, false);
+        return rc;
+//        goto err_release;
         }
 
         ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots = slotIndex+1;
@@ -275,7 +311,6 @@ RC IX_IndexHandle::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
     err_return:
     return (rc);
 }
-
 
 // ***********************
 // Delete an entry

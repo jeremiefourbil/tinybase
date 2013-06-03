@@ -59,10 +59,10 @@ private:
     RC InsertEntry_t(void *pData, const RID &rid);
 
     template <typename T>
-    RC InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid);
+    RC InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid, PageNum &newChildPageNum,T &medianValue);
 
     template <typename T>
-    RC InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid);
+    RC InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid, PageNum &newChildPageNum,T &medianValue);
 
     RC InsertEntryInBucket(PageNum iPageNum, const RID &rid);
 
