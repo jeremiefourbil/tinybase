@@ -278,6 +278,12 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
     return (rc);
 }
 
+template <typename T>
+RC IX_IndexHandle::RedistributeValuesAndBuckets(void *pBuffer1, void *pBuffer2, T &medianValue)
+{
+    return OK_RC;
+}
+
 // bucket insertion
 RC IX_IndexHandle::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
 {
