@@ -17,39 +17,53 @@ void printGeneric(const int &v1) { cout << v1 << endl; }
 void printGeneric(const float &v1) { cout << v1 << endl; }
 void printGeneric(const char* v1) { return; }
 
-void sortGeneric(int *array, const int &arrayLength)
+void sortGeneric(int *array, PageNum bucket[], const int &arrayLength)
 {
   for (int i = 1; i < arrayLength; i++)
   {
     int tmp = array[i];
+    PageNum tmpBucket = bucket[i];
     int j = i;
     for (; j && tmp < array[j - 1]; --j)
       array[j] = array[j - 1];
+      bucket[j] = bucket[j - 1];
     array[j] = tmp;
+    bucket[j] = tmpBucket;
   }
 }
 
-void sortGeneric(float *array, const int &arrayLength)
+void sortGeneric(float *array, PageNum bucket[], const int &arrayLength)
 {
   for (int i = 1; i < arrayLength; i++)
   {
     float tmp = array[i];
+    PageNum tmpBucket = bucket[i];
     int j = i;
     for (; j && tmp < array[j - 1]; --j)
       array[j] = array[j - 1];
+      bucket[j] = bucket[j - 1];
     array[j] = tmp;
+    bucket[j] = tmpBucket;
   }
 }
 
-void sortGeneric(char array[4][MAXSTRINGLEN], const int &arrayLength)
+void sortGeneric(char array[][MAXSTRINGLEN], PageNum bucket[], const int &arrayLength)
 {
   for (int i = 1; i < arrayLength; i++)
   {
     char* tmp;
+    PageNum tmpBucket = bucket[i];
     strcpy(tmp, array[i]);
     int j = i;
     for (; j && strcmp(tmp,array[j - 1]); --j)
         strcpy(array[j], array[j - 1]);
+      bucket[j] = bucket[j - 1];
     strcpy(array[j],tmp);
+    bucket[j] = tmpBucket;
   }
 }
+
+// void sortNodeGeneric(int *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int &arrayLength)
+// {
+  
+// }
