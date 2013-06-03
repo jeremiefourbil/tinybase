@@ -58,8 +58,12 @@ RC IX_IndexHandle::InsertEntry_t(void *pData, const RID &rid)
 {
     RC rc;
     PageNum pageNum;
-    PageNum newChildPageNum;
-    T medianValue;
+    PageNum newChildPageNum = IX_EMPTY;
+    // Pour la récursion descendante
+    T medianChildValue;
+    // Pour la récursion montante
+    T medianParentValue;
+    PageNum newNodeParentPageNum = IX_EMPTY;
 
     if (pData == NULL)
         return (IX_NULLPOINTER);
@@ -77,7 +81,7 @@ RC IX_IndexHandle::InsertEntry_t(void *pData, const RID &rid)
 
     // let's call the recursion method, start with root
 
-    if(rc = InsertEntryInNode_t<T>(pageNum, pData, rid, newChildPageNum, medianValue))
+    if(rc = InsertEntryInNode_t<T>(pageNum, pData, rid, newChildPageNum, medianChildValue, newNodeParentPageNum, medianParentValue))
         goto err_return;
 
     return rc;
@@ -91,13 +95,15 @@ RC IX_IndexHandle::InsertEntry_t(void *pData, const RID &rid)
 
 // Node insertion
 template <typename T>
-RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid, PageNum &newChildPageNum,T &medianValue)
+RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid, PageNum &newChildPageNum,T &medianChildValue, PageNum &newNodePageNum,T &medianParentValue)
 {
 
     RC rc;
     char *pBuffer;
     int slotIndex;
     int pointerIndex;
+    char *newPageBuffer; // pour le possible split
+
 
     // get the current node
     if(rc = GetPageBuffer(iPageNum, pBuffer))
@@ -107,66 +113,97 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
     slotIndex = 0;
     while(slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]) >= 0)
     {
-       slotIndex++;
-    }
+     slotIndex++;
+ }
 
-    pointerIndex = slotIndex;
-    if(slotIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots-1 && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]) >= 0)
-        pointerIndex++;
+ pointerIndex = slotIndex;
+ if(slotIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots-1 && comparisonGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]) >= 0)
+    pointerIndex++;
 
     // add value to the node and increment number of filled slots
-    if(slotIndex < 4 && slotIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots)
-    {
-        copyGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]);
-        ((IX_PageNode<T> *)pBuffer)->nbFilledSlots = slotIndex + 1;
-        pointerIndex = slotIndex+1;
-    }
+if(slotIndex < IX_MAX_NUMBER_OF_VALUES && slotIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots)
+{
+    copyGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]);
+    ((IX_PageNode<T> *)pBuffer)->nbFilledSlots = slotIndex + 1;
+    pointerIndex = slotIndex+1;
+}
 
     // the child is a leaf
-    if(((IX_PageNode<T> *)pBuffer)->nodeType == LASTINODE || ((IX_PageNode<T> *)pBuffer)->nodeType == ROOTANDLASTINODE)
-    {
-        PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[pointerIndex];
+if(((IX_PageNode<T> *)pBuffer)->nodeType == LASTINODE || ((IX_PageNode<T> *)pBuffer)->nodeType == ROOTANDLASTINODE)
+{
+    PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[pointerIndex];
 
         // the leaf is empty
-        if(((IX_PageNode<T> *)pBuffer)->child[pointerIndex] == IX_EMPTY)
-        {
-            if(rc = AllocateLeafPage_t<T>(iPageNum, childPageNum))
-                goto err_return;
-
-            ((IX_PageNode<T> *)pBuffer)->child[pointerIndex] = childPageNum;
-        }
-
-        if(rc = InsertEntryInLeaf_t<T>(childPageNum, pData, rid, newChildPageNum, medianValue))
-            goto err_return;
-
-    }
-    // the child is a node
-    else
+    if(((IX_PageNode<T> *)pBuffer)->child[pointerIndex] == IX_EMPTY)
     {
-        PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[pointerIndex];
-
-        // the node is empty
-        if(childPageNum == IX_EMPTY)
-        {
-
-            if(rc = AllocateNodePage_t<T>(LASTINODE, iPageNum, childPageNum))
-                goto err_return;
-
-            ((IX_PageNode<T> *)pBuffer)->child[pointerIndex] = childPageNum;
-        }
-
-        if(rc = InsertEntryInNode_t<T>(childPageNum, pData, rid, newChildPageNum, medianValue))
+        if(rc = AllocateLeafPage_t<T>(iPageNum, childPageNum))
             goto err_return;
+
+        ((IX_PageNode<T> *)pBuffer)->child[pointerIndex] = childPageNum;
     }
 
-
-    if(rc = ReleaseBuffer(iPageNum, true))
+    if(rc = InsertEntryInLeaf_t<T>(childPageNum, pData, rid, newChildPageNum, medianChildValue))
         goto err_return;
 
-    err_return:
-    return (rc);
+    // il y a eu un split à cause de l'insertion de la valeur
+    if(newChildPageNum != IX_EMPTY)
+    {
+        // on essaye d'insérer la valeur médiane dans le noeud courant
+        cout << "split de feuille" << endl;
+        if(((IX_PageNode<T> *)pBuffer)->nbFilledSlots<IX_MAX_NUMBER_OF_VALUES)
+        {
+            cout << "le noeud courant a de la place :" << endl;
+            // on insère la valeur médiane liée à son fils droit
+            copyGeneric(medianChildValue,((IX_PageNode<T> *)pBuffer)->v[((IX_PageNode<T> *)pBuffer)->nbFilledSlots]);
+            // on incrémente le nombre de slots occupés
+            ((IX_PageNode<T> *)pBuffer)->nbFilledSlots++;
+            // on ajoute le fils droit correspondant au nouveau slot
+            ((IX_PageNode<T> *)pBuffer)->child[((IX_PageNode<T> *)pBuffer)->nbFilledSlots] = newChildPageNum;
+        } else {
+            cout << "le noeud courant doit être splité" << endl;
+            // le noeud courant est plein donc on va créer un nouveau noeud
+            if(rc = AllocateNodePage_t<T>(((IX_PageNode<T> *)pBuffer)->nodeType,((IX_PageNode<T> *)pBuffer)->parent, newNodePageNum))
+                goto err_return;
+            // on récupère le buffer du nouveau noeud
+            if(rc = GetPageBuffer(newNodePageNum, newPageBuffer))
+                goto err_return;
+            // redistribution entre le noeud courant et le nouveau noeud
+            if(rc = RedistributeValuesAndChildren(pBuffer, newPageBuffer, medianChildValue, medianParentValue, newNodePageNum))
+                goto err_return;
 
-    return OK_RC;
+            if(rc = ReleaseBuffer(newNodePageNum, true))
+                return rc;
+        }
+    }
+
+}
+    // the child is a node
+else
+{
+    PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[pointerIndex];
+
+        // the node is empty
+    if(childPageNum == IX_EMPTY)
+    {
+
+        if(rc = AllocateNodePage_t<T>(LASTINODE, iPageNum, childPageNum))
+            goto err_return;
+
+        ((IX_PageNode<T> *)pBuffer)->child[pointerIndex] = childPageNum;
+    }
+
+    if(rc = InsertEntryInNode_t<T>(childPageNum, pData, rid, newChildPageNum, medianChildValue, newNodePageNum, medianParentValue))
+        goto err_return;
+}
+
+
+if(rc = ReleaseBuffer(iPageNum, true))
+    goto err_return;
+
+err_return:
+return (rc);
+
+return OK_RC;
 }
 
 // Leaf insertion
@@ -207,37 +244,42 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
         // PB: OVERFLOW !!!!
         if(slotIndex > 3)
         {
-        cout << "Overflow" << endl;
-        
-        PageNum currentPrevPageNum;
-        PageNum currentNextPageNum;
-        ((IX_PageLeaf<T> *)pBuffer)->next = currentNextPageNum;
-        ((IX_PageLeaf<T> *)pBuffer)->previous = currentPrevPageNum;
+            cout << "Overflow" << endl;
 
-        // creer une nouvelle page
-        if (rc = AllocateLeafPage_t<T>(iPageNum, newChildPageNum))
-            goto err_return;
+            PageNum currentPrevPageNum;
+            PageNum currentNextPageNum;
+            ((IX_PageLeaf<T> *)pBuffer)->next = currentNextPageNum;
+            ((IX_PageLeaf<T> *)pBuffer)->previous = currentPrevPageNum;
 
-        // on met à jour le lien entre la feuille courante et la nouvelle feuille
-        ((IX_PageLeaf<T> *)pBuffer)->next = newChildPageNum;
+            // créer une nouvelle page
+            if (rc = AllocateLeafPage_t<T>(iPageNum, newChildPageNum))
+                goto err_return;
 
-        // on relâche la feuille courante
-        if(rc = ReleaseBuffer(iPageNum, false))
-            goto err_return;
+            // on alloue une page pour le bucket
+            if(rc = AllocateBucketPage(newChildPageNum, bucketPageNum))
+                goto err_return;
 
-        // on charge la nouvelle feuille pour pouvoir mettre à jour les liens
-        if(rc = GetPageBuffer(newChildPageNum, newPageBuffer))
-            goto err_return;
-        ((IX_PageLeaf<T> *)newPageBuffer)->next = currentNextPageNum;
-        ((IX_PageLeaf<T> *)newPageBuffer)->previous = bucketPageNum;
+            // on met à jour le lien entre la feuille courante et la nouvelle feuille
+            ((IX_PageLeaf<T> *)pBuffer)->next = newChildPageNum;
 
-        // on rempli la moitié des valeurs de l'ancienne feuille dans la nouvelle feuille
+            // on relâche la feuille courante
+            if(rc = ReleaseBuffer(iPageNum, true))
+                goto err_return;
 
-        // on rempli aussi la valeur des buckets pour garder la cohérence
+            // on charge la nouvelle feuille pour pouvoir mettre à jour les liens
+            if(rc = GetPageBuffer(newChildPageNum, newPageBuffer))
+                goto err_return;
+            ((IX_PageLeaf<T> *)newPageBuffer)->next = currentNextPageNum;
+            ((IX_PageLeaf<T> *)newPageBuffer)->previous = iPageNum;
 
-        rc = ReleaseBuffer(newChildPageNum, false);
-        return rc;
-//        goto err_release;
+            // on remplit la moitié des valeurs de l'ancienne feuille dans la nouvelle feuille
+            if(rc = RedistributeValuesAndBuckets(pBuffer, newPageBuffer, pData, medianValue, bucketPageNum))
+                goto err_return;
+            // on relâche la nouvelle feuille
+            if(rc = ReleaseBuffer(newChildPageNum, true))
+                return rc;
+
+            return OK_RC;
         }
 
         ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots = slotIndex+1;
@@ -264,7 +306,7 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
 
     // sort the current leaf
     // Val: disabled sort (pb = does not sort the children)
-//    sortGeneric(((IX_PageLeaf<T> *)pBuffer)->v, ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots);
+    sortGeneric(((IX_PageLeaf<T> *)pBuffer)->v, ((IX_PageLeaf<T> *)pBuffer)->bucket,((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots);
 
     if(rc = ReleaseBuffer(iPageNum, true))
         goto err_return;
@@ -273,14 +315,97 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
 
 
     err_release:
-        rc = ReleaseBuffer(iPageNum, false);
+    rc = ReleaseBuffer(iPageNum, false);
     err_return:
     return (rc);
 }
 
 template <typename T>
-RC IX_IndexHandle::RedistributeValuesAndBuckets(void *pBuffer1, void *pBuffer2, T &medianValue)
+RC IX_IndexHandle::RedistributeValuesAndChildren(void *pBufferCurrentNode, void *pBufferNewNode,T &medianChildValue, T &medianParentValue,const PageNum &newNodePageNum)
 {
+    T array[5];
+    PageNum child[5];
+
+    // on remplit le nouveau tableau avec les 5 valeurs
+    for(int i=0;i<((IX_PageNode<T> *)pBufferCurrentNode)->nbFilledSlots;i++)
+    {
+        copyGeneric(((IX_PageNode<T> *)pBufferCurrentNode)->v[i], array[i]);
+        // offset pour ne pas prendre le fils de gauche
+        ((IX_PageNode<T> *)pBufferCurrentNode)->child[i+1] = child[i];
+    }
+    // on place à la fin du tableau la nouvelle valeur
+    copyGeneric(medianChildValue, array[4]);
+    // on remplit la page du nouveau 
+    child[4] = newNodePageNum;
+    // on ordonne le nouveau tableau
+    sortGeneric(array, child, 5);
+    // on récupère la valeur médiane
+    copyGeneric(array[2],medianParentValue);
+    // on initialise le nombre de slots pour chaque feuille
+    ((IX_PageNode<T> *)pBufferCurrentNode)->nbFilledSlots = 0;
+    ((IX_PageNode<T> *)pBufferNewNode)->nbFilledSlots = 0;
+    // redistribution des valeurs
+    for(int j=0;j<5;j++)
+    {
+        if(j<2){
+            copyGeneric(array[j], ((IX_PageNode<T> *)pBufferCurrentNode)->v[j]);
+            // on met à jour les buckets pour être cohérent
+            ((IX_PageNode<T> *)pBufferCurrentNode)->child[j] = child[j];
+            // on incrémente le nombre slots remplis
+            ((IX_PageNode<T> *)pBufferCurrentNode)->nbFilledSlots++;
+        } else {
+        // on copie la valeur dans la nouvelle feuille
+            copyGeneric(array[j], ((IX_PageNode<T> *)pBufferNewNode)->v[j]);
+        // on met à jour les buckets pour être cohérent
+            ((IX_PageNode<T> *)pBufferNewNode)->child[j] = child[j];
+        // on incrémente le nombre slots remplis
+            ((IX_PageNode<T> *)pBufferNewNode)->nbFilledSlots++;
+        }
+    }
+    return OK_RC;
+}
+
+template <typename T>
+RC IX_IndexHandle::RedistributeValuesAndBuckets(void *pBufferCurrentLeaf, void *pBufferNewLeaf, void *pData, T &medianValue,const PageNum &bucketPageNum)
+{
+    T array[5];
+    PageNum bucket[5];
+
+    // on remplit le nouveau tableau avec les 5 valeurs
+    for(int i=0;i<((IX_PageLeaf<T> *)pBufferCurrentLeaf)->nbFilledSlots;i++)
+    {
+        copyGeneric(((IX_PageLeaf<T> *)pBufferCurrentLeaf)->v[i], array[i]);
+        ((IX_PageLeaf<T> *)pBufferCurrentLeaf)->bucket[i] = bucket[i];
+    }
+    // on place à la fin du tableau la nouvelle valeur
+    copyGeneric(*((T*) pData), array[4]);
+    // on remplit la page du nouveau bucket
+    bucket[4] = bucketPageNum;
+    // on ordonne le nouveau tableau
+    sortGeneric(array, bucket, 5);
+    // on récupère la valeur médiane
+    copyGeneric(array[2],medianValue);
+    // on initialise le nombre de slots pour chaque feuille
+    ((IX_PageLeaf<T> *)pBufferCurrentLeaf)->nbFilledSlots = 0;
+    ((IX_PageLeaf<T> *)pBufferNewLeaf)->nbFilledSlots = 0;
+    // redistribution des valeurs
+    for(int j=0;j<5;j++)
+    {
+        if(j<2){
+            copyGeneric(array[j], ((IX_PageLeaf<T> *)pBufferCurrentLeaf)->v[j]);
+            // on met à jour les buckets pour être cohérent
+            ((IX_PageLeaf<T> *)pBufferCurrentLeaf)->bucket[j] = bucket[j];
+            // on incrémente le nombre slots remplis
+            ((IX_PageLeaf<T> *)pBufferCurrentLeaf)->nbFilledSlots++;
+        } else {
+        // on copie la valeur dans la nouvelle feuille
+            copyGeneric(array[j], ((IX_PageLeaf<T> *)pBufferNewLeaf)->v[j]);
+        // on met à jour les buckets pour être cohérent
+            ((IX_PageLeaf<T> *)pBufferNewLeaf)->bucket[j] = bucket[j];
+        // on incrémente le nombre slots remplis
+            ((IX_PageLeaf<T> *)pBufferNewLeaf)->nbFilledSlots++;
+        }
+    }
     return OK_RC;
 }
 
@@ -299,7 +424,7 @@ RC IX_IndexHandle::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
     // WARNING: DOES NOT SUPPORT OVERFLOW
 
     memcpy(pBuffer + sizeof(IX_PageBucketHdr) + ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots * sizeof(RID),
-           (void*) &rid, sizeof(rid));
+     (void*) &rid, sizeof(rid));
 
 
 
@@ -313,7 +438,7 @@ RC IX_IndexHandle::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
 
 
     err_release:
-        rc = ReleaseBuffer(iPageNum, false);
+    rc = ReleaseBuffer(iPageNum, false);
     err_return:
     return (rc);
 }

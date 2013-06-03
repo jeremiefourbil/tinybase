@@ -15,7 +15,8 @@
 const int IX_HEADER_PAGE_NUM = 0;
 
 #define IX_EMPTY  -1       // the next page does not exist
-
+#define IX_MAX_NUMBER_OF_VALUES 4 // the maximum number of values by leaf or node
+#define IX_MAX_NUMBER_OF_CHILDS 4 // the maximum number of values by leaf or node
 
 
 //
@@ -44,9 +45,14 @@ void printGeneric(const int &v1);
 void printGeneric(const float &v1);
 void printGeneric(const char* v1);
 
-void sortGeneric(int *array, const int &arrayLength);
-void sortGeneric(float *array, const int &arrayLength);
-void sortGeneric(char array[4][MAXSTRINGLEN], const int &arrayLength);
+void sortGeneric(int *array, PageNum buckets[], const int &arrayLength);
+void sortGeneric(float *array, PageNum buckets[], const int &arrayLength);
+void sortGeneric(char array[][MAXSTRINGLEN], PageNum buckets[], const int &arrayLength);
+
+
+// void sortNodeGeneric(int *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int &arrayLength);
+// void sortNodeGeneric(float *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int &arrayLength);
+// void sortNodeGeneric(char array[][MAXSTRINGLEN], PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int &arrayLength);
 
 
 // defined in IX_IndexHandle to fix compilation issue

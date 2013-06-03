@@ -88,7 +88,7 @@ private:
     RC InsertEntry_t(void *pData, const RID &rid);
 
     template <typename T>
-    RC InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid, PageNum &newChildPageNum,T &medianValue);
+    RC InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid, PageNum &newChildPageNum,T &medianChildValue, PageNum &newNodePageNum,T &medianParentValue);
 
     template <typename T>
     RC InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid, PageNum &newChildPageNum,T &medianValue);
@@ -127,11 +127,16 @@ private:
 
     RC ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const;
 
+    // pour les noeuds
+    template <typename T>
+    RC RedistributeValuesAndChildren(void *pBufferCurrentNode, void *pBufferNewNode,T &medianChildValue, T &medianParentValue,const PageNum &newNodePageNum);
+
+    // pour les feuilles
+    template <typename T>
+    RC RedistributeValuesAndBuckets(void *pBufferCurrentLeaf, void *pBufferNewLeaf, void *pData, T &medianValue, const PageNum &bucketPageNum);
 
 
     // debugging
-    template <typename T>
-    RC RedistributeValuesAndBuckets(void *pBuffer1, void *pBuffer2, T &medianValue);
 
     template <typename T>
     RC DisplayTree_t();

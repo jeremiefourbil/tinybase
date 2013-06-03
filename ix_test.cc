@@ -756,7 +756,8 @@ RC Test6(void)
    int index=0;
 
    int sequelLength = FEW_ENTRIES;
-   int sequel[FEW_ENTRIES] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24,19,19,23,18};
+   // int sequel[FEW_ENTRIES] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24,19,19,23,18};
+   int sequel[FEW_ENTRIES] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24,19,19,23,14};
 
    IX_IndexScan scan;
    int value = 19;
@@ -803,28 +804,8 @@ RC Test6(void)
           return (rc);
        }
 
-
-
-
-
-
-
-
-
-
-
-
    if((rc = ixm.CloseIndex(ih)))
       return rc;
-
-
-
-
-
-
-
-
-
 
    LsFiles(FILENAME);
 
