@@ -776,7 +776,6 @@ RC Test6(void)
       return (rc);
 
 
-
    // check if one entry is in the index
    if ((rc = scan.OpenScan(ih, EQ_OP, &value))) {
       printf("Verify error: opening scan\n");
