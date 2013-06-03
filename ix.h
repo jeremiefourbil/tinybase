@@ -22,10 +22,38 @@ enum NodeType {
     ROOTANDLASTINODE
 };
 
+enum Direction {
+    LEFT,
+    RIGHT
+};
+
 struct IX_FileHdr {
     PageNum rootNum;
     AttrType attrType;
     int attrLength;
+};
+
+template <typename T>
+struct IX_PageNode {
+    PageNum parent;
+    NodeType nodeType;
+
+    int nbFilledSlots;
+    T v[4];
+
+    PageNum child[5];
+};
+
+template <typename T>
+struct IX_PageLeaf {
+    PageNum parent;
+
+    PageNum previous;
+    PageNum next;
+
+    int nbFilledSlots;
+    T v[4];
+    PageNum bucket[4];
 };
 
 
@@ -69,15 +97,15 @@ private:
 
     // deletion
     template <typename T>
-    RC DeleteEntry_t(void *pData, const RID &rid);
+    RC DeleteEntry_t(T iValue, const RID &rid);
 
     template <typename T>
-    RC DeleteEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid);
+    RC DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid);
 
     template <typename T>
-    RC DeleteEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid);
+    RC DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid);
 
-    RC DeleteEntryInBucket(PageNum iPageNum, const RID &rid);
+    RC DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid);
 
     // allocation
     template <typename T>
@@ -90,6 +118,13 @@ private:
 
     // page management
     RC GetPageBuffer(const PageNum &iPageNum, char * &pBuffer) const;
+
+    template <typename T>
+    RC GetNodePageBuffer(const PageNum &iPageNum, IX_PageNode<T> * & pBuffer) const;
+
+    template <typename T>
+    RC GetLeafPageBuffer(const PageNum &iPageNum, IX_PageLeaf<T> * & pBuffer) const;
+
     RC ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const;
 
     // pour les noeuds
@@ -99,6 +134,9 @@ private:
     // pour les feuilles
     template <typename T>
     RC RedistributeValuesAndBuckets(void *pBufferCurrentLeaf, void *pBufferNewLeaf, void *pData, T &medianValue, const PageNum &bucketPageNum);
+
+
+    // debugging
 
     template <typename T>
     RC DisplayTree_t();

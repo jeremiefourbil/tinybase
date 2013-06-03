@@ -23,28 +23,7 @@ const int IX_HEADER_PAGE_NUM = 0;
 // IX_PageHdr: Header structure for pages
 //
 
-template <typename T>
-struct IX_PageNode {
-    PageNum parent;
-    NodeType nodeType;
 
-    int nbFilledSlots;
-    T v[4];
-
-    PageNum child[5];
-};
-
-template <typename T>
-struct IX_PageLeaf {
-    PageNum parent;
-
-    PageNum previous;
-    PageNum next;
-
-    int nbFilledSlots;
-    T v[4];  
-    PageNum bucket[4];
-};
 
 struct IX_PageBucketHdr {
     PageNum parent;
@@ -74,5 +53,14 @@ void sortGeneric(char array[][MAXSTRINGLEN], PageNum buckets[], const int &array
 // void sortNodeGeneric(int *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int &arrayLength);
 // void sortNodeGeneric(float *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int &arrayLength);
 // void sortNodeGeneric(char array[][MAXSTRINGLEN], PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int &arrayLength);
+
+
+// defined in IX_IndexHandle to fix compilation issue
+template <typename T>
+void swapLeafEntries(int i, IX_PageLeaf<T> * pBuffer1, int j, IX_PageLeaf<T> *pBuffer2);
+
+template <typename T>
+void sortLeaf(IX_PageLeaf<T> * pBuffer);
+
 
 #endif // IX_INTERNAL_H
