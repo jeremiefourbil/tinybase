@@ -217,6 +217,7 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
     bool alreadyInLeaf = false;
 
     PageNum bucketPageNum;
+    PageNum newBucketPageNum;
 
     char *newPageBuffer;
 
@@ -248,23 +249,19 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
 
             PageNum currentPrevPageNum;
             PageNum currentNextPageNum;
-            ((IX_PageLeaf<T> *)pBuffer)->next = currentNextPageNum;
-            ((IX_PageLeaf<T> *)pBuffer)->previous = currentPrevPageNum;
+            currentNextPageNum = ((IX_PageLeaf<T> *)pBuffer)->next;
+            currentPrevPageNum = ((IX_PageLeaf<T> *)pBuffer)->previous;
 
             // créer une nouvelle page
-            if (rc = AllocateLeafPage_t<T>(iPageNum, newChildPageNum))
+            if (rc = AllocateLeafPage_t<T>(((IX_PageLeaf<T> *)pBuffer)->parent, newChildPageNum))
                 goto err_return;
 
             // on alloue une page pour le bucket
-            if(rc = AllocateBucketPage(newChildPageNum, bucketPageNum))
+            if(rc = AllocateBucketPage(newChildPageNum, newBucketPageNum))
                 goto err_return;
 
             // on met à jour le lien entre la feuille courante et la nouvelle feuille
             ((IX_PageLeaf<T> *)pBuffer)->next = newChildPageNum;
-
-            // on relâche la feuille courante
-            if(rc = ReleaseBuffer(iPageNum, true))
-                goto err_return;
 
             // on charge la nouvelle feuille pour pouvoir mettre à jour les liens
             if(rc = GetPageBuffer(newChildPageNum, newPageBuffer))
@@ -273,21 +270,18 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
             ((IX_PageLeaf<T> *)newPageBuffer)->previous = iPageNum;
 
             // on remplit la moitié des valeurs de l'ancienne feuille dans la nouvelle feuille
-            if(rc = RedistributeValuesAndBuckets(pBuffer, newPageBuffer, pData, medianValue, bucketPageNum))
+            if(rc = RedistributeValuesAndBuckets(pBuffer, newPageBuffer, pData, medianValue, newBucketPageNum))
                 goto err_return;
             // on relâche la nouvelle feuille
             if(rc = ReleaseBuffer(newChildPageNum, true))
-                return rc;
+                goto err_return;
 
-            return OK_RC;
         }
 
         ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots = slotIndex+1;
 
         copyGeneric(*((T*) pData), ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex]);
     }
-
-
 
     // RID bucket management
     bucketPageNum =  ((IX_PageLeaf<T> *)pBuffer)->bucket[slotIndex];
@@ -350,14 +344,14 @@ RC IX_IndexHandle::RedistributeValuesAndChildren(void *pBufferCurrentNode, void 
         if(j<2){
             copyGeneric(array[j], ((IX_PageNode<T> *)pBufferCurrentNode)->v[j]);
             // on met à jour les buckets pour être cohérent
-            ((IX_PageNode<T> *)pBufferCurrentNode)->child[j] = child[j];
+            ((IX_PageNode<T> *)pBufferCurrentNode)->child[j+1] = child[j];
             // on incrémente le nombre slots remplis
             ((IX_PageNode<T> *)pBufferCurrentNode)->nbFilledSlots++;
         } else {
         // on copie la valeur dans la nouvelle feuille
-            copyGeneric(array[j], ((IX_PageNode<T> *)pBufferNewNode)->v[j]);
+            copyGeneric(array[j], ((IX_PageNode<T> *)pBufferNewNode)->v[j-2]);
         // on met à jour les buckets pour être cohérent
-            ((IX_PageNode<T> *)pBufferNewNode)->child[j] = child[j];
+            ((IX_PageNode<T> *)pBufferNewNode)->child[j-1] = child[j];
         // on incrémente le nombre slots remplis
             ((IX_PageNode<T> *)pBufferNewNode)->nbFilledSlots++;
         }
@@ -399,9 +393,9 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(void *pBufferCurrentLeaf, void *
             ((IX_PageLeaf<T> *)pBufferCurrentLeaf)->nbFilledSlots++;
         } else {
         // on copie la valeur dans la nouvelle feuille
-            copyGeneric(array[j], ((IX_PageLeaf<T> *)pBufferNewLeaf)->v[j]);
+            copyGeneric(array[j], ((IX_PageLeaf<T> *)pBufferNewLeaf)->v[j-2]);
         // on met à jour les buckets pour être cohérent
-            ((IX_PageLeaf<T> *)pBufferNewLeaf)->bucket[j] = bucket[j];
+            ((IX_PageLeaf<T> *)pBufferNewLeaf)->bucket[j-2] = bucket[j];
         // on incrémente le nombre slots remplis
             ((IX_PageLeaf<T> *)pBufferNewLeaf)->nbFilledSlots++;
         }
