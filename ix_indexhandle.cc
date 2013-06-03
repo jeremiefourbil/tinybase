@@ -174,6 +174,7 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
 
     char *pBuffer;
     int slotIndex;
+    bool alreadyInLeaf = false;
 
     PageNum bucketPageNum;
 
@@ -182,21 +183,33 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
         goto err_return;
 
     // find the right place to insert data in the tree
-    slotIndex = ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots;
-
-    // PB: OVERFLOW !!!!
-    if(slotIndex > 3)
+    for(int i=0; i<((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots; i++)
     {
-        cout << "Overflow" << endl;
-        rc = ReleaseBuffer(iPageNum, false);
-        return rc;
-//        goto err_release;
+        if(comparisonGeneric(((IX_PageLeaf<T> *)pBuffer)->v[i], *(T *) pData) == 0)
+        {
+            slotIndex = i;
+            alreadyInLeaf = true;
+        }
     }
 
-    ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots = slotIndex+1;
+    if(!alreadyInLeaf)
+    {
+        slotIndex = ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots;
 
-    copyGeneric(*((T*) pData), ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex]);
-    ((IX_PageLeaf<T> *)pBuffer)->rid[slotIndex] = rid;
+        // PB: OVERFLOW !!!!
+        if(slotIndex > 3)
+        {
+            cout << "Overflow" << endl;
+            rc = ReleaseBuffer(iPageNum, false);
+            return rc;
+        }
+
+        ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots = slotIndex+1;
+
+        copyGeneric(*((T*) pData), ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex]);
+    }
+
+
 
     // RID bucket management
     bucketPageNum =  ((IX_PageLeaf<T> *)pBuffer)->bucket[slotIndex];
@@ -212,8 +225,10 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
     if(rc = InsertEntryInBucket(bucketPageNum, rid))
         goto err_return;
 
+
     // sort the current leaf
-    sortGeneric(((IX_PageLeaf<T> *)pBuffer)->v, ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots);
+    // Val: disabled sort (pb = does not sort the RIDs and children)
+//    sortGeneric(((IX_PageLeaf<T> *)pBuffer)->v, ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots);
 
     if(rc = ReleaseBuffer(iPageNum, true))
         goto err_return;
@@ -237,6 +252,13 @@ RC IX_IndexHandle::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
     // get the current bucket
     if(rc = GetPageBuffer(iPageNum, pBuffer))
         goto err_return;
+
+
+    // WARNING: DOES NOT SUPPORT OVERFLOW
+
+    memcpy(pBuffer + sizeof(IX_PageBucketHdr) + ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots * sizeof(RID),
+           (void*) &rid, sizeof(rid));
+
 
 
     ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots = ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots + 1;

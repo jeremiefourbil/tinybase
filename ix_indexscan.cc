@@ -244,21 +244,19 @@ RC IX_IndexScan::GetNextEntry_t(RID &rid)
     if(rc = _indexHandle.GetPageBuffer(leafNum, pBuffer))
         goto err_return;
 
-    // set the rid
-    if(_nextLeafSlot>=0)
+    // read the rid in the bucket
+    rc = ReadBucket(((IX_PageLeaf<T> *)pBuffer)->bucket[_nextLeafSlot], rid);
+    if(rc == IX_EOF)
     {
-        rid = ((IX_PageLeaf<T> *)pBuffer)->rid[_nextLeafSlot];
+        // switch to find the next place to visit
+        _nextLeafNum = IX_EMPTY;
+        _nextLeafSlot = IX_EMPTY;
+        _nextBucketSlot = IX_EMPTY;
     }
-
-    ReadBucket(((IX_PageLeaf<T> *)pBuffer)->bucket[_nextLeafSlot]);
-
-
-    // set the next parameters
-    _nextLeafNum = IX_EMPTY;
-    _nextLeafSlot = IX_EMPTY;
-    _nextBucketSlot = IX_EMPTY;
-
-
+    else if(rc)
+    {
+        goto err_return;
+    }
 
     if(rc = _indexHandle.ReleaseBuffer(leafNum, false))
         goto err_return;
@@ -270,7 +268,7 @@ err_return:
 }
 
 
-RC IX_IndexScan::ReadBucket(PageNum iPageNum)
+RC IX_IndexScan::ReadBucket(PageNum iPageNum, RID &rid)
 {
     RC rc = OK_RC;
 
@@ -289,11 +287,20 @@ RC IX_IndexScan::ReadBucket(PageNum iPageNum)
     // set the rid
     cout << "Nb Filled Slot: " << ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots << endl;
 
+    memcpy((void*) &rid,
+           pBuffer + sizeof(IX_PageBucketHdr) + _nextBucketSlot * sizeof(RID), sizeof(rid));
+
 
     // set the next parameters
-    _nextLeafNum = IX_EMPTY;
-    _nextLeafSlot = IX_EMPTY;
-    _nextBucketSlot = IX_EMPTY;
+    _nextBucketSlot++;
+
+    if(_nextBucketSlot >= ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots)
+    {
+        _nextBucketSlot = IX_EMPTY;
+        if(rc = _indexHandle.ReleaseBuffer(iPageNum, false))
+            goto err_return;
+        return IX_EOF;
+    }
 
 
 
