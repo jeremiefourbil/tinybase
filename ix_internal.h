@@ -42,9 +42,6 @@ struct IX_PageLeaf {
 
     int nbFilledSlots;
     T v[4];  
-
-    RID rid[4];
-
     PageNum bucket[4];
 };
 

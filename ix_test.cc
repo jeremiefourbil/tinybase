@@ -759,7 +759,7 @@ RC Test6(void)
    int sequel[FEW_ENTRIES] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24,19,19,23,18};
 
    IX_IndexScan scan;
-   int value = 18;
+   int value = 19;
    bool bExists = true;
    RID rid;
 
@@ -782,24 +782,29 @@ RC Test6(void)
       return (rc);
    }
 
-   rc = scan.GetNextEntry(rid);
-   if (!bExists && rc == 0) {
-      printf("Verify error: found non-existent entry %d\n", value);
-      return (IX_EOF);  // What should be returned here?
-   }
-   else if (bExists && rc == IX_EOF) {
-      printf("Verify error: entry %d not found\n", value);
-      return (IX_EOF);  // What should be returned here?
-   }
-   else if (rc != 0 && rc != IX_EOF)
-      return (rc);
+   for(int i=0; i<5; i++)
+   {
+       rc = scan.GetNextEntry(rid);
+       if (!bExists && rc == 0) {
+          printf("Verify error: found non-existent entry %d\n", value);
+          return (IX_EOF);  // What should be returned here?
+       }
+       else if (bExists && rc == IX_EOF) {
+          printf("Verify error: entry %d not found\n", value);
+          return (IX_EOF);  // What should be returned here?
+       }
+       else if (rc != 0 && rc != IX_EOF)
+          return (rc);
 
-   if ((rc = scan.CloseScan())) {
-      printf("Verify error: closing scan\n");
-      return (rc);
+       printf("Value %d found!\n", value);
    }
 
-   printf("Value %d found!\n", value);
+       if ((rc = scan.CloseScan())) {
+          printf("Verify error: closing scan\n");
+          return (rc);
+       }
+
+
 
 
 

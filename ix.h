@@ -123,7 +123,7 @@ private:
     template <typename T>
     RC GetNextEntry_t(RID &rid);
 
-    RC ReadBucket(PageNum iPageNum);
+    RC ReadBucket(PageNum iPageNum, RID &rid);
 
     IX_IndexHandle _indexHandle;
     CompOp _compOp;
