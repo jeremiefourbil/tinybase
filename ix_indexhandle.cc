@@ -1184,5 +1184,5 @@ void swapLeafEntries(int i, IX_PageLeaf<T> * pBuffer1, int j, IX_PageLeaf<T> *pB
 template <typename T>
 void sortLeaf(IX_PageLeaf<T> * pBuffer)
 {
-    sortGeneric(pBuffer->bucket, pBuffer->v, pBuffer->nbFilledSlots);
+    sortGeneric(pBuffer->v, pBuffer->bucket, pBuffer->nbFilledSlots);
 }
