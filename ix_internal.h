@@ -69,4 +69,13 @@ void sortGeneric(int *array, const int &arrayLength);
 void sortGeneric(float *array, const int &arrayLength);
 void sortGeneric(char array[4][MAXSTRINGLEN], const int &arrayLength);
 
+
+// defined in IX_IndexHandle to fix compilation issue
+template <typename T>
+void swapLeafEntries(int i, IX_PageLeaf<T> * pBuffer1, int j, IX_PageLeaf<T> *pBuffer2);
+
+template <typename T>
+void sortLeaf(IX_PageLeaf<T> * pBuffer);
+
+
 #endif // IX_INTERNAL_H

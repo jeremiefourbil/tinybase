@@ -22,6 +22,11 @@ enum NodeType {
     ROOTANDLASTINODE
 };
 
+enum Direction {
+    LEFT,
+    RIGHT
+};
+
 struct IX_FileHdr {
     PageNum rootNum;
     AttrType attrType;
@@ -77,7 +82,7 @@ private:
     template <typename T>
     RC DeleteEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid);
 
-    RC DeleteEntryInBucket(PageNum iPageNum, const RID &rid);
+    RC DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid);
 
     // allocation
     template <typename T>
