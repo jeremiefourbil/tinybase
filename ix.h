@@ -33,6 +33,29 @@ struct IX_FileHdr {
     int attrLength;
 };
 
+template <typename T>
+struct IX_PageNode {
+    PageNum parent;
+    NodeType nodeType;
+
+    int nbFilledSlots;
+    T v[4];
+
+    PageNum child[5];
+};
+
+template <typename T>
+struct IX_PageLeaf {
+    PageNum parent;
+
+    PageNum previous;
+    PageNum next;
+
+    int nbFilledSlots;
+    T v[4];
+    PageNum bucket[4];
+};
+
 
 
 
@@ -95,7 +118,16 @@ private:
 
     // page management
     RC GetPageBuffer(const PageNum &iPageNum, char * &pBuffer) const;
+
+    template <typename T>
+    RC GetNodePageBuffer(const PageNum &iPageNum, IX_PageNode<T> * & pBuffer) const;
+
+    template <typename T>
+    RC GetLeafPageBuffer(const PageNum &iPageNum, IX_PageLeaf<T> * & pBuffer) const;
+
     RC ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const;
+
+
 
     // debugging
     template <typename T>

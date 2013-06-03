@@ -496,6 +496,7 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
 
         // swap the last record and the deleted record
         swapLeafEntries<T>(slotIndex, (IX_PageLeaf<T> *)pBuffer, ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots-1, (IX_PageLeaf<T> *) pBuffer);
+        ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots = ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots - 1;
     }
 
     if(rc = ReleaseBuffer(iPageNum, true))
@@ -746,6 +747,32 @@ RC IX_IndexHandle::GetPageBuffer(const PageNum &iPageNum, char * & pBuffer) cons
     pfFileHandle.UnpinPage(iPageNum);
     err_return:
     return (rc);
+}
+
+template <typename T>
+RC IX_IndexHandle::GetNodePageBuffer(const PageNum &iPageNum, IX_PageNode<T> * & pBuffer) const
+{
+    RC rc;
+    char * pData;
+
+    rc = GetPageBuffer(iPageNum, pData);
+
+    pBuffer = (IX_PageNode<T> *) pData;
+
+    return rc;
+}
+
+template <typename T>
+RC IX_IndexHandle::GetLeafPageBuffer(const PageNum &iPageNum, IX_PageLeaf<T> * & pBuffer) const
+{
+    RC rc;
+    char * pData;
+
+    rc = GetPageBuffer(iPageNum, pData);
+
+    pBuffer = (IX_PageLeaf<T> *) pData;
+
+    return rc;
 }
 
 // release the buffer
