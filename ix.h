@@ -85,13 +85,13 @@ public:
 private:
     // insertion
     template <typename T>
-    RC InsertEntry_t(void *pData, const RID &rid);
+    RC InsertEntry_t(T iValue, const RID &rid);
 
     template <typename T>
-    RC InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID &rid, PageNum &newChildPageNum,T &medianChildValue);
+    RC InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, PageNum &newChildPageNum,T &medianChildValue);
 
     template <typename T>
-    RC InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID &rid, PageNum &newChildPageNum,T &medianValue);
+    RC InsertEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid, PageNum &newChildPageNum,T &medianValue);
 
     RC InsertEntryInBucket(PageNum iPageNum, const RID &rid);
 
@@ -129,12 +129,11 @@ private:
 
     // pour les noeuds
     template <typename T>
-    RC RedistributeValuesAndChildren(void *pBufferCurrentNode, void *pBufferNewNode,T &medianChildValue, T &medianParentValue,const PageNum &newNodePageNum);
+    RC RedistributeValuesAndChildren(IX_PageNode<T> *pBufferCurrentNode, IX_PageNode<T> *pBufferNewNode,T &medianChildValue, T &medianParentValue,const PageNum &newNodePageNum);
 
     // pour les feuilles
     template <typename T>
-    RC RedistributeValuesAndBuckets(void *pBufferCurrentLeaf, void *pBufferNewLeaf, void *pData, T &medianValue, const PageNum &bucketPageNum);
-
+    RC RedistributeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLeaf, IX_PageLeaf<T> *pBufferNewLeaf, T iValue, T &medianValue, const PageNum &bucketPageNum);
 
     // debugging
 
