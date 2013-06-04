@@ -50,9 +50,9 @@ void sortGeneric(float *array, PageNum buckets[], const int &arrayLength);
 void sortGeneric(char array[][MAXSTRINGLEN], PageNum buckets[], const int &arrayLength);
 
 
-// void sortNodeGeneric(int *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int &arrayLength);
-// void sortNodeGeneric(float *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int &arrayLength);
-// void sortNodeGeneric(char array[][MAXSTRINGLEN], PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int &arrayLength);
+void sortNodeGeneric(int *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int &arrayLength);
+void sortNodeGeneric(float *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int &arrayLength);
+void sortNodeGeneric(char array[][MAXSTRINGLEN], PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int &arrayLength);
 
 
 // defined in IX_IndexHandle to fix compilation issue

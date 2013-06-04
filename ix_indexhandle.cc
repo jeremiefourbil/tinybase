@@ -35,16 +35,16 @@ RC IX_IndexHandle::InsertEntry(void *pData, const RID &rid)
 
     switch(fileHdr.attrType)
     {
-    case INT:
+        case INT:
         rc = InsertEntry_t<int>(pData, rid);
         break;
-    case FLOAT:
+        case FLOAT:
         rc = InsertEntry_t<float>(pData, rid);
         break;
-    case STRING:
+        case STRING:
         rc = InsertEntry_t<char[MAXSTRINGLEN]>(pData, rid);
         break;
-    default:
+        default:
         rc = IX_BADTYPE;
     }
 
@@ -59,6 +59,7 @@ RC IX_IndexHandle::InsertEntry_t(void *pData, const RID &rid)
     RC rc;
     PageNum pageNum;
     PageNum newChildPageNum = IX_EMPTY;
+    char *pBuffer;
     // Pour la récursion descendante
     T medianChildValue;
     // Pour la récursion montante
@@ -83,6 +84,30 @@ RC IX_IndexHandle::InsertEntry_t(void *pData, const RID &rid)
 
     if(rc = InsertEntryInNode_t<T>(pageNum, pData, rid, newChildPageNum, medianChildValue, newNodeParentPageNum, medianParentValue))
         goto err_return;
+
+    // il y a eu un split de noeuds
+    if(newNodeParentPageNum != IX_EMPTY)
+    {
+        if(((IX_PageNode<T> *)pBuffer)->nbFilledSlots<IX_MAX_NUMBER_OF_VALUES)
+        {
+            if(rc = GetPageBuffer(pageNum, pBuffer))
+                goto err_return;
+
+            copyGeneric(medianParentValue,((IX_PageNode<T> *)pBuffer)->v[((IX_PageNode<T> *)pBuffer)->nbFilledSlots]);
+            // on incrémente le nombre de slots occupés
+            ((IX_PageNode<T> *)pBuffer)->nbFilledSlots++;
+            // on ajoute le fils droit correspondant au nouveau slot
+            ((IX_PageNode<T> *)pBuffer)->child[((IX_PageNode<T> *)pBuffer)->nbFilledSlots] = newNodeParentPageNum;
+
+            // on ordonne après l'insertion de la valeur médiane dans le noeud père
+            sortNodeGeneric(((IX_PageNode<T> *)pBuffer)->v,((IX_PageNode<T> *)pBuffer)->child, ((IX_PageNode<T> *)pBuffer)->nbFilledSlots);
+
+            if(rc = ReleaseBuffer(pageNum, true))
+                goto err_return;
+        } else {
+            cout << " --->> la racine est pleine il faut la spliter" << endl;
+        }
+    }
 
     return rc;
 
@@ -159,6 +184,8 @@ if(((IX_PageNode<T> *)pBuffer)->nodeType == LASTINODE || ((IX_PageNode<T> *)pBuf
             ((IX_PageNode<T> *)pBuffer)->nbFilledSlots++;
             // on ajoute le fils droit correspondant au nouveau slot
             ((IX_PageNode<T> *)pBuffer)->child[((IX_PageNode<T> *)pBuffer)->nbFilledSlots] = newChildPageNum;
+            // il faut ordonner les valeurs du noeud
+            sortNodeGeneric(((IX_PageNode<T> *)pBuffer)->v,((IX_PageNode<T> *)pBuffer)->child, ((IX_PageNode<T> *)pBuffer)->nbFilledSlots);
         } else {
             cout << "le noeud courant doit être splité" << endl;
             // le noeud courant est plein donc on va créer un nouveau noeud
@@ -276,11 +303,12 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, void *pData, const RID 
             if(rc = ReleaseBuffer(newChildPageNum, true))
                 goto err_return;
 
+        } else {
+            // des slots sont disponibles alors on insère la valeur dans la feuille
+            ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots = slotIndex+1;
+
+            copyGeneric(*((T*) pData), ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex]);
         }
-
-        ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots = slotIndex+1;
-
-        copyGeneric(*((T*) pData), ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex]);
     }
 
     // RID bucket management
@@ -455,13 +483,13 @@ RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid)
         case INT:
         rc = DeleteEntry_t<int>(* ((int *) pData), rid);
         break;
-    case FLOAT:
+        case FLOAT:
         rc = DeleteEntry_t<float>(* ((float *) pData), rid);
         break;
-     case STRING:
-         rc = DeleteEntry_t<char[MAXSTRINGLEN]>((char*) pData, rid);
-         break;
-    default:
+        case STRING:
+        rc = DeleteEntry_t<char[MAXSTRINGLEN]>((char*) pData, rid);
+        break;
+        default:
         rc = IX_BADTYPE;
     }
 
@@ -515,56 +543,56 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
     while(slotIndex < pBuffer->nbFilledSlots && comparisonGeneric(iValue, pBuffer->v[slotIndex]) >= 0)
     {
        slotIndex++;
-    }
+   }
 
-    pointerIndex = slotIndex;
-    if(slotIndex == pBuffer->nbFilledSlots-1 && comparisonGeneric(iValue, pBuffer->v[slotIndex]) >= 0)
-        pointerIndex++;
+   pointerIndex = slotIndex;
+   if(slotIndex == pBuffer->nbFilledSlots-1 && comparisonGeneric(iValue, pBuffer->v[slotIndex]) >= 0)
+    pointerIndex++;
 
     // the child is a leaf
-    if(pBuffer->nodeType == LASTINODE || pBuffer->nodeType == ROOTANDLASTINODE)
-    {
-        PageNum childPageNum = pBuffer->child[pointerIndex];
+if(pBuffer->nodeType == LASTINODE || pBuffer->nodeType == ROOTANDLASTINODE)
+{
+    PageNum childPageNum = pBuffer->child[pointerIndex];
 
         // the leaf is empty
-        if(pBuffer->child[pointerIndex] == IX_EMPTY)
-        {
-            rc = IX_ENTRY_DOES_NOT_EXIST;
-            goto err_release;
-        }
-
-        if(rc = DeleteEntryInLeaf_t<T>(childPageNum, iValue, rid))
-            goto err_return;
-
-    }
-    // the child is a node
-    else
+    if(pBuffer->child[pointerIndex] == IX_EMPTY)
     {
-        PageNum childPageNum = pBuffer->child[pointerIndex];
-
-        // the node is empty
-        if(childPageNum == IX_EMPTY)
-        {
-            rc = IX_ENTRY_DOES_NOT_EXIST;
-            goto err_release;
-        }
-
-        if(rc = DeleteEntryInNode_t<T>(childPageNum, iValue, rid))
-            goto err_return;
+        rc = IX_ENTRY_DOES_NOT_EXIST;
+        goto err_release;
     }
 
-
-    if(rc = ReleaseBuffer(iPageNum, true))
+    if(rc = DeleteEntryInLeaf_t<T>(childPageNum, iValue, rid))
         goto err_return;
 
-    return rc;
+}
+    // the child is a node
+else
+{
+    PageNum childPageNum = pBuffer->child[pointerIndex];
 
-    err_release:
-        ReleaseBuffer(iPageNum, false);
-    err_return:
-        return (rc);
+        // the node is empty
+    if(childPageNum == IX_EMPTY)
+    {
+        rc = IX_ENTRY_DOES_NOT_EXIST;
+        goto err_release;
+    }
 
-    return OK_RC;
+    if(rc = DeleteEntryInNode_t<T>(childPageNum, iValue, rid))
+        goto err_return;
+}
+
+
+if(rc = ReleaseBuffer(iPageNum, true))
+    goto err_return;
+
+return rc;
+
+err_release:
+ReleaseBuffer(iPageNum, false);
+err_return:
+return (rc);
+
+return OK_RC;
 }
 
 // Leaf Deletion
@@ -622,7 +650,7 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
     return rc;
 
     err_release:
-        ReleaseBuffer(iPageNum, false);
+    ReleaseBuffer(iPageNum, false);
     err_return:
     return (rc);
 }
@@ -645,8 +673,8 @@ RC IX_IndexHandle::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
     for(i=0; i<((IX_PageBucketHdr *)pBuffer)->nbFilledSlots; i++)
     {
         memcpy((void*) &tempRid,
-               pBuffer + sizeof(IX_PageBucketHdr) + i * sizeof(RID),
-               sizeof(RID));
+           pBuffer + sizeof(IX_PageBucketHdr) + i * sizeof(RID),
+           sizeof(RID));
 
         if(tempRid == rid)
         {
@@ -659,8 +687,8 @@ RC IX_IndexHandle::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
     if(foundRid && ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots > 1)
     {
         memcpy(pBuffer + sizeof(IX_PageBucketHdr) + i * sizeof(RID),
-               pBuffer + sizeof(IX_PageBucketHdr) + ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots * sizeof(RID),
-               sizeof(rid));
+           pBuffer + sizeof(IX_PageBucketHdr) + ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots * sizeof(RID),
+           sizeof(rid));
 
         ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots = ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots - 1;
     }
@@ -683,7 +711,7 @@ RC IX_IndexHandle::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
 
 
     err_release:
-        ReleaseBuffer(ioPageNum, false);
+    ReleaseBuffer(ioPageNum, false);
     err_return:
     return (rc);
 }
