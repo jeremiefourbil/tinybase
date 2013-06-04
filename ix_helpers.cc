@@ -17,7 +17,7 @@ void printGeneric(const int &v1) { cout << v1 << endl; }
 void printGeneric(const float &v1) { cout << v1 << endl; }
 void printGeneric(const char* v1) { return; }
 
-void sortGeneric(int *array, PageNum bucket[], const int &arrayLength)
+void sortGeneric(int *array, PageNum bucket[], const int arrayLength)
 {
   for (int i = 1; i < arrayLength; i++)
   {
@@ -26,13 +26,13 @@ void sortGeneric(int *array, PageNum bucket[], const int &arrayLength)
     int j = i;
     for (; j && tmp < array[j - 1]; --j)
       array[j] = array[j - 1];
-      bucket[j] = bucket[j - 1];
+    bucket[j] = bucket[j - 1];
     array[j] = tmp;
     bucket[j] = tmpBucket;
   }
 }
 
-void sortGeneric(float *array, PageNum bucket[], const int &arrayLength)
+void sortGeneric(float *array, PageNum bucket[], const int arrayLength)
 {
   for (int i = 1; i < arrayLength; i++)
   {
@@ -41,13 +41,13 @@ void sortGeneric(float *array, PageNum bucket[], const int &arrayLength)
     int j = i;
     for (; j && tmp < array[j - 1]; --j)
       array[j] = array[j - 1];
-      bucket[j] = bucket[j - 1];
+    bucket[j] = bucket[j - 1];
     array[j] = tmp;
     bucket[j] = tmpBucket;
   }
 }
 
-void sortGeneric(char array[][MAXSTRINGLEN], PageNum bucket[], const int &arrayLength)
+void sortGeneric(char array[][MAXSTRINGLEN], PageNum bucket[], const int arrayLength)
 {
   for (int i = 1; i < arrayLength; i++)
   {
@@ -56,14 +56,98 @@ void sortGeneric(char array[][MAXSTRINGLEN], PageNum bucket[], const int &arrayL
     strcpy(tmp, array[i]);
     int j = i;
     for (; j && strcmp(tmp,array[j - 1]); --j)
-        strcpy(array[j], array[j - 1]);
-      bucket[j] = bucket[j - 1];
+      strcpy(array[j], array[j - 1]);
+    bucket[j] = bucket[j - 1];
     strcpy(array[j],tmp);
     bucket[j] = tmpBucket;
   }
 }
 
-// void sortNodeGeneric(int *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int &arrayLength)
-// {
-  
-// }
+void sortNodeGeneric(int *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int arrayLength)
+{
+  // on crée un tableau temporaire avec uniquement les fils droits
+  PageNum temporaryChild[IX_MAX_NUMBER_OF_CHILDS - 1];
+  // on le remplit
+  for(int k= 1; k< IX_MAX_NUMBER_OF_CHILDS; ++k)
+  {
+    temporaryChild[k-1] = child[k];
+  }
+  for (int i = 1; i < arrayLength; i++)
+  {
+    int tmp = array[i];
+    PageNum tmpChild = temporaryChild[i];
+    int j = i;
+    for (; j && tmp < array[j - 1]; --j)
+    {
+        array[j] = array[j - 1];
+        temporaryChild[j] = temporaryChild[j - 1];
+    }
+    array[j] = tmp;
+    temporaryChild[j] = tmpChild;
+  }
+  // on remplit les valeurs triées que l'on réinjecte dans child[]
+  for(int k=0; k<IX_MAX_NUMBER_OF_CHILDS-1;++k)
+  {
+    child[k+1] = temporaryChild[k];
+  }
+}
+
+void sortNodeGeneric(float *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int arrayLength)
+{
+  // on crée un tableau temporaire avec uniquement les fils droits
+  PageNum temporaryChild[IX_MAX_NUMBER_OF_CHILDS - 1];
+  // on le remplit
+  for(int k= 1; k< IX_MAX_NUMBER_OF_CHILDS; ++k)
+  {
+    temporaryChild[k-1] = child[k];
+  }
+  for (int i = 1; i < arrayLength; i++)
+  {
+    float tmp = array[i];
+    PageNum tmpChild = temporaryChild[i];
+    int j = i;
+    for (; j && tmp < array[j - 1]; --j)
+    {
+        array[j] = array[j - 1];
+        temporaryChild[j] = temporaryChild[j - 1];
+    }
+    array[j] = tmp;
+    temporaryChild[j] = tmpChild;
+  }
+  // on remplit les valeurs triées que l'on réinjecte dans child[]
+  for(int k=0; k<IX_MAX_NUMBER_OF_CHILDS-1;++k)
+  {
+    child[k+1] = temporaryChild[k];
+  }
+}
+
+void sortNodeGeneric(char array[][MAXSTRINGLEN], PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int arrayLength)
+{
+  // on crée un tableau temporaire avec uniquement les fils droits
+  PageNum temporaryChild[IX_MAX_NUMBER_OF_CHILDS - 1];
+  // on le remplit
+  for(int k= 1; k< IX_MAX_NUMBER_OF_CHILDS; ++k)
+  {
+    temporaryChild[k-1] = child[k];
+  }
+  for (int i = 1; i < arrayLength; i++)
+  {
+    char* tmp;
+    PageNum tmpChild = temporaryChild[i];
+    strcpy(tmp, array[i]);
+    int j = i;
+    for (; j && strcmp(tmp,array[j - 1]); --j)
+    {
+        strcpy(array[j], array[j - 1]);
+        temporaryChild[j] = temporaryChild[j - 1];
+    }
+    strcpy(array[j],tmp);
+    temporaryChild[j] = tmpChild;
+  }
+  // on remplit les valeurs triées que l'on réinjecte dans child[]
+  for(int k=0; k<IX_MAX_NUMBER_OF_CHILDS-1;++k)
+  {
+    child[k+1] = temporaryChild[k];
+  }
+}
+
