@@ -698,7 +698,7 @@ RC Test5(void)
 
    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
          (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
-         (rc = InsertIntEntries(ih, FEW_ENTRIES)))
+         (rc = InsertIntEntries(ih, MANY_ENTRIES)))
       return (rc);
 
    // create the xml file
@@ -758,14 +758,15 @@ RC Test6(void)
 //   int sequelLength = 7;
 //   int sequel[7] = {10,1,13,3,4,5,2};
 
+
 //   int sequelLength = 11;
 //   int sequel[11] = {11,6,5,17,8,7,18,1,9,14,15};
 
-   int sequelLength = 12;
-   int sequel[12] = {11,6,5,17,8,7,18,1,9,14,15,10};
+//   int sequelLength = 12;
+//   int sequel[12] = {11,6,5,17,8,7,18,1,9,14,15,10};
 
-//   int sequelLength = FEW_ENTRIES;
-//   int sequel[FEW_ENTRIES] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24,19,19,23,18};
+   int sequelLength = FEW_ENTRIES;
+   int sequel[FEW_ENTRIES] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24,19,19,23,18};
 
 //   int sequelLength = FEW_ENTRIES;
 //   int sequel[FEW_ENTRIES] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24,19,19,23,18};
