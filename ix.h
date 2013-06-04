@@ -141,9 +141,9 @@ private:
     template <typename T>
     RC DisplayTree_t();
     template <typename T>
-    RC DisplayNode_t(const PageNum pageNum,const int &fatherNodeId, int &currentNodeId,int &currentEdgeId);
+    RC DisplayNode_t(const PageNum pageNum,const int fatherNodeId, int &currentNodeId,int &currentEdgeId);
     template <typename T>
-    RC DisplayLeaf_t(const PageNum page,const int &fatherNodeId, int &currentNodeId,int &currentEdgeId);
+    RC DisplayLeaf_t(const PageNum page,const int fatherNodeId, int &currentNodeId,int &currentEdgeId);
 
     PF_FileHandle pfFileHandle;
     IX_FileHdr fileHdr;

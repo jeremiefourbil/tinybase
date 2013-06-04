@@ -59,11 +59,14 @@ RC IX_IndexHandle::InsertEntry_t(void *pData, const RID &rid)
     RC rc;
     PageNum pageNum;
 
-    char *pBuffer;
+    char *pBuffer, *pNewRootBuffer, *newPageBuffer;
 
     // Pour la récursion descendante
     PageNum newChildPageNum = IX_EMPTY;
     T medianChildValue;
+
+    PageNum newRootNum = IX_EMPTY;
+
 
     if (pData == NULL)
         return (IX_NULLPOINTER);
@@ -84,29 +87,66 @@ RC IX_IndexHandle::InsertEntry_t(void *pData, const RID &rid)
     if(rc = InsertEntryInNode_t<T>(pageNum, pData, rid, newChildPageNum, medianChildValue))
         goto err_return;
 
+
+
     // il y a eu un split de noeuds
     if(newChildPageNum != IX_EMPTY)
     {
-        if(((IX_PageNode<T> *)pBuffer)->nbFilledSlots<IX_MAX_NUMBER_OF_VALUES)
-        {
-            if(rc = GetPageBuffer(pageNum, pBuffer))
+        if(rc = GetPageBuffer(pageNum, pBuffer))
+            goto err_return;
+
+
+            cout << "la racine doit être splittée" << endl;
+
+            // nouvelle racine
+            if(rc = AllocateNodePage_t<T>(ROOT,IX_EMPTY, newRootNum))
                 goto err_return;
 
-            copyGeneric(medianChildValue,((IX_PageNode<T> *)pBuffer)->v[((IX_PageNode<T> *)pBuffer)->nbFilledSlots]);
-            // on incrémente le nombre de slots occupés
-            ((IX_PageNode<T> *)pBuffer)->nbFilledSlots++;
-            // on ajoute le fils droit correspondant au nouveau slot
-            ((IX_PageNode<T> *)pBuffer)->child[((IX_PageNode<T> *)pBuffer)->nbFilledSlots] = newChildPageNum;
 
-            // on ordonne après l'insertion de la valeur médiane dans le noeud père
-            sortNodeGeneric(((IX_PageNode<T> *)pBuffer)->v,((IX_PageNode<T> *)pBuffer)->child, ((IX_PageNode<T> *)pBuffer)->nbFilledSlots);
-
-            if(rc = ReleaseBuffer(pageNum, true))
+            // on met à jour la nouvelle racine
+            if(rc = GetPageBuffer(newRootNum, pNewRootBuffer))
                 goto err_return;
-        } else {
-            cout << " --->> la racine est pleine il faut la spliter" << endl;
-        }
+
+            copyGeneric(medianChildValue, ((IX_PageNode<T> *)pNewRootBuffer)->v[0]);
+            ((IX_PageNode<T> *)pNewRootBuffer)->nbFilledSlots++;
+            ((IX_PageNode<T> *)pNewRootBuffer)->child[0] = pageNum;
+            ((IX_PageNode<T> *)pNewRootBuffer)->child[1] = newChildPageNum;
+
+            if(rc = ReleaseBuffer(newRootNum, true))
+                return rc;
+
+            fileHdr.rootNum = newRootNum;
+
+            cout << "Root in root" << fileHdr.rootNum << endl;
+
+            bHdrChanged = true;
+
+
+            // on récupère le buffer du nouveau noeud
+            if(rc = GetPageBuffer(newChildPageNum, newPageBuffer))
+                goto err_return;
+
+            // on met à jour les deux fils
+            if(((IX_PageNode<T> *)pBuffer)->nodeType == ROOTANDLASTINODE)
+            {
+                ((IX_PageNode<T> *)pBuffer)->nodeType = LASTINODE;
+                ((IX_PageNode<T> *)newPageBuffer)->nodeType = LASTINODE;
+            }
+            else
+            {
+                ((IX_PageNode<T> *)pBuffer)->nodeType = INODE;
+                ((IX_PageNode<T> *)newPageBuffer)->nodeType = INODE;
+            }
+
+            if(rc = ReleaseBuffer(newChildPageNum, true))
+                return rc;
+
+
+        if(rc = ReleaseBuffer(pageNum, true))
+            return rc;
+
     }
+
 
     return rc;
 
@@ -151,7 +191,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
     if(slotIndex < IX_MAX_NUMBER_OF_VALUES && slotIndex == ((IX_PageNode<T> *)pBuffer)->nbFilledSlots)
     {
         copyGeneric(*((T*) pData), ((IX_PageNode<T> *)pBuffer)->v[slotIndex]);
-        ((IX_PageNode<T> *)pBuffer)->nbFilledSlots = slotIndex + 1;
+        ((IX_PageNode<T> *)pBuffer)->nbFilledSlots++;
         pointerIndex = slotIndex+1;
     }
 
@@ -171,39 +211,6 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
 
         if(rc = InsertEntryInLeaf_t<T>(childPageNum, pData, rid, newChildPageNum, medianChildValue))
             goto err_return;
-
-        // il y a eu un split à cause de l'insertion de la valeur
-        if(newChildPageNum != IX_EMPTY)
-        {
-            // on essaye d'insérer la valeur médiane dans le noeud courant
-            cout << "split de feuille" << endl;
-            if(((IX_PageNode<T> *)pBuffer)->nbFilledSlots<IX_MAX_NUMBER_OF_VALUES)
-            {
-                cout << "le noeud courant a de la place :" << endl;
-                // on insère la valeur médiane liée à son fils droit
-                copyGeneric(medianChildValue,((IX_PageNode<T> *)pBuffer)->v[((IX_PageNode<T> *)pBuffer)->nbFilledSlots]);
-                // on incrémente le nombre de slots occupés
-                ((IX_PageNode<T> *)pBuffer)->nbFilledSlots++;
-                // on ajoute le fils droit correspondant au nouveau slot
-                ((IX_PageNode<T> *)pBuffer)->child[((IX_PageNode<T> *)pBuffer)->nbFilledSlots] = newChildPageNum;
-                // il faut ordonner les valeurs du noeud
-                sortNodeGeneric(((IX_PageNode<T> *)pBuffer)->v,((IX_PageNode<T> *)pBuffer)->child, ((IX_PageNode<T> *)pBuffer)->nbFilledSlots);
-            } else {
-                cout << "le noeud courant doit être splité" << endl;
-                // le noeud courant est plein donc on va créer un nouveau noeud
-                if(rc = AllocateNodePage_t<T>(((IX_PageNode<T> *)pBuffer)->nodeType,((IX_PageNode<T> *)pBuffer)->parent, newNodePageNum))
-                    goto err_return;
-                // on récupère le buffer du nouveau noeud
-                if(rc = GetPageBuffer(newNodePageNum, newPageBuffer))
-                    goto err_return;
-                // redistribution entre le noeud courant et le nouveau noeud
-                if(rc = RedistributeValuesAndChildren(pBuffer, newPageBuffer, medianChildValue, medianParentValue, newNodePageNum))
-                    goto err_return;
-
-                if(rc = ReleaseBuffer(newNodePageNum, true))
-                    return rc;
-            }
-        }
     }
     // the child is a node
     else
@@ -214,16 +221,77 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, void *pData, const RID 
         if(childPageNum == IX_EMPTY)
         {
 
-            if(rc = AllocateNodePage_t<T>(LASTINODE, iPageNum, childPageNum))
-                goto err_return;
+            // Todo : error state
 
-            ((IX_PageNode<T> *)pBuffer)->child[pointerIndex] = childPageNum;
         }
 
-        sortNodeGeneric(((IX_PageNode<T> *)pBuffer)->v,((IX_PageNode<T> *)pBuffer)->child, ((IX_PageNode<T> *)pBuffer)->nbFilledSlots);
+
 
         if(rc = InsertEntryInNode_t<T>(childPageNum, pData, rid, newChildPageNum, medianChildValue))
             goto err_return;
+    }
+
+    // il y a eu un split à cause de l'insertion de la valeur
+    if(newChildPageNum != IX_EMPTY)
+    {
+        // on essaye d'insérer la valeur médiane dans le noeud courant
+        cout << "split en dessous" << endl;
+        if(((IX_PageNode<T> *)pBuffer)->nbFilledSlots<IX_MAX_NUMBER_OF_VALUES)
+        {
+            cout << "le noeud courant a de la place :" << endl;
+            // on insère la valeur médiane liée à son fils droit
+            copyGeneric(medianChildValue,((IX_PageNode<T> *)pBuffer)->v[((IX_PageNode<T> *)pBuffer)->nbFilledSlots]);
+            // on incrémente le nombre de slots occupés
+            ((IX_PageNode<T> *)pBuffer)->nbFilledSlots++;
+            // on ajoute le fils droit correspondant au nouveau slot
+            ((IX_PageNode<T> *)pBuffer)->child[((IX_PageNode<T> *)pBuffer)->nbFilledSlots] = newChildPageNum;
+            // il faut ordonner les valeurs du noeud
+            sortNodeGeneric(((IX_PageNode<T> *)pBuffer)->v,((IX_PageNode<T> *)pBuffer)->child, ((IX_PageNode<T> *)pBuffer)->nbFilledSlots);
+        }
+        else
+        {
+            cout << "le noeud courant doit être splité" << endl;
+            // le noeud courant est plein donc on va créer un nouveau noeud
+            if(rc = AllocateNodePage_t<T>(((IX_PageNode<T> *)pBuffer)->nodeType,((IX_PageNode<T> *)pBuffer)->parent, newNodePageNum))
+                goto err_return;
+            // on récupère le buffer du nouveau noeud
+            if(rc = GetPageBuffer(newNodePageNum, newPageBuffer))
+                goto err_return;
+
+            cout << "REDISTRIB" << endl;
+
+            cout << "------- first ----------" << iPageNum << endl;
+            for(int m=0; m<((IX_PageNode<T> *)pBuffer)->nbFilledSlots; m++)
+            {
+                printGeneric(((IX_PageNode<T> *)pBuffer)->v[m]);
+            }
+
+            cout << "------- second ----------" << newChildPageNum << endl;
+            for(int m=0; m<((IX_PageNode<T> *)newPageBuffer)->nbFilledSlots; m++)
+            {
+                printGeneric(((IX_PageNode<T> *)newPageBuffer)->v[m]);
+            }
+
+            // redistribution entre le noeud courant et le nouveau noeud
+            if(rc = RedistributeValuesAndChildren(pBuffer, newPageBuffer, medianChildValue, medianParentValue, newChildPageNum))
+                goto err_return;
+
+            cout << "------- first ----------" << iPageNum << endl;
+            for(int m=0; m<((IX_PageNode<T> *)pBuffer)->nbFilledSlots; m++)
+            {
+                printGeneric(((IX_PageNode<T> *)pBuffer)->v[m]);
+            }
+
+            cout << "------- second ----------" << newChildPageNum << endl;
+            for(int m=0; m<((IX_PageNode<T> *)newPageBuffer)->nbFilledSlots; m++)
+            {
+                printGeneric(((IX_PageNode<T> *)newPageBuffer)->v[m]);
+            }
+
+
+            if(rc = ReleaseBuffer(newNodePageNum, true))
+                return rc;
+        }
     }
 
 
@@ -355,7 +423,7 @@ RC IX_IndexHandle::RedistributeValuesAndChildren(void *pBufferCurrentNode, void 
     {
         copyGeneric(((IX_PageNode<T> *)pBufferCurrentNode)->v[i], array[i]);
         // offset pour ne pas prendre le fils de gauche
-        ((IX_PageNode<T> *)pBufferCurrentNode)->child[i+1] = child[i];
+        child[i] = ((IX_PageNode<T> *)pBufferCurrentNode)->child[i+1];
     }
     // on place à la fin du tableau la nouvelle valeur
     copyGeneric(medianChildValue, array[4]);
@@ -368,6 +436,14 @@ RC IX_IndexHandle::RedistributeValuesAndChildren(void *pBufferCurrentNode, void 
     // on initialise le nombre de slots pour chaque feuille
     ((IX_PageNode<T> *)pBufferCurrentNode)->nbFilledSlots = 0;
     ((IX_PageNode<T> *)pBufferNewNode)->nbFilledSlots = 0;
+
+    // réinitialisation des références aux fils
+    for(int j=0;j<4;j++)
+    {
+        ((IX_PageNode<T> *)pBufferCurrentNode)->child[j] = IX_EMPTY;
+        ((IX_PageNode<T> *)pBufferNewNode)->child[j] = IX_EMPTY;
+    }
+
     // redistribution des valeurs
     for(int j=0;j<5;j++)
     {
@@ -996,6 +1072,8 @@ RC IX_IndexHandle::DisplayTree_t()
 
     currentNodeId++;
 
+    cout << "Root in display" << fileHdr.rootNum << endl;
+
     DisplayNode_t<T>(fileHdr.rootNum, fatherNodeId, currentNodeId, currentEdgeId);
 
     xmlFile.open(XML_FILE, ios::app);
@@ -1014,7 +1092,7 @@ RC IX_IndexHandle::DisplayTree_t()
 
 // display node
 template <typename T>
-RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum,const int &fatherNodeId, int &currentNodeId, int &currentEdgeId)
+RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum, const int fatherNodeId, int &currentNodeId, int &currentEdgeId)
 {
     RC rc;
     char *pBuffer;
@@ -1042,6 +1120,12 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum,const int &fatherNodeId, 
     for(slotIndex = 0;slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots; slotIndex++)
     {
         xmlFile << ((IX_PageNode<T> *)pBuffer)->v[slotIndex] << endl;
+        // debug
+        printGeneric(((IX_PageNode<T> *)pBuffer)->v[slotIndex]);
+    }
+    for(slotIndex = 0;slotIndex < 4; slotIndex++)
+    {
+        printGeneric(((IX_PageNode<T> *)pBuffer)->v[slotIndex]);
     }
     xmlFile << "</y:NodeLabel><y:Shape type=\"rectangle\"/></y:ShapeNode></data></node>" << endl;
     xmlFile << "<edge id=\"" << currentEdgeId <<"\"" << " source=\"" << fatherNodeId << "\" target=\"" << currentNodeId << "\"/>" << endl;
@@ -1068,7 +1152,7 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum,const int &fatherNodeId, 
         {
             PageNum childPageNum = ((IX_PageNode<T> *)pBuffer)->child[slotChildIndex];
         // the node is empty
-            if(childPageNum == IX_EMPTY)
+            if(childPageNum != IX_EMPTY)
             {
                 currentNodeId++;
                 currentEdgeId++;
@@ -1089,7 +1173,7 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum,const int &fatherNodeId, 
 
 // display leaf
 template <typename T>
-RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum,const int &fatherNodeId, int &currentNodeId, int &currentEdgeId)
+RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum,const int fatherNodeId, int &currentNodeId, int &currentEdgeId)
 {
     RC rc;
     char *pBuffer;

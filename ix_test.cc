@@ -755,15 +755,27 @@ RC Test6(void)
    IX_IndexHandle ih;
    int index=0;
 
+//   int sequelLength = 7;
+//   int sequel[7] = {10,1,13,3,4,5,2};
+
+//   int sequelLength = 11;
+//   int sequel[11] = {11,6,5,17,8,7,18,1,9,14,15};
+
+   int sequelLength = 12;
+   int sequel[12] = {11,6,5,17,8,7,18,1,9,14,15,10};
+
 //   int sequelLength = FEW_ENTRIES;
-   int sequelLength = 7;
-   // int sequel[FEW_ENTRIES] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24,19,19,23,18};
+//   int sequel[FEW_ENTRIES] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24,19,19,23,18};
+
+//   int sequelLength = FEW_ENTRIES;
+//   int sequel[FEW_ENTRIES] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24,19,19,23,18};
+
    // int sequel[FEW_ENTRIES] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24,19,19,23,14};
    // test simple d'insertion à gauche
-   int sequel[7] = {10,1,13,3,4,5,2};
+
 
    IX_IndexScan scan;
-   int value = 19;
+   int value = 5;
    bool bExists = true;
    RID rid;
 

@@ -25,8 +25,10 @@ void sortGeneric(int *array, PageNum bucket[], const int arrayLength)
     PageNum tmpBucket = bucket[i];
     int j = i;
     for (; j && tmp < array[j - 1]; --j)
-      array[j] = array[j - 1];
-    bucket[j] = bucket[j - 1];
+    {
+        array[j] = array[j - 1];
+        bucket[j] = bucket[j - 1];
+    }
     array[j] = tmp;
     bucket[j] = tmpBucket;
   }
@@ -40,8 +42,10 @@ void sortGeneric(float *array, PageNum bucket[], const int arrayLength)
     PageNum tmpBucket = bucket[i];
     int j = i;
     for (; j && tmp < array[j - 1]; --j)
-      array[j] = array[j - 1];
-    bucket[j] = bucket[j - 1];
+    {
+        array[j] = array[j - 1];
+        bucket[j] = bucket[j - 1];
+    }
     array[j] = tmp;
     bucket[j] = tmpBucket;
   }
@@ -56,8 +60,10 @@ void sortGeneric(char array[][MAXSTRINGLEN], PageNum bucket[], const int arrayLe
     strcpy(tmp, array[i]);
     int j = i;
     for (; j && strcmp(tmp,array[j - 1]); --j)
-      strcpy(array[j], array[j - 1]);
-    bucket[j] = bucket[j - 1];
+    {
+        strcpy(array[j], array[j - 1]);
+        bucket[j] = bucket[j - 1];
+    }
     strcpy(array[j],tmp);
     bucket[j] = tmpBucket;
   }
