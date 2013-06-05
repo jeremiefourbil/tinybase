@@ -92,50 +92,50 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
             goto err_return;
 
 
-            cout << "la racine doit être splittée" << endl;
+        cout << "la racine doit être splittée" << endl;
 
             // nouvelle racine
-            if(rc = AllocateNodePage_t<T>(ROOT,IX_EMPTY, newRootNum))
-                goto err_return;
+        if(rc = AllocateNodePage_t<T>(ROOT,IX_EMPTY, newRootNum))
+            goto err_return;
 
 
             // on met à jour la nouvelle racine
-            if(rc = GetNodePageBuffer(newRootNum, pNewRootBuffer))
-                goto err_return;
+        if(rc = GetNodePageBuffer(newRootNum, pNewRootBuffer))
+            goto err_return;
 
-            copyGeneric(medianChildValue, pNewRootBuffer->v[0]);
-            pNewRootBuffer->nbFilledSlots++;
-            pNewRootBuffer->child[0] = pageNum;
-            pNewRootBuffer->child[1] = newChildPageNum;
+        copyGeneric(medianChildValue, pNewRootBuffer->v[0]);
+        pNewRootBuffer->nbFilledSlots++;
+        pNewRootBuffer->child[0] = pageNum;
+        pNewRootBuffer->child[1] = newChildPageNum;
 
-            if(rc = ReleaseBuffer(newRootNum, true))
-                return rc;
+        if(rc = ReleaseBuffer(newRootNum, true))
+            return rc;
 
-            fileHdr.rootNum = newRootNum;
+        fileHdr.rootNum = newRootNum;
 
-            cout << "Root in root" << fileHdr.rootNum << endl;
+        cout << "Root in root" << fileHdr.rootNum << endl;
 
-            bHdrChanged = true;
+        bHdrChanged = true;
 
 
             // on récupère le buffer du nouveau noeud
-            if(rc = GetNodePageBuffer(newChildPageNum, newPageBuffer))
-                goto err_return;
+        if(rc = GetNodePageBuffer(newChildPageNum, newPageBuffer))
+            goto err_return;
 
             // on met à jour les deux fils
-            if(pBuffer->nodeType == ROOTANDLASTINODE)
-            {
-                pBuffer->nodeType = LASTINODE;
-                newPageBuffer->nodeType = LASTINODE;
-            }
-            else
-            {
-                pBuffer->nodeType = INODE;
-                newPageBuffer->nodeType = INODE;
-            }
+        if(pBuffer->nodeType == ROOTANDLASTINODE)
+        {
+            pBuffer->nodeType = LASTINODE;
+            newPageBuffer->nodeType = LASTINODE;
+        }
+        else
+        {
+            pBuffer->nodeType = INODE;
+            newPageBuffer->nodeType = INODE;
+        }
 
-            if(rc = ReleaseBuffer(newChildPageNum, true))
-                return rc;
+        if(rc = ReleaseBuffer(newChildPageNum, true))
+            return rc;
 
 
         if(rc = ReleaseBuffer(pageNum, true))
@@ -259,7 +259,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
     if(rc = ReleaseBuffer(iPageNum, true))
         goto err_return;
 
-err_return:
+    err_return:
     return (rc);
 
     return OK_RC;
@@ -449,7 +449,7 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLe
         // on met à jour les buckets pour être cohérent
             pBufferNewLeaf->bucket[j-2] = bucket[j];
         // on incrémente le nombre slots remplis
-           pBufferNewLeaf->nbFilledSlots++;
+            pBufferNewLeaf->nbFilledSlots++;
         }
     }
     return OK_RC;
@@ -527,6 +527,10 @@ RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
 {
     RC rc;
     PageNum pageNum;
+    IX_PageNode<T> * pBuffer;
+    T updatedChildValue;
+    bool updateChildIndex = false;
+    int slotIndex = 0;
 
     pageNum = fileHdr.rootNum;
 
@@ -538,9 +542,20 @@ RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
 
     // let's call the recursion method, start with root
 
-    if(rc = DeleteEntryInNode_t<T>(pageNum, iValue, rid))
+    if(rc = DeleteEntryInNode_t<T>(pageNum, iValue, rid, updatedChildValue, updateChildIndex))
         goto err_return;
-
+    if(updateChildIndex)
+    {
+        // get the current node
+        if(rc = GetNodePageBuffer(pageNum, pBuffer))
+            goto err_return;
+        slotIndex = 0;
+        while(slotIndex < pBuffer->nbFilledSlots && comparisonGeneric(iValue, pBuffer->v[slotIndex]) >= 0)
+        {
+            slotIndex++;
+        }
+        copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
+    }
     return rc;
 
     err_return:
@@ -550,13 +565,15 @@ RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
 
 // Node Deletion
 template <typename T>
-RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid)
+RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, bool &updateParentIndex)
 {
 
     RC rc;
     IX_PageNode<T> * pBuffer;
     int slotIndex;
     int pointerIndex;
+    bool updateChildIndex = false;
+    T updatedChildValue;
 
     // get the current node
     if(rc = GetNodePageBuffer(iPageNum, pBuffer))
@@ -585,9 +602,17 @@ if(pBuffer->nodeType == LASTINODE || pBuffer->nodeType == ROOTANDLASTINODE)
         goto err_release;
     }
 
-    if(rc = DeleteEntryInLeaf_t<T>(childPageNum, iValue, rid))
+    if(rc = DeleteEntryInLeaf_t<T>(childPageNum, iValue, rid, updatedChildValue, updateChildIndex))
         goto err_return;
-
+    // mettre à jour l'index car la valeur minimale de la feuille a changé
+    if(updateChildIndex)
+    {
+        copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
+        if(slotIndex == 0){
+            copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
+            updateParentIndex = true;
+        }
+    }
 }
     // the child is a node
 else
@@ -601,8 +626,16 @@ else
         goto err_release;
     }
 
-    if(rc = DeleteEntryInNode_t<T>(childPageNum, iValue, rid))
+    if(rc = DeleteEntryInNode_t<T>(childPageNum, iValue, rid, updatedChildValue, updateChildIndex))
         goto err_return;
+    if(updateChildIndex)
+    {
+        copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
+        if(slotIndex == 0){
+            copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
+            updateParentIndex = true;
+        }
+    }
 }
 
 
@@ -621,7 +654,7 @@ return OK_RC;
 
 // Leaf Deletion
 template <typename T>
-RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid)
+RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, bool &updateParentIndex)
 {
     RC rc = OK_RC;
 
@@ -664,9 +697,28 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
 
         // swap the last record and the deleted record
         swapLeafEntries<T>(slotIndex, pBuffer, pBuffer->nbFilledSlots-1, pBuffer);
-        pBuffer->nbFilledSlots = pBuffer->nbFilledSlots - 1;
+        pBuffer->nbFilledSlots--;
         sortLeaf(pBuffer);
     }
+
+    // trois cas se présentent
+    // 1. cette feuille est la racine et elle est devenue vide
+    // on la supprime et le btree devient vide.
+    // IMPOSSIBLE pour l'instant car la la racine ne peut pas être une feuille
+    if(pBuffer->nbFilledSlots < IX_MAX_NUMBER_OF_VALUES/2)
+    {
+        // 2. la feuille compte moins de IX_MAX_VALUES / 2
+    }
+    else
+    {
+        // 3. la feuille a au moins la moitié de ses slots remplis
+        // on met à jour l'index en remontant la valeur.
+        if(slotIndex == 0)
+        {
+            copyGeneric(pBuffer->v[0], updatedParentValue);
+            updateParentIndex = true;
+        }
+    }   
 
     if(rc = ReleaseBuffer(iPageNum, true))
         goto err_return;
@@ -986,9 +1038,9 @@ RC IX_IndexHandle::DisplayTree()
         case FLOAT:
         rc = DisplayTree_t<float>();
         break;
-         case STRING:
-         rc = DisplayTree_t<char[MAXSTRINGLEN]>();
-         break;
+        case STRING:
+        rc = DisplayTree_t<char[MAXSTRINGLEN]>();
+        break;
     }
 
     return rc;

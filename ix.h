@@ -100,10 +100,10 @@ private:
     RC DeleteEntry_t(T iValue, const RID &rid);
 
     template <typename T>
-    RC DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid);
+    RC DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, bool &updateParentIndex);
 
     template <typename T>
-    RC DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid);
+    RC DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, bool &updateParentIndex);
 
     RC DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid);
 
