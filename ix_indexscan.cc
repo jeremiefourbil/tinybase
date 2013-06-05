@@ -245,6 +245,13 @@ RC IX_IndexScan::GetNextEntry_t(RID &rid)
     if(rc = _indexHandle.GetPageBuffer(leafNum, pBuffer))
         goto err_return;
 
+    // check if the slot exists
+    if(_nextLeafSlot >= ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots)
+    {
+        cout << "Scan: débordement mémoire" << endl;
+        return 1;
+    }
+
     // read the rid in the bucket
     rc = ReadBucket(((IX_PageLeaf<T> *)pBuffer)->bucket[_nextLeafSlot], rid);
     if(rc == IX_EOF)

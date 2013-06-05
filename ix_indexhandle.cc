@@ -326,12 +326,12 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
                 goto err_return;
         } else {
             // des slots sont disponibles alors on insère la valeur dans la feuille
-            copyGeneric(iValue, pBuffer->v[pBuffer->nbFilledSlots]);
 
             if(rc = AllocateBucketPage(iPageNum, bucketPageNum))
                 goto err_return;
 
-            pBuffer->bucket[pBuffer->nbFilledSlots];
+            copyGeneric(iValue, pBuffer->v[pBuffer->nbFilledSlots]);
+            pBuffer->bucket[pBuffer->nbFilledSlots] = bucketPageNum;
             pBuffer->nbFilledSlots++;
 
             sortGeneric(pBuffer->v, pBuffer->bucket, pBuffer->nbFilledSlots);
@@ -470,11 +470,11 @@ RC IX_IndexHandle::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
     // WARNING: DOES NOT SUPPORT OVERFLOW
 
     memcpy(pBuffer + sizeof(IX_PageBucketHdr) + ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots * sizeof(RID),
-     (void*) &rid, sizeof(rid));
+     &rid, sizeof(RID));
 
 
 
-    ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots = ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots + 1;
+    ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots++;
 
 
     if(rc = ReleaseBuffer(iPageNum, true))
@@ -745,10 +745,65 @@ RC IX_IndexHandle::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
 // Force pages
 // ***********************
 
+
+// TO BE VERIFIED
+
+
 // Force index files to disk
 RC IX_IndexHandle::ForcePages()
 {
-    return OK_RC;
+    RC rc;
+
+    // Write back the file header if any changes made to the header
+    // while the file is open
+    if (bHdrChanged) {
+       PF_PageHandle pageHandle;
+       char* pData;
+
+       // Get the header page
+       if (rc = pfFileHandle.GetFirstPage(pageHandle))
+          // Test: unopened(closed) fileHandle, invalid file
+          goto err_return;
+
+       // Get a pointer where header information will be written
+       if (rc = pageHandle.GetData(pData))
+          // Should not happen
+          goto err_unpin;
+
+       // Write the file header (to the buffer pool)
+       memcpy(pData, &fileHdr, sizeof(fileHdr));
+
+       // Mark the header page as dirty
+       if (rc = pfFileHandle.MarkDirty(IX_HEADER_PAGE_NUM))
+          // Should not happen
+          goto err_unpin;
+
+       // Unpin the header page
+       if (rc = pfFileHandle.UnpinPage(IX_HEADER_PAGE_NUM))
+          // Should not happen
+          goto err_return;
+
+       if (rc = pfFileHandle.ForcePages(IX_HEADER_PAGE_NUM))
+          // Should not happen
+          goto err_return;
+
+       // Set file header to be not changed
+       bHdrChanged = FALSE;
+    }
+
+    // Call PF_FileHandle::ForcePages()
+    if (rc = pfFileHandle.ForcePages(IX_HEADER_PAGE_NUM))
+       goto err_return;
+
+    // Return ok
+    return (0);
+
+    // Recover from inconsistent state due to unexpected error
+ err_unpin:
+    pfFileHandle.UnpinPage(IX_HEADER_PAGE_NUM);
+ err_return:
+    // Return error
+    return (rc);
 }
 
 // ***********************
@@ -792,8 +847,6 @@ RC IX_IndexHandle::AllocateNodePage_t(const NodeType nodeType, const PageNum par
     // Unpin the page
     if (rc = pfFileHandle.UnpinPage(oPageNum))
         goto err_return;
-
-    bHdrChanged = TRUE;
 
     // Return ok
     return (0);
@@ -841,8 +894,6 @@ RC IX_IndexHandle::AllocateLeafPage_t(const PageNum parent, PageNum &oPageNum)
     if (rc = pfFileHandle.UnpinPage(oPageNum))
         goto err_return;
 
-    bHdrChanged = TRUE;
-
     // Return ok
     return (0);
 
@@ -881,8 +932,6 @@ RC IX_IndexHandle::AllocateBucketPage(const PageNum parent, PageNum &oPageNum)
     // Unpin the page
     if (rc = pfFileHandle.UnpinPage(oPageNum))
         goto err_return;
-
-    bHdrChanged = TRUE;
 
     // Return ok
     return (0);

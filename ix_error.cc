@@ -45,5 +45,5 @@ static char *IX_ErrorMsg[] = {
 
 void IX_PrintError(RC rc)
 {
-
+    cerr << "IX ERROR BIATCH" << "\n";
 }

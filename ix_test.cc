@@ -34,7 +34,7 @@ using namespace std;
 #define BADFILE      "/abc/def/xyz"   // bad file name
 #define STRLEN       39               // length of strings to index
 #define FEW_ENTRIES  20
-#define MANY_ENTRIES 1000
+#define MANY_ENTRIES 5500
 #define NENTRIES     5000             // Size of values array
 #define PROG_UNIT    200              // how frequently to give progress
 // reports when adding lots of entries
@@ -755,8 +755,8 @@ RC Test6(void)
    IX_IndexHandle ih;
    int index=0;
 
-//   int sequelLength = 7;
-//   int sequel[7] = {10,1,13,3,4,5,2};
+//   int sequelLength = 2;
+//   int sequel[7] = {10,10};
 
 
 //   int sequelLength = 11;
@@ -764,6 +764,9 @@ RC Test6(void)
 
 //   int sequelLength = 12;
 //   int sequel[12] = {11,6,5,17,8,7,18,1,9,14,15,10};
+
+//   int sequelLength = 16;
+//   int sequel[16] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24};
 
    int sequelLength = FEW_ENTRIES;
    int sequel[FEW_ENTRIES] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24,19,19,23,18};
