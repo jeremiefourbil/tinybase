@@ -1230,9 +1230,10 @@ template <typename T>
 RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum,const int fatherNodeId, int &currentNodeId, int &currentEdgeId)
 {
     RC rc;
-    char *pBuffer;
+    char *pBuffer, *pBucketBuffer;
     int slotIndex;
     ofstream xmlFile;
+    RID rid;
 
     cout << "[" << pageNum << "," << fatherNodeId << "," << currentNodeId << "]" << endl;
 
@@ -1245,13 +1246,31 @@ RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum,const int fatherNodeId, i
     xmlFile << "<node id=\"" << currentNodeId << "\">" << endl;
 
     xmlFile << "<data key=\"d0\"><y:ShapeNode><y:BorderStyle type=\"line\" width=\"1.0\" color=\"#008000\"/>" << endl;
-    xmlFile << "<y:Geometry height=\"80.0\" />" << endl;
+    xmlFile << "<y:Geometry height=\"80.0\" width=\"50\" />" << endl;
     xmlFile << "<y:NodeLabel>" << endl;
 
     for(slotIndex = 0;slotIndex < ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots; slotIndex++)
     {
+        int rid_pnum;
+        int rid_snum;
 
-        xmlFile << ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex] << "-" << ((IX_PageLeaf<T> *)pBuffer)->bucket[slotIndex] << endl;
+        if(rc = GetPageBuffer(((IX_PageLeaf<T> *)pBuffer)->bucket[slotIndex], pBucketBuffer))
+            goto err_return;
+
+        memcpy((void*) &rid,
+               pBucketBuffer + sizeof(IX_PageBucketHdr), sizeof(RID));
+
+        rid.GetPageNum(rid_pnum);
+        rid.GetSlotNum(rid_snum);
+
+
+        xmlFile << ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex] << "-" << ((IX_PageBucketHdr *)pBucketBuffer)->nbFilledSlots << "(" << rid_pnum << ";" << rid_snum << ")" << endl;
+
+        if(rc = ReleaseBuffer(((IX_PageLeaf<T> *)pBuffer)->bucket[slotIndex], false))
+            goto err_return;
+
+
+
     }
     xmlFile << "</y:NodeLabel><y:Shape type=\"rectangle\"/></y:ShapeNode></data></node>" << endl;
 

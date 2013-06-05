@@ -349,8 +349,10 @@ int main(int argc, char *argv[])
       for (i = 0; i < nEntries; i++) {
          value = values[i] + 1;
          RID rid(value, value*2);
+         printf("before %d\n", i);
          if ((rc = ih.DeleteEntry((void *)&value, rid)))
             return (rc);
+         printf("after\n");
 
          if((i + 1) % PROG_UNIT == 0){
             printf("\r\t%d%%      ", (int)((i+1)*100L/nEntries));
@@ -850,7 +852,7 @@ RC Test7(void)
    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
       (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
       (rc = InsertSequelOfInt(ih, sequel, sequelLength)))
-      // (rc = ih.DeleteEntry((void *)&value, rid)))
+//       (rc = ih.DeleteEntry((void *)&value, rid)))
       return (rc);
 
    cout << "----- Start XML tree -------" << endl;
@@ -863,22 +865,22 @@ RC Test7(void)
       return (rc);
    }
 
-   for(int i=0; i<5; i++)
-   {
-     rc = scan.GetNextEntry(rid);
-     if (!bExists && rc == 0) {
-        printf("Verify error: found non-existent entry %d\n", value);
-          return (IX_EOF);  // What should be returned here?
-       }
-       else if (bExists && rc == IX_EOF) {
-        printf("Verify error: entry %d not found\n", value);
-          return (IX_EOF);  // What should be returned here?
-       }
-       else if (rc != 0 && rc != IX_EOF)
-        return (rc);
+//   for(int i=0; i<5; i++)
+//   {
+//     rc = scan.GetNextEntry(rid);
+//     if (!bExists && rc == 0) {
+//        printf("Verify error: found non-existent entry %d\n", value);
+//          return (IX_EOF);  // What should be returned here?
+//       }
+//       else if (bExists && rc == IX_EOF) {
+//        printf("Verify error: entry %d not found\n", value);
+//          return (IX_EOF);  // What should be returned here?
+//       }
+//       else if (rc != 0 && rc != IX_EOF)
+//        return (rc);
 
-     printf("Value %d found!\n", value);
-  }
+//     printf("Value %d found!\n", value);
+//  }
 
   if ((rc = scan.CloseScan())) {
    printf("Verify error: closing scan\n");
