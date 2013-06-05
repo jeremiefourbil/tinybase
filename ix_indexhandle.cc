@@ -331,7 +331,7 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
             if(rc = AllocateBucketPage(iPageNum, bucketPageNum))
                 goto err_return;
 
-            pBuffer->bucket[pBuffer->nbFilledSlots];
+            pBuffer->bucket[pBuffer->nbFilledSlots] = bucketPageNum;
             pBuffer->nbFilledSlots++;
 
             sortGeneric(pBuffer->v, pBuffer->bucket, pBuffer->nbFilledSlots);
@@ -417,12 +417,17 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLe
     T array[5];
     PageNum bucket[5];
 
+    cout << "--- redistribution --" << endl;
+    cout << "--- before :" << endl;
+
     // on remplit le nouveau tableau avec les 5 valeurs
     for(int i=0;i<pBufferCurrentLeaf->nbFilledSlots;i++)
     {
         copyGeneric(pBufferCurrentLeaf->v[i], array[i]);
         pBufferCurrentLeaf->bucket[i] = bucket[i];
+        cout << "(" << array[i] << "," << bucket[i] <<")" ;
     }
+    cout << endl;
     // on place à la fin du tableau la nouvelle valeur
     copyGeneric(iValue, array[4]);
     // on remplit la page du nouveau bucket
@@ -435,6 +440,7 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLe
     pBufferCurrentLeaf->nbFilledSlots = 0;
     pBufferNewLeaf->nbFilledSlots = 0;
     // redistribution des valeurs
+    cout << "--- after :" << endl;
     for(int j=0;j<5;j++)
     {
         if(j<2){
@@ -443,6 +449,7 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLe
             pBufferCurrentLeaf->bucket[j] = bucket[j];
             // on incrémente le nombre slots remplis
             pBufferCurrentLeaf->nbFilledSlots++;
+            cout << "(" << array[j] << "," << bucket[j] <<")" ;
         } else {
         // on copie la valeur dans la nouvelle feuille
             copyGeneric(array[j], pBufferNewLeaf->v[j-2]);
@@ -450,8 +457,10 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLe
             pBufferNewLeaf->bucket[j-2] = bucket[j];
         // on incrémente le nombre slots remplis
             pBufferNewLeaf->nbFilledSlots++;
+            cout << "(" << array[j] << "," << bucket[j] <<")" ;
         }
     }
+    cout << endl;
     return OK_RC;
 }
 
@@ -459,9 +468,8 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLe
 RC IX_IndexHandle::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
 {
     RC rc = OK_RC;
-
+    cout << iPageNum << endl;
     char *pBuffer;
-
     // get the current bucket
     if(rc = GetPageBuffer(iPageNum, pBuffer))
         goto err_return;
@@ -520,7 +528,6 @@ RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid)
     return rc;
 }
 
-
 // templated Deletion
 template <typename T>
 RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
@@ -562,7 +569,6 @@ RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
     return (rc);
 }
 
-
 // Node Deletion
 template <typename T>
 RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, bool &updateParentIndex)
@@ -591,65 +597,65 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
     pointerIndex++;
 
     // the child is a leaf
-if(pBuffer->nodeType == LASTINODE || pBuffer->nodeType == ROOTANDLASTINODE)
-{
-    PageNum childPageNum = pBuffer->child[pointerIndex];
-
-        // the leaf is empty
-    if(pBuffer->child[pointerIndex] == IX_EMPTY)
+    if(pBuffer->nodeType == LASTINODE || pBuffer->nodeType == ROOTANDLASTINODE)
     {
-        rc = IX_ENTRY_DOES_NOT_EXIST;
-        goto err_release;
-    }
+        PageNum childPageNum = pBuffer->child[pointerIndex];
 
-    if(rc = DeleteEntryInLeaf_t<T>(childPageNum, iValue, rid, updatedChildValue, updateChildIndex))
-        goto err_return;
-    // mettre à jour l'index car la valeur minimale de la feuille a changé
-    if(updateChildIndex)
-    {
-        copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
-        if(slotIndex == 0){
-            copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
-            updateParentIndex = true;
+            // the leaf is empty
+        if(pBuffer->child[pointerIndex] == IX_EMPTY)
+        {
+            rc = IX_ENTRY_DOES_NOT_EXIST;
+            goto err_release;
+        }
+
+        if(rc = DeleteEntryInLeaf_t<T>(childPageNum, iValue, rid, updatedChildValue, updateChildIndex))
+            goto err_return;
+        // mettre à jour l'index car la valeur minimale de la feuille a changé
+        if(updateChildIndex)
+        {
+            copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
+            if(slotIndex == 0){
+                copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
+                updateParentIndex = true;
+            }
         }
     }
-}
-    // the child is a node
-else
-{
-    PageNum childPageNum = pBuffer->child[pointerIndex];
-
-        // the node is empty
-    if(childPageNum == IX_EMPTY)
+        // the child is a node
+    else
     {
-        rc = IX_ENTRY_DOES_NOT_EXIST;
-        goto err_release;
-    }
+        PageNum childPageNum = pBuffer->child[pointerIndex];
 
-    if(rc = DeleteEntryInNode_t<T>(childPageNum, iValue, rid, updatedChildValue, updateChildIndex))
-        goto err_return;
-    if(updateChildIndex)
-    {
-        copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
-        if(slotIndex == 0){
-            copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
-            updateParentIndex = true;
+            // the node is empty
+        if(childPageNum == IX_EMPTY)
+        {
+            rc = IX_ENTRY_DOES_NOT_EXIST;
+            goto err_release;
+        }
+
+        if(rc = DeleteEntryInNode_t<T>(childPageNum, iValue, rid, updatedChildValue, updateChildIndex))
+            goto err_return;
+        if(updateChildIndex)
+        {
+            copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
+            if(slotIndex == 0){
+                copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
+                updateParentIndex = true;
+            }
         }
     }
-}
 
 
-if(rc = ReleaseBuffer(iPageNum, true))
-    goto err_return;
+    if(rc = ReleaseBuffer(iPageNum, true))
+        goto err_return;
 
-return rc;
+    return rc;
 
-err_release:
-ReleaseBuffer(iPageNum, false);
-err_return:
-return (rc);
+    err_release:
+    ReleaseBuffer(iPageNum, false);
+    err_return:
+    return (rc);
 
-return OK_RC;
+    return OK_RC;
 }
 
 // Leaf Deletion
@@ -1194,7 +1200,8 @@ RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum,const int fatherNodeId, i
 
     for(slotIndex = 0;slotIndex < ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots; slotIndex++)
     {
-        xmlFile << ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex] << endl;
+
+        xmlFile << ((IX_PageLeaf<T> *)pBuffer)->v[slotIndex] << "-" << ((IX_PageLeaf<T> *)pBuffer)->bucket[slotIndex] << endl;
     }
     xmlFile << "</y:NodeLabel><y:Shape type=\"rectangle\"/></y:ShapeNode></data></node>" << endl;
 

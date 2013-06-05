@@ -405,7 +405,6 @@ int main(int argc, char *argv[])
          RID rid(values[i] + 1, (values[i] + 1)*2);
          if ((rc = ih.DeleteEntry(value, rid)))
             return (rc);
-
          if((i + 1) % PROG_UNIT == 0){
             printf("\r\t%d%%    ", (int)((i+1)*100L/nEntries));
             fflush(stdout);
@@ -733,8 +732,6 @@ RC InsertSequelOfInt(IX_IndexHandle &ih, int entries[],const int entriesLength)
       if ((rc = ih.InsertEntry((void *)&value, rid)))
          return (rc);
 
-      printf("Value inserted: %d \n", value);
-
       if((i + 1) % PROG_UNIT == 0){
          // cast to long for PC's
          printf("\r\t%d%%    ", (int)((i+1)*100L/entriesLength));
@@ -830,6 +827,8 @@ RC Test7(void)
 
    int sequelLength = 11;
    int sequel[11] = {11,6,5,17,8,7,18,1,9,14,15};
+   // int sequelLength = 20;
+   // int sequel[20] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13};
 
    IX_IndexScan scan;
    int value = 9;
@@ -840,15 +839,14 @@ RC Test7(void)
 
    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
       (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
-      (rc = InsertSequelOfInt(ih, sequel, sequelLength)) ||
-      (rc = ih.DeleteEntry((void *)&value, rid)))
+      (rc = InsertSequelOfInt(ih, sequel, sequelLength)))
+      // (rc = ih.DeleteEntry((void *)&value, rid)))
       return (rc);
 
-   // create the xml file
+   cout << "----- Start XML tree -------" << endl;
    if((rc = ih.DisplayTree()))
       return (rc);
-
-
+   cout << "----- End XML tree -------" << endl;
    // check if one entry is in the index
    if ((rc = scan.OpenScan(ih, EQ_OP, &value))) {
       printf("Verify error: opening scan\n");
