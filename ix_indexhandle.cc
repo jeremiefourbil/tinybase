@@ -60,7 +60,7 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
     PageNum pageNum;
 
     IX_PageNode<T> *pBuffer, *pNewRootBuffer, *newPageBuffer;
-
+    IX_PageLeaf<T> *pLeafBuffer;
     // Pour la récursion descendante
     PageNum newChildPageNum = IX_EMPTY;
     T medianChildValue;
@@ -135,7 +135,9 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
                 pBuffer->nodeType = INODE;
                 newPageBuffer->nodeType = INODE;
             }
-
+            // on met à jour le parents des fils
+            pBuffer->parent = newRootNum;
+            newPageBuffer->parent = newRootNum;
             if(rc = ReleaseBuffer(newChildPageNum, true))
                 return rc;
             if(rc = ReleaseBuffer(pageNum, true))
@@ -157,7 +159,17 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
 
             if(rc = ReleaseBuffer(newRootNum, true))
                 return rc;
-
+            // mise à jour des parents pour les enfants
+            if(rc = GetLeafPageBuffer(pageNum, pLeafBuffer))
+                goto err_return;
+            pLeafBuffer->parent = newRootNum;
+            if(rc = ReleaseBuffer(pageNum, true))
+                return rc;
+            if(rc = GetLeafPageBuffer(newChildPageNum, pLeafBuffer))
+                goto err_return;
+            pLeafBuffer->parent = newRootNum;
+            if(rc = ReleaseBuffer(newChildPageNum, true))
+                return rc;
             fileHdr.rootNum = newRootNum;
 
             cout << "Root in root" << fileHdr.rootNum << endl;
@@ -188,6 +200,8 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
     PageNum newChildPageNum = IX_EMPTY;
     T medianChildValue;
 
+    IX_PageLeaf<T> *tmpLeafBuffer;
+    IX_PageNode<T> *tmpNodeBuffer;
 
     // get the current node
     if(rc = GetNodePageBuffer(iPageNum, pBuffer))
@@ -271,7 +285,41 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             // redistribution entre le noeud courant et le nouveau noeud
             if(rc = RedistributeValuesAndChildren<T>(pBuffer, newPageBuffer, medianChildValue, medianParentValue, newChildPageNum))
                 goto err_return;
-
+            cout << "mise à jour du parent des enfants" << endl;
+            // on met à jour le parent des enfants du nouveau noeuds
+            for(int i=0;i<newPageBuffer->nbFilledSlots;i++)
+            {
+                // on vérifie que le fils existe droit
+                if(newPageBuffer->child[i+1] != IX_EMPTY)
+                {
+                    if(newPageBuffer->nodeType == LASTINODE || newPageBuffer->nodeType == ROOTANDLASTINODE)
+                    {
+                        // le fils est une feuillle
+                        if(rc = GetLeafPageBuffer(newPageBuffer->child[i+1], tmpLeafBuffer))
+                            goto err_return;
+                        tmpLeafBuffer->parent = newNodePageNum;
+                        if(rc = ReleaseBuffer(newPageBuffer->child[i+1], true))
+                            return rc;
+                    }
+                    else if (newPageBuffer->nodeType == INODE)
+                    {
+                        // le fils est un noeud
+                        if(rc = GetNodePageBuffer(newPageBuffer->child[i+1], tmpNodeBuffer))
+                            goto err_return;
+                        tmpNodeBuffer->parent = newNodePageNum;
+                        if(rc = ReleaseBuffer(newPageBuffer->child[i+1], true))
+                            return rc;
+                    }
+                    else
+                    {
+                        // ne doit pas se produire
+                    }
+                } else {
+                    // ne doit pas se produire
+                    cout << "le fils droit est vide" << endl;
+                }
+            }
+            cout << endl;
             if(rc = ReleaseBuffer(newNodePageNum, true))
                 return rc;
         }
@@ -749,19 +797,21 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
         // 2. la feuille compte moins de IX_MAX_VALUES / 2
         // on cherche une feuille voisine appartenant au même parent
         cout << "page de gauche "<< pBuffer->previous << endl;
+        cout << "parent courant "<< pBuffer->parent << endl;
         cout << "page de droite "<< pBuffer->next << endl;
-        // if(rc = GetLeafPageBuffer(pBuffer->previous, pNeighborBuffer))
-        //     goto err_return;
-        // if(pNeighborBuffer->parent == pBuffer->parent)
-        // {
-        //     cout << "même parent" << endl;
-        // }
-        // else
-        // {
-        //     cout << "pas le même parent" << endl;
-        // }
-        // if(rc = ReleaseBuffer(pBuffer->previous, true))
-        //     goto err_return;
+        if(rc = GetLeafPageBuffer(pBuffer->next, pNeighborBuffer))
+            goto err_return;
+        cout << "parent voisin "<< pNeighborBuffer->parent << endl;
+        if(pNeighborBuffer->parent == pBuffer->parent)
+        {
+            cout << "même parent" << endl;
+        }
+        else
+        {
+            cout << "pas le même parent" << endl;
+        }
+        if(rc = ReleaseBuffer(pBuffer->next, true))
+            goto err_return;
     }
     else
     {
@@ -1218,7 +1268,7 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum, const int fatherNodeId, 
     xmlFile << "<data key=\"d0\"><y:ShapeNode><y:BorderStyle type=\"line\" width=\"1.0\" color=\"#000000\"/>" << endl;
     xmlFile << "<y:Geometry height=\"80.0\" />" << endl;
     xmlFile << "<y:NodeLabel>" << endl;
-
+    xmlFile << "parent : " << ((IX_PageNode<T> *)pBuffer)->parent << " - " << "p" << pageNum <<endl;
     for(slotIndex = 0;slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots; slotIndex++)
     {
         xmlFile << ((IX_PageNode<T> *)pBuffer)->v[slotIndex] << endl;
@@ -1296,6 +1346,7 @@ RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum,const int fatherNodeId, i
     xmlFile << "<data key=\"d0\"><y:ShapeNode><y:BorderStyle type=\"line\" width=\"1.0\" color=\"#008000\"/>" << endl;
     xmlFile << "<y:Geometry height=\"80.0\" width=\"100\" />" << endl;
     xmlFile << "<y:NodeLabel>" << endl;
+    xmlFile << "parent : " << ((IX_PageLeaf<T> *)pBuffer)->parent << endl;
     xmlFile << "(==" << ((IX_PageLeaf<T> *)pBuffer)->previous << " ; " << pageNum <<" ; " << ((IX_PageLeaf<T> *)pBuffer)->next << "==)" << endl;
     for(slotIndex = 0;slotIndex < ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots; slotIndex++)
     {
