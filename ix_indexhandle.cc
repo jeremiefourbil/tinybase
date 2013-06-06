@@ -394,7 +394,7 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
             pBuffer->next = newChildPageNum;
             newPageBuffer->previous = iPageNum;
             // on remplit la moitié des valeurs de l'ancienne feuille dans la nouvelle feuille
-            if(rc = RedistributeValuesAndBuckets<T>(pBuffer, newPageBuffer, iValue, medianValue, bucketPageNum))
+            if(rc = RedistributeValuesAndBuckets<T>(pBuffer, newPageBuffer, iValue, medianValue, bucketPageNum, IX_MAX_NUMBER_OF_VALUES+1))
                 goto err_return;
             // on relâche la nouvelle feuille
             if(rc = ReleaseBuffer(newChildPageNum, true))
@@ -488,38 +488,49 @@ RC IX_IndexHandle::RedistributeValuesAndChildren(IX_PageNode<T> *pBufferCurrentN
 }
 
 template <typename T>
-RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLeaf, IX_PageLeaf<T> *pBufferNewLeaf, T iValue, T &medianValue,const PageNum &bucketPageNum)
+RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLeaf, IX_PageLeaf<T> *pBufferNewLeaf, T iValue, T &medianValue,const PageNum &bucketPageNum, const int nEntries)
 {
-    T array[5];
-    PageNum bucket[5];
+    T array[nEntries];
+    PageNum bucket[nEntries];
+
+    int slotOffset = nEntries/2;
 
     cout << "--- redistribution --" << endl;
     cout << "--- before :" << endl;
 
-    // on remplit le nouveau tableau avec les 5 valeurs
-    for(int i=0;i<pBufferCurrentLeaf->nbFilledSlots;i++)
+    // on remplit le nouveau tableau avec les valeurs de la feuille gauche
+    int i;
+
+    for(i=0;i<pBufferCurrentLeaf->nbFilledSlots;i++)
     {
         copyGeneric(pBufferCurrentLeaf->v[i], array[i]);
         bucket[i] = pBufferCurrentLeaf->bucket[i];
         cout << "(" << array[i] << "," << bucket[i] <<")" ;
     }
+    // on remplit le nouveau tableau avec les valeurs de la feuille droite
+    for(int j=0;i<pBufferCurrentLeaf->nbFilledSlots;j++)
+    {
+        copyGeneric(pBufferCurrentLeaf->v[j], array[j+i+1]);
+        bucket[i+j+1] = pBufferCurrentLeaf->bucket[j];
+        cout << "(" << array[i+j+1] << "," << bucket[i+j+1] <<")" ;
+    }
     cout << endl;
     // on place à la fin du tableau la nouvelle valeur
-    copyGeneric(iValue, array[4]);
+    copyGeneric(iValue, array[nEntries-1]);
     // on remplit la page du nouveau bucket
-    bucket[4] = bucketPageNum;
+    bucket[nEntries-1] = bucketPageNum;
     // on ordonne le nouveau tableau
-    sortGeneric(array, bucket, 5);
+    sortGeneric(array, bucket, nEntries);
     // on récupère la valeur médiane
-    copyGeneric(array[2],medianValue);
+    copyGeneric(array[slotOffset],medianValue);
     // on initialise le nombre de slots pour chaque feuille
     pBufferCurrentLeaf->nbFilledSlots = 0;
     pBufferNewLeaf->nbFilledSlots = 0;
     // redistribution des valeurs
     cout << "--- after :" << endl;
-    for(int j=0;j<5;j++)
+    for(int j=0;j<nEntries;j++)
     {
-        if(j<2){
+        if(j<slotOffset){
             copyGeneric(array[j], pBufferCurrentLeaf->v[j]);
             // on met à jour les buckets pour être cohérent
             pBufferCurrentLeaf->bucket[j] = bucket[j];
@@ -528,9 +539,9 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLe
             cout << "(" << array[j] << "," << bucket[j] <<")" ;
         } else {
         // on copie la valeur dans la nouvelle feuille
-            copyGeneric(array[j], pBufferNewLeaf->v[j-2]);
+            copyGeneric(array[j], pBufferNewLeaf->v[j-slotOffset]);
         // on met à jour les buckets pour être cohérent
-            pBufferNewLeaf->bucket[j-2] = bucket[j];
+            pBufferNewLeaf->bucket[j-slotOffset] = bucket[j];
         // on incrémente le nombre slots remplis
             pBufferNewLeaf->nbFilledSlots++;
             cout << "(" << array[j] << "," << bucket[j] <<")" ;
@@ -796,22 +807,39 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
     {
         // 2. la feuille compte moins de IX_MAX_VALUES / 2
         // on cherche une feuille voisine appartenant au même parent
-        cout << "page de gauche "<< pBuffer->previous << endl;
-        cout << "parent courant "<< pBuffer->parent << endl;
-        cout << "page de droite "<< pBuffer->next << endl;
-        if(rc = GetLeafPageBuffer(pBuffer->next, pNeighborBuffer))
-            goto err_return;
-        cout << "parent voisin "<< pNeighborBuffer->parent << endl;
-        if(pNeighborBuffer->parent == pBuffer->parent)
-        {
-            cout << "même parent" << endl;
-        }
-        else
-        {
-            cout << "pas le même parent" << endl;
-        }
-        if(rc = ReleaseBuffer(pBuffer->next, true))
-            goto err_return;
+        // if(rc = GetLeafPageBuffer(pBuffer->next, pNeighborBuffer))
+        //     goto err_return;
+        // if(pNeighborBuffer->parent == pBuffer->parent)
+        // {
+        //     // la feuille voisine a le même parent
+        //     if(pNeighborBuffer->nbFilledSlots > IX_MAX_NUMBER_OF_VALUES/2)
+        //     {
+        //         // on redistribue avec le voisin
+        //         if(rc = RedistributeValuesAndBuckets(pBuffer, pNeighborBuffer, iValue, medianValue, bucketPageNum))
+        //             goto err_return;
+        //         if(rc = ReleaseBuffer(pBuffer->next, true))
+        //             goto err_return;
+        //     }
+        //     else
+        //     {
+        //         // if(rc = MergeValuesAndBuckets(pBuffer, pNeighborBuffer, iValue, mergeLeft))
+        //             goto err_return;
+        //     }   
+        // }
+        // // on relâche le voisin pour charger l'autre
+        // if(rc = ReleaseBuffer(pBuffer->next, true))
+        //     goto err_return;
+
+        // if(rc = GetLeafPageBuffer(pBuffer->previous, pNeighborBuffer))
+        //     goto err_return;
+        // if(pNeighborBuffer->parent == pBuffer->parent)
+        // {
+        //     // l'autre feuille voisine a le même parent
+        //     if(rc = ReleaseBuffer(pBuffer->previous, true))
+        //         goto err_return;
+        // } else {
+        //     // il faut remonter pour faire faire proprement la suppression
+        // }
     }
     else
     {
@@ -1344,7 +1372,7 @@ RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum,const int fatherNodeId, i
     xmlFile << "<node id=\"" << currentNodeId << "\">" << endl;
 
     xmlFile << "<data key=\"d0\"><y:ShapeNode><y:BorderStyle type=\"line\" width=\"1.0\" color=\"#008000\"/>" << endl;
-    xmlFile << "<y:Geometry height=\"80.0\" width=\"100\" />" << endl;
+    xmlFile << "<y:Geometry height=\"80.0\" width=\"150\" />" << endl;
     xmlFile << "<y:NodeLabel>" << endl;
     xmlFile << "parent : " << ((IX_PageLeaf<T> *)pBuffer)->parent << endl;
     xmlFile << "(==" << ((IX_PageLeaf<T> *)pBuffer)->previous << " ; " << pageNum <<" ; " << ((IX_PageLeaf<T> *)pBuffer)->next << "==)" << endl;

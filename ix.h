@@ -135,7 +135,7 @@ private:
 
     // pour les feuilles
     template <typename T>
-    RC RedistributeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLeaf, IX_PageLeaf<T> *pBufferNewLeaf, T iValue, T &medianValue, const PageNum &bucketPageNum);
+    RC RedistributeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLeaf, IX_PageLeaf<T> *pBufferNewLeaf, T iValue, T &medianValue, const PageNum &bucketPageNum, const int nEntries);
 
     // debugging
 
