@@ -607,7 +607,8 @@ RC Test4(void)
 
    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
       (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
-      (rc = InsertIntEntries(ih, FEW_ENTRIES)))
+      (rc = InsertIntEntries(ih, FEW_ENTRIES)) ||
+      (rc = ih.DisplayTree()))
       return (rc);
 
    // Scan <
@@ -625,7 +626,7 @@ RC Test4(void)
 if (rc != IX_EOF)
    return (rc);
 
-printf("Found %d entries in <-scan.", i);
+printf("Found %d entries in <-scan.\n", i);
 
    // Scan <=
 IX_IndexScan scanle;
@@ -674,6 +675,47 @@ if (rc != IX_EOF)
    return (rc);
 
 printf("Found %d entries in >=-scan.\n", i);
+
+
+
+// Scan <>
+IX_IndexScan scanne;
+if ((rc = scanne.OpenScan(ih, NE_OP, &value))) {
+ printf("Scan error: opening scan\n");
+ return (rc);
+}
+
+i = 0;
+while (!(rc = scanne.GetNextEntry(rid))) {
+i++;
+}
+
+if (rc != IX_EOF)
+return (rc);
+
+printf("Found %d entries in <>scan.\n", i);
+
+
+
+// Scan noscan
+IX_IndexScan scanno;
+if ((rc = scanno.OpenScan(ih, NO_OP, NULL))) {
+ printf("Scan error: opening scan\n");
+ return (rc);
+}
+
+i = 0;
+while (!(rc = scanno.GetNextEntry(rid))) {
+i++;
+}
+
+if (rc != IX_EOF)
+return (rc);
+
+printf("Found %d entries in NULL scan.\n", i);
+
+
+
 
 if ((rc = ixm.CloseIndex(ih)))
    return (rc);

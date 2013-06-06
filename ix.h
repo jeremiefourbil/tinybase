@@ -24,7 +24,8 @@ enum NodeType {
 
 enum Direction {
     LEFT,
-    RIGHT
+    RIGHT,
+    DONTMOVE
 };
 
 enum DeleteStatus {
@@ -39,6 +40,7 @@ struct IX_FileHdr {
     AttrType attrType;
     int attrLength;
     int height;
+    PageNum firstLeafNum;
 };
 
 template <typename T>
@@ -194,6 +196,12 @@ private:
 
     RC ReadBucket(PageNum iPageNum, RID &rid);
 
+    template <typename T>
+    RC ComputePreviousLeafSlot(const PageNum iPreviousPage);
+
+    template <typename T>
+    RC ComputeNextLeafSlot(const int iFilledSlots, const PageNum iNextPage);
+
     IX_IndexHandle _indexHandle;
     CompOp _compOp;
     void * _value;
@@ -202,6 +210,11 @@ private:
     PageNum _nextLeafNum;
     int _nextLeafSlot;
     int _nextBucketSlot;
+
+    PageNum _initialLeafNum;
+    int _initialLeafSlot;
+
+    Direction _direction;
 };
 
 //
