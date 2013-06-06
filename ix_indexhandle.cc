@@ -632,21 +632,28 @@ RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
         return(IX_ENTRY_DOES_NOT_EXIST);
     }
 
-    // let's call the recursion method, start with root
-
-    if(rc = DeleteEntryInNode_t<T>(pageNum, iValue, rid, updatedChildValue, childStatus))
-        goto err_return;
-    if(childStatus == UPDATE_ONLY)
+    if(fileHdr.height == 0)
     {
-        // get the current node
-        if(rc = GetNodePageBuffer(pageNum, pBuffer))
+        if(rc = DeleteEntryInLeaf_t<T>(pageNum, iValue, rid, updatedChildValue, childStatus))
             goto err_return;
-        slotIndex = 0;
-        while(slotIndex < pBuffer->nbFilledSlots && comparisonGeneric(iValue, pBuffer->v[slotIndex]) >= 0)
+    }
+    else
+    {
+        // let's call the recursion method, start with root
+        if(rc = DeleteEntryInNode_t<T>(pageNum, iValue, rid, updatedChildValue, childStatus))
+            goto err_return;
+        if(childStatus == UPDATE_ONLY)
         {
-            slotIndex++;
+            // get the current node
+            if(rc = GetNodePageBuffer(pageNum, pBuffer))
+                goto err_return;
+            slotIndex = 0;
+            while(slotIndex < pBuffer->nbFilledSlots && comparisonGeneric(iValue, pBuffer->v[slotIndex]) >= 0)
+            {
+                slotIndex++;
+            }
+            copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
         }
-        copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
     }
     return rc;
 
