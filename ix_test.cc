@@ -837,22 +837,24 @@ RC Test7(void)
    IX_IndexHandle ih;
    int index=0;
 
-   int sequelLength = 11;
-   int sequel[11] = {11,6,5,17,8,7,18,1,9,14,15};
-   // int sequelLength = 20;
-   // int sequel[20] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13};
+   // int sequelLength = 6;
+   // int sequel[6] = {11,6,5,17,8,7};
+   // int sequelLength = 11;
+   // int sequel[11] = {11,6,5,17,8,7,18,1,9,14,15};
+   int sequelLength = 20;
+   int sequel[20] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13};
 
    IX_IndexScan scan;
-   int value = 9;
+   int value = 11;
    bool bExists = true;
    RID rid(value, value*2);
 
-   printf("Test6: test for making a graphml file with a specific sequel... \n");
+   printf("Test7: test for making a graphml file with a specific sequel... \n");
 
    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
       (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
       (rc = InsertSequelOfInt(ih, sequel, sequelLength)))
-//       (rc = ih.DeleteEntry((void *)&value, rid)))
+      // (rc = ih.DeleteEntry((void *)&value, rid)))
       return (rc);
 
    cout << "----- Start XML tree -------" << endl;
@@ -860,32 +862,15 @@ RC Test7(void)
       return (rc);
    cout << "----- End XML tree -------" << endl;
    // check if one entry is in the index
-   if ((rc = scan.OpenScan(ih, EQ_OP, &value))) {
-      printf("Verify error: opening scan\n");
-      return (rc);
-   }
+  //  if ((rc = scan.OpenScan(ih, EQ_OP, &value))) {
+  //     printf("Verify error: opening scan\n");
+  //     return (rc);
+  //  }
 
-//   for(int i=0; i<5; i++)
-//   {
-//     rc = scan.GetNextEntry(rid);
-//     if (!bExists && rc == 0) {
-//        printf("Verify error: found non-existent entry %d\n", value);
-//          return (IX_EOF);  // What should be returned here?
-//       }
-//       else if (bExists && rc == IX_EOF) {
-//        printf("Verify error: entry %d not found\n", value);
-//          return (IX_EOF);  // What should be returned here?
-//       }
-//       else if (rc != 0 && rc != IX_EOF)
-//        return (rc);
-
-//     printf("Value %d found!\n", value);
-//  }
-
-  if ((rc = scan.CloseScan())) {
-   printf("Verify error: closing scan\n");
-   return (rc);
-}
+  // if ((rc = scan.CloseScan())) {
+  //  printf("Verify error: closing scan\n");
+  //  return (rc);
+  //  }
 
 if((rc = ixm.CloseIndex(ih)))
    return rc;

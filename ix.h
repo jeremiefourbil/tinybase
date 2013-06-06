@@ -31,6 +31,7 @@ struct IX_FileHdr {
     PageNum rootNum;
     AttrType attrType;
     int attrLength;
+    int height;
 };
 
 template <typename T>

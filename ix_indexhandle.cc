@@ -72,75 +72,98 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
     // no root, create one
     if(pageNum == IX_EMPTY)
     {
-        if(rc = AllocateNodePage_t<T>(ROOTANDLASTINODE, IX_EMPTY, pageNum))
-            goto err_return;
+        // if(rc = AllocateNodePage_t<T>(ROOTANDLASTINODE, IX_EMPTY, pageNum))
+            // goto err_return;
+        if(rc = AllocateLeafPage_t<T>(IX_EMPTY, pageNum))
+                goto err_return;
 
         fileHdr.rootNum = pageNum;
     }
 
     // let's call the recursion method, start with root
-
-    if(rc = InsertEntryInNode_t<T>(pageNum, iValue, rid, newChildPageNum, medianChildValue))
+    if (fileHdr.height == 0)
+    {
+        cout << "on insère dans la feuille racine" << endl;
+        if(rc = InsertEntryInLeaf_t<T>(pageNum, iValue, rid, newChildPageNum, medianChildValue))
+            goto err_return;
+    }
+    else
+    {
+        cout << "on insère depuis le noeud racine" << endl;
+        if(rc = InsertEntryInNode_t<T>(pageNum, iValue, rid, newChildPageNum, medianChildValue))
         goto err_return;
-
-
-
+    }
     // il y a eu un split de noeuds
     if(newChildPageNum != IX_EMPTY)
     {
-        if(rc = GetNodePageBuffer(pageNum, pBuffer))
-            goto err_return;
-
-
-        cout << "la racine doit être splittée" << endl;
-
+        if(fileHdr.height >=1)
+        {
+            // la racine était un noeud
+            if(rc = GetNodePageBuffer(pageNum, pBuffer))
+                goto err_return;
+            cout << "le noeud racine doit être splittée" << endl;
             // nouvelle racine
-        if(rc = AllocateNodePage_t<T>(ROOT,IX_EMPTY, newRootNum))
-            goto err_return;
-
-
+            if(rc = AllocateNodePage_t<T>(ROOT,IX_EMPTY, newRootNum))
+                goto err_return;
             // on met à jour la nouvelle racine
-        if(rc = GetNodePageBuffer(newRootNum, pNewRootBuffer))
-            goto err_return;
+            if(rc = GetNodePageBuffer(newRootNum, pNewRootBuffer))
+                goto err_return;
 
-        copyGeneric(medianChildValue, pNewRootBuffer->v[0]);
-        pNewRootBuffer->nbFilledSlots++;
-        pNewRootBuffer->child[0] = pageNum;
-        pNewRootBuffer->child[1] = newChildPageNum;
+            copyGeneric(medianChildValue, pNewRootBuffer->v[0]);
+            pNewRootBuffer->nbFilledSlots++;
+            pNewRootBuffer->child[0] = pageNum;
+            pNewRootBuffer->child[1] = newChildPageNum;
 
-        if(rc = ReleaseBuffer(newRootNum, true))
-            return rc;
+            if(rc = ReleaseBuffer(newRootNum, true))
+                return rc;
 
-        fileHdr.rootNum = newRootNum;
+            fileHdr.rootNum = newRootNum;
 
-        cout << "Root in root" << fileHdr.rootNum << endl;
-
-        bHdrChanged = true;
-
+            cout << "Root in root" << fileHdr.rootNum << endl;
 
             // on récupère le buffer du nouveau noeud
-        if(rc = GetNodePageBuffer(newChildPageNum, newPageBuffer))
-            goto err_return;
-
+            if(rc = GetNodePageBuffer(newChildPageNum, newPageBuffer))
+                goto err_return;
             // on met à jour les deux fils
-        if(pBuffer->nodeType == ROOTANDLASTINODE)
-        {
-            pBuffer->nodeType = LASTINODE;
-            newPageBuffer->nodeType = LASTINODE;
+            if(pBuffer->nodeType == ROOTANDLASTINODE)
+            {
+                pBuffer->nodeType = LASTINODE;
+                newPageBuffer->nodeType = LASTINODE;
+            }
+            else
+            {
+                pBuffer->nodeType = INODE;
+                newPageBuffer->nodeType = INODE;
+            }
+
+            if(rc = ReleaseBuffer(newChildPageNum, true))
+                return rc;
+            if(rc = ReleaseBuffer(pageNum, true))
+                return rc;
+        } else {
+            // la racine était une feuille
+            cout << "la feuille racine doit être splittée" << endl;
+            // nouvelle racine
+            if(rc = AllocateNodePage_t<T>(ROOTANDLASTINODE,IX_EMPTY, newRootNum))
+                goto err_return;
+            // on met à jour la nouvelle racine
+            if(rc = GetNodePageBuffer(newRootNum, pNewRootBuffer))
+                goto err_return;
+
+            copyGeneric(medianChildValue, pNewRootBuffer->v[0]);
+            pNewRootBuffer->nbFilledSlots++;
+            pNewRootBuffer->child[0] = pageNum;
+            pNewRootBuffer->child[1] = newChildPageNum;
+
+            if(rc = ReleaseBuffer(newRootNum, true))
+                return rc;
+
+            fileHdr.rootNum = newRootNum;
+
+            cout << "Root in root" << fileHdr.rootNum << endl;
         }
-        else
-        {
-            pBuffer->nodeType = INODE;
-            newPageBuffer->nodeType = INODE;
-        }
-
-        if(rc = ReleaseBuffer(newChildPageNum, true))
-            return rc;
-
-
-        if(rc = ReleaseBuffer(pageNum, true))
-            return rc;
-
+        fileHdr.height++;
+        bHdrChanged = true;
     }
 
 
@@ -157,7 +180,6 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
 template <typename T>
 RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, PageNum &newNodePageNum,T &medianParentValue)
 {
-
     RC rc;
     IX_PageNode<T> *pBuffer;
     int pointerIndex;
@@ -187,7 +209,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         pointerIndex++;
 
     // the child is a leaf
-    if(pBuffer->nodeType == LASTINODE || pBuffer->nodeType == ROOTANDLASTINODE)
+    if(pBuffer->nodeType == LASTINODE || pBuffer->nodeType == ROOTANDLASTINODE )
     {
         PageNum childPageNum = pBuffer->child[pointerIndex];
 
@@ -270,7 +292,7 @@ template <typename T>
 RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid, PageNum &newChildPageNum,T &medianValue)
 {
     RC rc = OK_RC;
-    IX_PageLeaf<T> *pBuffer, *newPageBuffer;
+    IX_PageLeaf<T> *pBuffer, *newPageBuffer, *oldNextPageBuffer;
     PageNum bucketPageNum = IX_EMPTY;
     int slotIndex;
     bool alreadyInLeaf = false;
@@ -299,8 +321,6 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
         {
             cout << "Overflow" << endl;
 
-            PageNum currentNextPageNum = pBuffer->next;
-
             // créer une nouvelle page
             if (rc = AllocateLeafPage_t<T>(pBuffer->parent, newChildPageNum))
                 goto err_return;
@@ -309,15 +329,22 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
             if(rc = AllocateBucketPage(newChildPageNum, bucketPageNum))
                 goto err_return;
 
-            // on met à jour le lien entre la feuille courante et la nouvelle feuille
-            pBuffer->next = newChildPageNum;
 
             // on charge la nouvelle feuille pour pouvoir mettre à jour les liens
             if(rc = GetLeafPageBuffer(newChildPageNum, newPageBuffer))
                 goto err_return;
-            newPageBuffer->next = currentNextPageNum;
+            // on charge l'ancienne prochaine page pour mettre à jour son lien previous
+            if(pBuffer->next != IX_EMPTY)
+            {
+                if(rc = GetLeafPageBuffer(pBuffer->next, oldNextPageBuffer))
+                    goto err_return;
+                oldNextPageBuffer->previous = newChildPageNum;
+                if(rc = ReleaseBuffer(pBuffer->next, true))
+                    goto err_return;
+            }
+            newPageBuffer->next = pBuffer->next;
+            pBuffer->next = newChildPageNum;
             newPageBuffer->previous = iPageNum;
-
             // on remplit la moitié des valeurs de l'ancienne feuille dans la nouvelle feuille
             if(rc = RedistributeValuesAndBuckets<T>(pBuffer, newPageBuffer, iValue, medianValue, bucketPageNum))
                 goto err_return;
@@ -586,19 +613,21 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
     if(rc = GetNodePageBuffer(iPageNum, pBuffer))
         goto err_return;
 
-    // find the right branch
+    // find the right slot
     slotIndex = 0;
-    while(slotIndex < pBuffer->nbFilledSlots && comparisonGeneric(iValue, pBuffer->v[slotIndex]) >= 0)
-    {
+    while(slotIndex < pBuffer->nbFilledSlots && comparisonGeneric(iValue, pBuffer->v[slotIndex]) > 0)
        slotIndex++;
-   }
 
-   pointerIndex = slotIndex;
-   if(slotIndex == pBuffer->nbFilledSlots-1 && comparisonGeneric(iValue, pBuffer->v[slotIndex]) >= 0)
-    pointerIndex++;
+    // find the right branch
+    pointerIndex = 0;
+    while(pointerIndex < pBuffer->nbFilledSlots && comparisonGeneric(iValue, pBuffer->v[pointerIndex]) >= 0)
+        pointerIndex++;
+
+    if(pointerIndex == pBuffer->nbFilledSlots-1 && comparisonGeneric(iValue, pBuffer->v[pointerIndex]) >= 0)
+        pointerIndex++;
 
     // the child is a leaf
-    if(pBuffer->nodeType == LASTINODE || pBuffer->nodeType == ROOTANDLASTINODE)
+    if(pBuffer->nodeType == LASTINODE || pBuffer->nodeType == ROOTANDLASTINODE )
     {
         PageNum childPageNum = pBuffer->child[pointerIndex];
 
@@ -614,6 +643,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         // mettre à jour l'index car la valeur minimale de la feuille a changé
         if(updateChildIndex)
         {
+            cout << "update from leaf :" << slotIndex << endl;
             copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
             if(slotIndex == 0){
                 copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
@@ -637,6 +667,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             goto err_return;
         if(updateChildIndex)
         {
+            cout << "update from node :" << slotIndex << endl;
             copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
             if(slotIndex == 0){
                 copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
@@ -666,6 +697,7 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
     RC rc = OK_RC;
 
     IX_PageLeaf<T> *pBuffer;
+    IX_PageLeaf<T> *pNeighborBuffer;
     int slotIndex;
     bool foundInLeaf = false;
     PageNum bucketPageNum;
@@ -715,6 +747,21 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
     if(pBuffer->nbFilledSlots < IX_MAX_NUMBER_OF_VALUES/2)
     {
         // 2. la feuille compte moins de IX_MAX_VALUES / 2
+        // on cherche une feuille voisine appartenant au même parent
+        cout << "page de gauche "<< pBuffer->previous << endl;
+        cout << "page de droite "<< pBuffer->next << endl;
+        // if(rc = GetLeafPageBuffer(pBuffer->previous, pNeighborBuffer))
+        //     goto err_return;
+        // if(pNeighborBuffer->parent == pBuffer->parent)
+        // {
+        //     cout << "même parent" << endl;
+        // }
+        // else
+        // {
+        //     cout << "pas le même parent" << endl;
+        // }
+        // if(rc = ReleaseBuffer(pBuffer->previous, true))
+        //     goto err_return;
     }
     else
     {
@@ -811,58 +858,59 @@ RC IX_IndexHandle::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
 // Force index files to disk
 RC IX_IndexHandle::ForcePages()
 {
-    RC rc;
+ //    RC rc;
 
-    // Write back the file header if any changes made to the header
-    // while the file is open
-    if (bHdrChanged) {
-       PF_PageHandle pageHandle;
-       char* pData;
+ //    // Write back the file header if any changes made to the header
+ //    // while the file is open
+ //    if (bHdrChanged) {
+ //       PF_PageHandle pageHandle;
+ //       char* pData;
 
-       // Get the header page
-       if (rc = pfFileHandle.GetFirstPage(pageHandle))
-          // Test: unopened(closed) fileHandle, invalid file
-          goto err_return;
+ //       // Get the header page
+ //       if (rc = pfFileHandle.GetFirstPage(pageHandle))
+ //          // Test: unopened(closed) fileHandle, invalid file
+ //          goto err_return;
 
-       // Get a pointer where header information will be written
-       if (rc = pageHandle.GetData(pData))
-          // Should not happen
-          goto err_unpin;
+ //       // Get a pointer where header information will be written
+ //       if (rc = pageHandle.GetData(pData))
+ //          // Should not happen
+ //          goto err_unpin;
 
-       // Write the file header (to the buffer pool)
-       memcpy(pData, &fileHdr, sizeof(fileHdr));
+ //       // Write the file header (to the buffer pool)
+ //       memcpy(pData, &fileHdr, sizeof(fileHdr));
 
-       // Mark the header page as dirty
-       if (rc = pfFileHandle.MarkDirty(IX_HEADER_PAGE_NUM))
-          // Should not happen
-          goto err_unpin;
+ //       // Mark the header page as dirty
+ //       if (rc = pfFileHandle.MarkDirty(IX_HEADER_PAGE_NUM))
+ //          // Should not happen
+ //          goto err_unpin;
 
-       // Unpin the header page
-       if (rc = pfFileHandle.UnpinPage(IX_HEADER_PAGE_NUM))
-          // Should not happen
-          goto err_return;
+ //       // Unpin the header page
+ //       if (rc = pfFileHandle.UnpinPage(IX_HEADER_PAGE_NUM))
+ //          // Should not happen
+ //          goto err_return;
 
-       if (rc = pfFileHandle.ForcePages(IX_HEADER_PAGE_NUM))
-          // Should not happen
-          goto err_return;
+ //       if (rc = pfFileHandle.ForcePages(IX_HEADER_PAGE_NUM))
+ //          // Should not happen
+ //          goto err_return;
 
-       // Set file header to be not changed
-       bHdrChanged = FALSE;
-    }
+ //       // Set file header to be not changed
+ //       bHdrChanged = FALSE;
+ //    }
 
-    // Call PF_FileHandle::ForcePages()
-    if (rc = pfFileHandle.ForcePages(IX_HEADER_PAGE_NUM))
-       goto err_return;
+ //    // Call PF_FileHandle::ForcePages()
+ //    if (rc = pfFileHandle.ForcePages(IX_HEADER_PAGE_NUM))
+ //       goto err_return;
 
-    // Return ok
-    return (0);
+ //    // Return ok
+ //    return (0);
 
-    // Recover from inconsistent state due to unexpected error
- err_unpin:
-    pfFileHandle.UnpinPage(IX_HEADER_PAGE_NUM);
- err_return:
-    // Return error
-    return (rc);
+ //    // Recover from inconsistent state due to unexpected error
+ // err_unpin:
+ //    pfFileHandle.UnpinPage(IX_HEADER_PAGE_NUM);
+ // err_return:
+ //    // Return error
+ //    return (rc);
+    return pfFileHandle.ForcePages();
 }
 
 // ***********************
@@ -1113,9 +1161,6 @@ RC IX_IndexHandle::DisplayTree_t()
     int currentEdgeId = 0;
     ofstream xmlFile;
 
-    if(rc = GetPageBuffer(fileHdr.rootNum, pBuffer))
-        goto err_return;
-
     xmlFile.open(XML_FILE);
     xmlFile << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
     xmlFile << "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"  xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd\" xmlns:y=\"http://www.yworks.com/xml/graphml\">" << endl;
@@ -1126,17 +1171,20 @@ RC IX_IndexHandle::DisplayTree_t()
 
     currentNodeId++;
 
-    cout << "Root in display" << fileHdr.rootNum << endl;
+    cout << "Root in display" << fileHdr.rootNum << "- height: "<< fileHdr.height << endl;
 
-    DisplayNode_t<T>(fileHdr.rootNum, fatherNodeId, currentNodeId, currentEdgeId);
-
+    if (fileHdr.height == 0)
+    {
+        DisplayLeaf_t<T>(fileHdr.rootNum, fatherNodeId, currentNodeId, currentEdgeId);
+    } 
+    else
+    {
+        DisplayNode_t<T>(fileHdr.rootNum, fatherNodeId, currentNodeId, currentEdgeId);
+    }
     xmlFile.open(XML_FILE, ios::app);
     xmlFile << "</graph>" << endl;
     xmlFile << "</graphml>" << endl;
     xmlFile.close();
-    
-    if(rc = ReleaseBuffer(fileHdr.rootNum, false))
-        goto err_return;
 
     return OK_RC;
 
@@ -1246,9 +1294,9 @@ RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum,const int fatherNodeId, i
     xmlFile << "<node id=\"" << currentNodeId << "\">" << endl;
 
     xmlFile << "<data key=\"d0\"><y:ShapeNode><y:BorderStyle type=\"line\" width=\"1.0\" color=\"#008000\"/>" << endl;
-    xmlFile << "<y:Geometry height=\"80.0\" width=\"50\" />" << endl;
+    xmlFile << "<y:Geometry height=\"80.0\" width=\"100\" />" << endl;
     xmlFile << "<y:NodeLabel>" << endl;
-
+    xmlFile << "(==" << ((IX_PageLeaf<T> *)pBuffer)->previous << " ; " << pageNum <<" ; " << ((IX_PageLeaf<T> *)pBuffer)->next << "==)" << endl;
     for(slotIndex = 0;slotIndex < ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots; slotIndex++)
     {
         int rid_pnum;
