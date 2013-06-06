@@ -853,8 +853,8 @@ RC Test7(void)
 
    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
       (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
-      (rc = InsertSequelOfInt(ih, sequel, sequelLength)))
-      // (rc = ih.DeleteEntry((void *)&value, rid)))
+      (rc = InsertSequelOfInt(ih, sequel, sequelLength)) ||
+      (rc = ih.DeleteEntry((void *)&value, rid)))
       return (rc);
 
    cout << "----- Start XML tree -------" << endl;

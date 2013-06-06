@@ -27,6 +27,13 @@ enum Direction {
     RIGHT
 };
 
+enum DeleteStatus {
+    NOTHING, // rien à faire
+    UPDATE_ONLY, // simple mise à jour de l'index
+    REDISTRIBUTION_LEFT, // impliquant une redistribution gauche
+    REDISTRIBUTION_RIGHT // impliquant une redistributtion droite
+};
+
 struct IX_FileHdr {
     PageNum rootNum;
     AttrType attrType;
@@ -102,10 +109,10 @@ private:
     RC DeleteEntry_t(T iValue, const RID &rid);
 
     template <typename T>
-    RC DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, bool &updateParentIndex);
+    RC DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, DeleteStatus &parentStatus);
 
     template <typename T>
-    RC DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, bool &updateParentIndex);
+    RC DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, DeleteStatus &parentStatus);
 
     RC DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid);
 

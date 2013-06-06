@@ -72,8 +72,6 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
     // no root, create one
     if(pageNum == IX_EMPTY)
     {
-        // if(rc = AllocateNodePage_t<T>(ROOTANDLASTINODE, IX_EMPTY, pageNum))
-            // goto err_return;
         if(rc = AllocateLeafPage_t<T>(IX_EMPTY, pageNum))
                 goto err_return;
 
@@ -623,7 +621,7 @@ RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
     PageNum pageNum;
     IX_PageNode<T> * pBuffer;
     T updatedChildValue;
-    bool updateChildIndex = false;
+    DeleteStatus childStatus = NOTHING;
     int slotIndex = 0;
 
     pageNum = fileHdr.rootNum;
@@ -636,9 +634,9 @@ RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
 
     // let's call the recursion method, start with root
 
-    if(rc = DeleteEntryInNode_t<T>(pageNum, iValue, rid, updatedChildValue, updateChildIndex))
+    if(rc = DeleteEntryInNode_t<T>(pageNum, iValue, rid, updatedChildValue, childStatus))
         goto err_return;
-    if(updateChildIndex)
+    if(childStatus == UPDATE_ONLY)
     {
         // get the current node
         if(rc = GetNodePageBuffer(pageNum, pBuffer))
@@ -658,14 +656,14 @@ RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
 
 // Node Deletion
 template <typename T>
-RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, bool &updateParentIndex)
+RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, DeleteStatus &parentStatus)
 {
 
     RC rc;
     IX_PageNode<T> * pBuffer;
     int slotIndex;
     int pointerIndex;
-    bool updateChildIndex = false;
+    DeleteStatus childStatus = NOTHING;
     T updatedChildValue;
 
     // get the current node
@@ -697,16 +695,16 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             goto err_release;
         }
 
-        if(rc = DeleteEntryInLeaf_t<T>(childPageNum, iValue, rid, updatedChildValue, updateChildIndex))
+        if(rc = DeleteEntryInLeaf_t<T>(childPageNum, iValue, rid, updatedChildValue, childStatus))
             goto err_return;
         // mettre à jour l'index car la valeur minimale de la feuille a changé
-        if(updateChildIndex)
+        if(childStatus == UPDATE_ONLY)
         {
             cout << "update from leaf :" << slotIndex << endl;
             copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
-            if(slotIndex == 0){
+            if(slotIndex == 0 && (pointerIndex == 1) ){
                 copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
-                updateParentIndex = true;
+                parentStatus = UPDATE_ONLY;
             }
         }
     }
@@ -722,15 +720,16 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             goto err_release;
         }
 
-        if(rc = DeleteEntryInNode_t<T>(childPageNum, iValue, rid, updatedChildValue, updateChildIndex))
+        if(rc = DeleteEntryInNode_t<T>(childPageNum, iValue, rid, updatedChildValue, childStatus))
             goto err_return;
-        if(updateChildIndex)
+        // if(updateChildIndex)
+        if(childStatus == UPDATE_ONLY)
         {
             cout << "update from node :" << slotIndex << endl;
             copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
-            if(slotIndex == 0){
+            if(slotIndex == 0 && (pointerIndex == 1) ){
                 copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
-                updateParentIndex = true;
+                parentStatus = UPDATE_ONLY;
             }
         }
     }
@@ -751,7 +750,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
 
 // Leaf Deletion
 template <typename T>
-RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, bool &updateParentIndex)
+RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, DeleteStatus &parentStatus)
 {
     RC rc = OK_RC;
 
@@ -807,39 +806,55 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
     {
         // 2. la feuille compte moins de IX_MAX_VALUES / 2
         // on cherche une feuille voisine appartenant au même parent
-        // if(rc = GetLeafPageBuffer(pBuffer->next, pNeighborBuffer))
-        //     goto err_return;
-        // if(pNeighborBuffer->parent == pBuffer->parent)
-        // {
-        //     // la feuille voisine a le même parent
-        //     if(pNeighborBuffer->nbFilledSlots > IX_MAX_NUMBER_OF_VALUES/2)
-        //     {
-        //         // on redistribue avec le voisin
-        //         if(rc = RedistributeValuesAndBuckets(pBuffer, pNeighborBuffer, iValue, medianValue, bucketPageNum))
-        //             goto err_return;
-        //         if(rc = ReleaseBuffer(pBuffer->next, true))
-        //             goto err_return;
-        //     }
-        //     else
-        //     {
-        //         // if(rc = MergeValuesAndBuckets(pBuffer, pNeighborBuffer, iValue, mergeLeft))
-        //             goto err_return;
-        //     }   
-        // }
-        // // on relâche le voisin pour charger l'autre
-        // if(rc = ReleaseBuffer(pBuffer->next, true))
-        //     goto err_return;
+        if(rc = GetLeafPageBuffer(pBuffer->next, pNeighborBuffer))
+            goto err_return;
+        if(pNeighborBuffer->parent == pBuffer->parent)
+        {
+            // la feuille voisine droite a le même parent
+            if(pNeighborBuffer->nbFilledSlots > IX_MAX_NUMBER_OF_VALUES/2)
+            {
+                // on redistribue avec le voisin droit
+                cout << "redistribution avec le voisin de droite" << endl;
+                if(rc = RedistributeValuesAndBuckets<T>(pBuffer, pNeighborBuffer, iValue, updatedParentValue, bucketPageNum, pNeighborBuffer->nbFilledSlots+pBuffer->nbFilledSlots))
+                    goto err_return;
+                if(rc = ReleaseBuffer(pBuffer->next, true))
+                    goto err_return;
+            }
+            else
+            {
+                // if(rc = MergeValuesAndBuckets(pBuffer, pNeighborBuffer, iValue, mergeLeft))
+                    // goto err_return;
+                cout << "merge avec le voisin de droite" << endl;
+            }   
+        }
+        // on relâche le voisin droit pour charger l'autre
+        if(rc = ReleaseBuffer(pBuffer->next, false))
+            goto err_return;
 
-        // if(rc = GetLeafPageBuffer(pBuffer->previous, pNeighborBuffer))
-        //     goto err_return;
-        // if(pNeighborBuffer->parent == pBuffer->parent)
-        // {
-        //     // l'autre feuille voisine a le même parent
-        //     if(rc = ReleaseBuffer(pBuffer->previous, true))
-        //         goto err_return;
-        // } else {
-        //     // il faut remonter pour faire faire proprement la suppression
-        // }
+        if(rc = GetLeafPageBuffer(pBuffer->previous, pNeighborBuffer))
+            goto err_return;
+        if(pNeighborBuffer->parent == pBuffer->parent)
+        {
+            // la feuille voisine gauche a le même parent
+
+            if(pNeighborBuffer->nbFilledSlots > IX_MAX_NUMBER_OF_VALUES/2)
+            {
+                // on redistribue avec le voisin gauche
+                cout << "redistribution avec le voisin de gauche" << endl;
+                if(rc = RedistributeValuesAndBuckets<T>(pBuffer, pNeighborBuffer, iValue, updatedParentValue, bucketPageNum, pNeighborBuffer->nbFilledSlots+pBuffer->nbFilledSlots))
+                    goto err_return;
+                if(rc = ReleaseBuffer(pBuffer->previous, true))
+                    goto err_return;
+            }
+            else
+            {
+                // if(rc = MergeValuesAndBuckets(pBuffer, pNeighborBuffer, iValue, mergeLeft))
+                    // goto err_return;
+                cout << "merge avec le voisin de gauche" << endl;
+            }   
+        } else {
+            // il faut remonter pour faire faire proprement la suppression
+        }
     }
     else
     {
@@ -848,7 +863,8 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
         if(slotIndex == 0)
         {
             copyGeneric(pBuffer->v[0], updatedParentValue);
-            updateParentIndex = true;
+            // updateParentIndex = true;
+            parentStatus = UPDATE_ONLY;
         }
     }   
 
@@ -1294,9 +1310,9 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum, const int fatherNodeId, 
     xmlFile << "<node id=\"" << currentNodeId << "\">" << endl;
 
     xmlFile << "<data key=\"d0\"><y:ShapeNode><y:BorderStyle type=\"line\" width=\"1.0\" color=\"#000000\"/>" << endl;
-    xmlFile << "<y:Geometry height=\"80.0\" />" << endl;
+    xmlFile << "<y:Geometry height=\"80.0\" width=\"150\" />" << endl;
     xmlFile << "<y:NodeLabel>" << endl;
-    xmlFile << "parent : " << ((IX_PageNode<T> *)pBuffer)->parent << " - " << "p" << pageNum <<endl;
+    xmlFile << "parent:" << ((IX_PageNode<T> *)pBuffer)->parent << " - " << "page:" << pageNum <<endl;
     for(slotIndex = 0;slotIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots; slotIndex++)
     {
         xmlFile << ((IX_PageNode<T> *)pBuffer)->v[slotIndex] << endl;
@@ -1372,7 +1388,7 @@ RC IX_IndexHandle::DisplayLeaf_t(const PageNum pageNum,const int fatherNodeId, i
     xmlFile << "<node id=\"" << currentNodeId << "\">" << endl;
 
     xmlFile << "<data key=\"d0\"><y:ShapeNode><y:BorderStyle type=\"line\" width=\"1.0\" color=\"#008000\"/>" << endl;
-    xmlFile << "<y:Geometry height=\"80.0\" width=\"150\" />" << endl;
+    xmlFile << "<y:Geometry height=\"100.0\" width=\"150\" />" << endl;
     xmlFile << "<y:NodeLabel>" << endl;
     xmlFile << "parent : " << ((IX_PageLeaf<T> *)pBuffer)->parent << endl;
     xmlFile << "(==" << ((IX_PageLeaf<T> *)pBuffer)->previous << " ; " << pageNum <<" ; " << ((IX_PageLeaf<T> *)pBuffer)->next << "==)" << endl;
