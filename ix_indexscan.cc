@@ -14,8 +14,6 @@ IX_IndexScan::~IX_IndexScan()
 
 }
 
-
-
 // Open index scan
 RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle,
                           CompOp compOp,
@@ -29,12 +27,14 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle,
     _value = value;
     _pinHint = pinHint;
 
+    // Full scan operator
     if(_compOp == NO_OP && _value == NULL)
     {
         _nextLeafNum = _indexHandle.fileHdr.firstLeafNum;
         _nextLeafSlot = 0;
         _nextBucketSlot = 0;
     }
+    // Other operators
     else
     {
         if (value == NULL)
@@ -75,12 +75,13 @@ RC IX_IndexScan::OpenScan_t()
         return 0;
     }
 
-    // la racine est une feuille
+    // root is a leaf
     if(_indexHandle.fileHdr.height == 0)
     {
         if(rc = ScanLeaf_t<T>(pageNum))
             goto err_return;
     }
+    // root is a node
     else
     {
         if(rc = ScanNode_t<T>(pageNum))
@@ -109,6 +110,7 @@ RC IX_IndexScan::ScanNode_t(PageNum iPageNum)
     if(rc = _indexHandle.GetPageBuffer(iPageNum, pBuffer))
         goto err_return;
 
+    // find the branch
     pointerIndex = 0;
     while(pointerIndex < ((IX_PageNode<T> *)pBuffer)->nbFilledSlots && comparisonGeneric(*((T*) _value), ((IX_PageNode<T> *)pBuffer)->v[pointerIndex]) >= 0)
     {
@@ -153,7 +155,6 @@ RC IX_IndexScan::ScanNode_t(PageNum iPageNum)
         }
     }
 
-
     if(rc = _indexHandle.ReleaseBuffer(iPageNum, false))
         goto err_return;
 
@@ -186,6 +187,8 @@ RC IX_IndexScan::ScanLeaf_t(PageNum iPageNum)
         }
     }
 
+
+    // store the initial position
     _initialLeafNum = iPageNum;
     _initialLeafSlot = slotIndex;
 
@@ -203,8 +206,6 @@ RC IX_IndexScan::ScanLeaf_t(PageNum iPageNum)
         _nextLeafSlot = _initialLeafSlot;
         _nextBucketSlot = 0;
     }
-
-
 
     // adjust the first entry
     switch (_compOp)
@@ -226,7 +227,7 @@ RC IX_IndexScan::ScanLeaf_t(PageNum iPageNum)
         break;
     }
 
-
+    // release
     if(rc = _indexHandle.ReleaseBuffer(iPageNum, false))
         goto err_return;
 
@@ -285,7 +286,7 @@ RC IX_IndexScan::GetNextEntry_t(RID &rid)
     if(_nextLeafSlot >= ((IX_PageLeaf<T> *)pBuffer)->nbFilledSlots)
     {
         cout << "Scan: débordement mémoire" << endl;
-        return IX_EOF;
+        return IX_ARRAY_OVERFLOW;
     }
 
 
@@ -376,7 +377,7 @@ RC IX_IndexScan::ReadBucket(PageNum iPageNum, RID &rid)
 
     if(iPageNum == IX_EMPTY)
     {
-        return IX_EOF;
+        return IX_INVALID_PAGE_NUMBER;
     }
 
 
@@ -385,7 +386,7 @@ RC IX_IndexScan::ReadBucket(PageNum iPageNum, RID &rid)
         goto err_return;
 
     // set the rid
-//    cout << "Nb Filled Slot: " << ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots << endl;
+    //    cout << "Nb Filled Slot: " << ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots << endl;
 
     memcpy((void*) &rid,
            pBuffer + sizeof(IX_PageBucketHdr) + _nextBucketSlot * sizeof(RID), sizeof(RID));
@@ -448,8 +449,8 @@ RC IX_IndexScan::ComputePreviousLeafSlot(const PageNum iPreviousPage)
             if(((IX_PageLeaf<T> *)pSecondBuffer)->nbFilledSlots > 0)
             {
 
-            _nextLeafSlot = ((IX_PageLeaf<T> *)pSecondBuffer)->nbFilledSlots - 1;
-            _nextBucketSlot = 0;
+                _nextLeafSlot = ((IX_PageLeaf<T> *)pSecondBuffer)->nbFilledSlots - 1;
+                _nextBucketSlot = 0;
             }
             else
             {
@@ -465,8 +466,8 @@ RC IX_IndexScan::ComputePreviousLeafSlot(const PageNum iPreviousPage)
 
     return rc;
 
-    err_return:
-        return rc;
+err_return:
+    return rc;
 }
 
 template <typename T>
@@ -493,8 +494,8 @@ RC IX_IndexScan::ComputeNextLeafSlot(const int iFilledSlots, const PageNum iNext
 
             if(((IX_PageLeaf<T> *)pSecondBuffer)->nbFilledSlots > 0)
             {
-            _nextLeafSlot = 0;
-            _nextBucketSlot = 0;
+                _nextLeafSlot = 0;
+                _nextBucketSlot = 0;
             }
             else
             {
@@ -510,6 +511,6 @@ RC IX_IndexScan::ComputeNextLeafSlot(const int iFilledSlots, const PageNum iNext
 
     return rc;
 
-    err_return:
-        return rc;
+err_return:
+    return rc;
 }

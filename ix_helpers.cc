@@ -55,11 +55,11 @@ void sortGeneric(char array[][MAXSTRINGLEN], PageNum bucket[], const int arrayLe
 {
   for (int i = 1; i < arrayLength; i++)
   {
-    char* tmp;
+    char tmp[MAXSTRINGLEN];
     PageNum tmpBucket = bucket[i];
     strcpy(tmp, array[i]);
     int j = i;
-    for (; j && strcmp(tmp,array[j - 1]); --j)
+    for (; j && strcmp(tmp,array[j - 1]) < 0; --j)
     {
         strcpy(array[j], array[j - 1]);
         bucket[j] = bucket[j - 1];
@@ -138,11 +138,11 @@ void sortNodeGeneric(char array[][MAXSTRINGLEN], PageNum child[IX_MAX_NUMBER_OF_
   }
   for (int i = 1; i < arrayLength; i++)
   {
-    char* tmp;
+    char tmp[MAXSTRINGLEN];
     PageNum tmpChild = temporaryChild[i];
     strcpy(tmp, array[i]);
     int j = i;
-    for (; j && strcmp(tmp,array[j - 1]); --j)
+    for (; j && strcmp(tmp,array[j - 1]) < 0; --j)
     {
         strcpy(array[j], array[j - 1]);
         temporaryChild[j] = temporaryChild[j - 1];

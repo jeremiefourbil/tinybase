@@ -30,9 +30,9 @@ static char *IX_ErrorMsg[] = {
   (char*)"impossible to create index",
   (char*)"null pointer",
   (char*)"unknown type",
-  (char*)"entry does not exist"
-//  (char*)"incomplete read of header from file",
-//  (char*)"incomplete write of header from file",
+  (char*)"entry does not exist",
+  (char*)"try to access an unauthorized array value",
+  (char*)"invalid page number"
 //  (char*)"new page to be allocated already in buffer",
 //  (char*)"hash table entry not found",
 //  (char*)"page already in hash table",
@@ -46,4 +46,6 @@ static char *IX_ErrorMsg[] = {
 void IX_PrintError(RC rc)
 {
     cerr << "IX ERROR BIATCH" << "\n";
+
+
 }
