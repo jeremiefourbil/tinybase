@@ -32,7 +32,9 @@ enum DeleteStatus {
     NOTHING, // rien à faire
     UPDATE_ONLY, // simple mise à jour de l'index
     REDISTRIBUTION_LEFT, // impliquant une redistribution gauche
-    REDISTRIBUTION_RIGHT // impliquant une redistributtion droite
+    REDISTRIBUTION_RIGHT, // impliquant une redistributtion droite
+    MERGE_LEFT, // impliquant une fusion à gauche
+    MERGE_RIGHT // impliquant une fusion à droite
 };
 
 struct IX_FileHdr {
@@ -141,11 +143,14 @@ private:
     // pour les noeuds
     template <typename T>
     RC RedistributeValuesAndChildren(IX_PageNode<T> *pBufferCurrentNode, IX_PageNode<T> *pBufferNewNode,T &medianChildValue, T &medianParentValue,const PageNum &newNodePageNum);
+    template <typename T>
+    RC DeleteNodeValue(IX_PageNode<T> *pBuffer, const int & slotIndex, const int nEntries);
 
     // pour les feuilles
     template <typename T>
     RC RedistributeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLeaf, IX_PageLeaf<T> *pBufferNewLeaf, T iValue, T &medianValue, const PageNum &bucketPageNum, const int nEntries, bool redistributionOnly);
-
+    template <typename T>
+    RC MergeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLeaf, IX_PageLeaf<T> *pBufferNewLeaf, const int nEntries);
     // debugging
 
     template <typename T>

@@ -854,6 +854,32 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                     goto err_return;
             }
         }
+        else if (childStatus == MERGE_LEFT)
+        {
+            // supprimer la page fils
+            cout << "supprimer la page fils" << endl;
+            if(rc = pfFileHandle.DisposePage(pBuffer->child[pointerIndex]))
+                goto err_return;
+            DeleteNodeValue<T>(pBuffer, slotIndex, pBuffer->nbFilledSlots);
+            // mise à jour de la valeur
+            cout << "test1" << endl;
+            if(rc = GetLeafPageBuffer(pBuffer->child[slotIndex-1], pRedistBuffer))
+                goto err_return;
+            copyGeneric(pRedistBuffer->v[0], pBuffer->v[slotIndex]);
+            cout << "test2" << endl;
+            if(rc = ReleaseBuffer(pBuffer->child[slotIndex-1], false))
+                    goto err_return;
+            if(slotIndex == 0)
+            {
+                parentStatus = UPDATE_ONLY;
+                copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
+            }
+        } else if (childStatus == MERGE_RIGHT)
+        {
+
+        } else {
+            // impossible comme cas
+        }
     }
         // the child is a node
     else
@@ -1017,9 +1043,14 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
                 }
                 else
                 {
-                    // if(rc = MergeValuesAndBuckets(pBuffer, pNeighborBuffer, iValue, mergeLeft))
-                        // goto err_return;
+                    // merge à gauche
                     cout << "merge avec le voisin de gauche" << endl;
+                    if(rc = MergeValuesAndBuckets<T>(pBuffer, pNeighborBuffer, pBuffer->nbFilledSlots + pNeighborBuffer->nbFilledSlots))
+                        goto err_return;
+                    if(rc = ReleaseBuffer(pBuffer->previous, true))
+                        goto err_return;
+                    cout << "toto" << endl;
+                    parentStatus = MERGE_LEFT;
                 }   
             } else {
                 // il faut remonter pour faire faire proprement la suppression
@@ -1050,6 +1081,80 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
     ReleaseBuffer(iPageNum, false);
     err_return:
     return (rc);
+}
+
+template <typename T>
+RC IX_IndexHandle::MergeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLeaf, IX_PageLeaf<T> *pBufferNewLeaf, const int nEntries)
+{
+    T arr[nEntries];
+    PageNum buck[nEntries];
+
+    cout << "--- merge --" << endl;
+    cout << "--- before :" << endl;
+
+    // on remplit le nouveau tableau avec les valeurs de la feuille gauche
+    int i;
+
+    for(i=0;i<pBufferCurrentLeaf->nbFilledSlots;i++)
+    {
+        copyGeneric(pBufferCurrentLeaf->v[i], arr[i]);
+        buck[i] = pBufferCurrentLeaf->bucket[i];
+        cout << i << ":(" << arr[i] << "," << buck[i] << ") " ;
+    }
+    cout << "i:"<< i << " ";
+    // on remplit le nouveau tableau avec les valeurs de la feuille droite
+    for(int j=0;j<pBufferNewLeaf->nbFilledSlots;j++)
+    {
+        copyGeneric(pBufferNewLeaf->v[j], arr[j+i]);
+        buck[i+j] = pBufferNewLeaf->bucket[j];
+        cout << i+j << ":(" << arr[i+j] << "," << buck[i+j] <<") " ;
+    }
+    cout << endl;
+    sortGeneric(arr, buck, nEntries);
+
+    pBufferNewLeaf->nbFilledSlots = 0;
+    // on remplit la cible
+    cout << "--- after :" << endl;
+    for(int j=0;j<nEntries;j++)
+    {
+        copyGeneric(arr[j], pBufferNewLeaf->v[j]);
+        // on met à jour les buckets pour être cohérent
+        pBufferNewLeaf->bucket[j] = buck[j];
+        // on incrémente le nombre slots remplis
+        pBufferNewLeaf->nbFilledSlots++;
+        cout << "(" << arr[j] << "," << buck[j] <<")" ;
+    }
+    cout << endl;
+    return OK_RC;
+}
+
+// Delete value of a node
+template <typename T>
+RC IX_IndexHandle::DeleteNodeValue(IX_PageNode<T> *pBuffer, const int & slotIndex, const int nEntries)
+{
+    T arr[nEntries-1];
+    PageNum child[nEntries];
+    int j=0;
+    cout << "---- Delete node value ----" << endl;
+    cout << "---- before ----" << endl;
+    for(int i=0;i<pBuffer->nbFilledSlots;i++)
+    {
+        if(slotIndex != i)
+        {
+            copyGeneric(pBuffer->v[i], arr[j]);
+            child[j] = pBuffer->child[i+1];
+            cout << j << ":(" << arr[j] << "," << child[j] << ") " ;
+            j++;
+        }
+    }
+    sortGeneric(arr, child, nEntries-1);
+    pBuffer->nbFilledSlots = nEntries-1;
+    for(int i=0;i<nEntries-1;i++)
+    {
+        copyGeneric(arr[i],pBuffer->v[i]);
+        pBuffer->child[i+1] = child[i];
+    }
+    return OK_RC;
 }
 
 // bucket Deletion
