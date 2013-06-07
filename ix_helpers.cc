@@ -157,3 +157,84 @@ void sortNodeGeneric(char array[][MAXSTRINGLEN], PageNum child[IX_MAX_NUMBER_OF_
   }
 }
 
+
+void getSlotIndex(const int *array, const int arrayLength, const int iValue, int &oIndex)
+{
+  bool found = false;
+  int idEnd = arrayLength;
+  int im;
+
+  oIndex = 0;
+
+  while(!found && ((idEnd - oIndex) > 1))
+  {
+    im = (oIndex + idEnd)/2;
+
+    found = (array[im] == iValue);
+
+    if(array[im] > iValue) idEnd = im;
+    else oIndex = im;
+  }
+}
+
+void getPointerIndex(const int *array, const int arrayLength, const int iValue, int &oIndex)
+{
+    getSlotIndex(array, arrayLength, iValue, oIndex);
+
+  if(iValue >= array[oIndex])
+      oIndex++;
+}
+
+void getSlotIndex(const float *array, const int arrayLength, const float iValue, int &oIndex)
+{
+  bool found = false;
+  int idEnd = arrayLength;
+  int im;
+
+  oIndex = 0;
+
+  while(!found && ((idEnd - oIndex) > 1))
+  {
+    im = (oIndex + idEnd)/2;
+
+    found = (array[im] == iValue);
+
+    if(array[im] > iValue) idEnd = im;
+    else oIndex = im;
+  }
+}
+
+void getPointerIndex(const float *array, const int arrayLength, const float iValue, int &oIndex)
+{
+    getSlotIndex(array, arrayLength, iValue, oIndex);
+
+  if(iValue >= array[oIndex])
+      oIndex++;
+}
+
+void getSlotIndex(const char array[][MAXSTRINGLEN], const int arrayLength, const char iValue[MAXSTRINGLEN], int &oIndex)
+{
+    bool found = false;
+    int idEnd = arrayLength;
+    int im;
+
+    oIndex = 0;
+
+    while(!found && ((idEnd - oIndex) > 1))
+    {
+      im = (oIndex + idEnd)/2;
+
+      found = (strcmp(array[im], iValue) == 0);
+
+      if(strcmp(array[im], iValue) > 0) idEnd = im;
+      else oIndex = im;
+    }
+}
+
+void getPointerIndex(const char array[][MAXSTRINGLEN], const int arrayLength, const char iValue[MAXSTRINGLEN], int &oIndex)
+{
+    getSlotIndex(array, arrayLength, iValue, oIndex);
+
+    if(strcmp(iValue, array[oIndex]) >= 0)
+        oIndex++;
+}

@@ -32,28 +32,39 @@ struct IX_PageBucketHdr {
     int nbFilledSlots;
 };
 
-
+// copy
 void copyGeneric(const int &v1, int &v2);
 void copyGeneric(const float &v1, float &v2);
 void copyGeneric(const char* v1, char* v2);
 
+// comparison
 int comparisonGeneric(const int &v1, const int &v2);
 int comparisonGeneric(const float &v1, const float &v2);
 int comparisonGeneric(const char* v1, const char* v2);
 
+// display
 void printGeneric(const int &v1);
 void printGeneric(const float &v1);
 void printGeneric(const char* v1);
 
+// sort
 void sortGeneric(int *array, PageNum buckets[], const int arrayLength);
 void sortGeneric(float *array, PageNum buckets[], const int arrayLength);
 void sortGeneric(char array[][MAXSTRINGLEN], PageNum buckets[], const int arrayLength);
 
-
+// sort
 void sortNodeGeneric(int *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int arrayLength);
 void sortNodeGeneric(float *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int arrayLength);
 void sortNodeGeneric(char array[][MAXSTRINGLEN], PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int arrayLength);
 
+// search
+void getSlotIndex(const int *array, const int arrayLength, const int iValue, int &oIndex);
+void getSlotIndex(const float *array, const int arrayLength, const float iValue, int &oIndex);
+void getSlotIndex(const char array[][MAXSTRINGLEN], const int arrayLength, const char iValue[MAXSTRINGLEN], int &oIndex);
+
+void getPointerIndex(const int *array, const int arrayLength, const int iValue, int &oIndex);
+void getPointerIndex(const float *array, const int arrayLength, const float iValue, int &oIndex);
+void getPointerIndex(const char array[][MAXSTRINGLEN], const int arrayLength, const char iValue[MAXSTRINGLEN], int &oIndex);
 
 // defined in IX_IndexHandle to fix compilation issue
 template <typename T>

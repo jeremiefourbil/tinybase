@@ -32,6 +32,8 @@ RC IX_IndexHandle::InsertEntry(void *pData, const RID &rid)
     if (pData == NULL)
         return (IX_NULLPOINTER);
 
+    cout << "ORDER: " << fileHdr.order << endl;
+
 
     switch(fileHdr.attrType)
     {
@@ -212,14 +214,16 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         pBuffer->nbFilledSlots++;
     }
 
-    pointerIndex = 0;
-    while(pointerIndex < pBuffer->nbFilledSlots && comparisonGeneric(iValue, pBuffer->v[pointerIndex]) >= 0)
-    {
-        pointerIndex++;
-    }
+//    pointerIndex = 0;
+//    while(pointerIndex < pBuffer->nbFilledSlots && comparisonGeneric(iValue, pBuffer->v[pointerIndex]) >= 0)
+//    {
+//        pointerIndex++;
+//    }
 
-    if(pointerIndex == pBuffer->nbFilledSlots-1 && comparisonGeneric(iValue, pBuffer->v[pointerIndex]) >= 0)
-        pointerIndex++;
+//    if(pointerIndex == pBuffer->nbFilledSlots-1 && comparisonGeneric(iValue, pBuffer->v[pointerIndex]) >= 0)
+//        pointerIndex++;
+
+    getPointerIndex(pBuffer->v, pBuffer->nbFilledSlots, iValue, pointerIndex);
 
     // the child is a leaf
     if(pBuffer->nodeType == LASTINODE || pBuffer->nodeType == ROOTANDLASTINODE )
@@ -443,8 +447,10 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
 template <typename T>
 RC IX_IndexHandle::RedistributeValuesAndChildren(IX_PageNode<T> *pBufferCurrentNode, IX_PageNode<T> *pBufferNewNode,T &medianChildValue, T &medianParentValue,const PageNum &newNodePageNum)
 {
-    T array[5];
-    PageNum child[5];
+    T array[IX_MAX_NUMBER_OF_VALUES+1];
+    PageNum child[IX_MAX_NUMBER_OF_VALUES+1];
+
+    int slotOffset = IX_MAX_NUMBER_OF_VALUES / 2;
 
     // on remplit le nouveau tableau avec les 5 valeurs
     for(int i=0;i<pBufferCurrentNode->nbFilledSlots;i++)
@@ -454,21 +460,21 @@ RC IX_IndexHandle::RedistributeValuesAndChildren(IX_PageNode<T> *pBufferCurrentN
         child[i] = pBufferCurrentNode->child[i+1];
     }
     // on place à la fin du tableau la nouvelle valeur
-    copyGeneric(medianChildValue, array[4]);
+    copyGeneric(medianChildValue, array[IX_MAX_NUMBER_OF_VALUES]);
     // on remplit la page du nouveau 
-    child[4] = newNodePageNum;
+    child[IX_MAX_NUMBER_OF_VALUES] = newNodePageNum;
     // on ordonne le nouveau tableau
-    sortGeneric(array, child, 5);
+    sortGeneric(array, child, IX_MAX_NUMBER_OF_VALUES+1);
     // on récupère la valeur médiane
-    copyGeneric(array[2],medianParentValue);
+    copyGeneric(array[slotOffset],medianParentValue);
     // on initialise le nombre de slots pour chaque feuille
     pBufferCurrentNode->nbFilledSlots = 0;
     pBufferNewNode->nbFilledSlots = 0;
 
     // redistribution des valeurs
-    for(int j=0;j<5;j++)
+    for(int j=0;j<IX_MAX_NUMBER_OF_VALUES+1;j++)
     {
-        if(j<2){
+        if(j<slotOffset){
             copyGeneric(array[j], pBufferCurrentNode->v[j]);
             // on met à jour les buckets pour être cohérent
             pBufferCurrentNode->child[j+1] = child[j];
@@ -476,9 +482,9 @@ RC IX_IndexHandle::RedistributeValuesAndChildren(IX_PageNode<T> *pBufferCurrentN
             pBufferCurrentNode->nbFilledSlots++;
         } else {
         // on copie la valeur dans la nouvelle feuille
-            copyGeneric(array[j], pBufferNewNode->v[j-2]);
+            copyGeneric(array[j], pBufferNewNode->v[j-slotOffset]);
         // on met à jour les buckets pour être cohérent
-            pBufferNewNode->child[j-1] = child[j];
+            pBufferNewNode->child[j-slotOffset+1] = child[j];
         // on incrémente le nombre slots remplis
             pBufferNewNode->nbFilledSlots++;
         }
@@ -1164,7 +1170,7 @@ RC IX_IndexHandle::AllocateNodePage_t(const NodeType nodeType, const PageNum par
     ((IX_PageNode<T> *)pReadData)->nodeType = nodeType;
     ((IX_PageNode<T> *)pReadData)->nbFilledSlots = 0;
 
-    for(int i=0; i<5; i++)
+    for(int i=0; i<IX_MAX_NUMBER_OF_VALUES+1; i++)
     {
         ((IX_PageNode<T> *)pReadData)->child[i] = IX_EMPTY;
     }
@@ -1212,7 +1218,7 @@ RC IX_IndexHandle::AllocateLeafPage_t(const PageNum parent, PageNum &oPageNum)
     ((IX_PageLeaf<T> *)pReadData)->next = IX_EMPTY;
     ((IX_PageLeaf<T> *)pReadData)->nbFilledSlots = 0;
 
-    for(int i=0; i<4; i++)
+    for(int i=0; i<IX_MAX_NUMBER_OF_VALUES; i++)
     {
         ((IX_PageLeaf<T> *)pReadData)->bucket[i] = IX_EMPTY;
     }
@@ -1449,7 +1455,7 @@ RC IX_IndexHandle::DisplayNode_t(const PageNum pageNum, const int fatherNodeId, 
         // debug
         printGeneric(((IX_PageNode<T> *)pBuffer)->v[slotIndex]);
     }
-    for(slotIndex = 0;slotIndex < 4; slotIndex++)
+    for(slotIndex = 0;slotIndex < IX_MAX_NUMBER_OF_VALUES; slotIndex++)
     {
         printGeneric(((IX_PageNode<T> *)pBuffer)->v[slotIndex]);
     }

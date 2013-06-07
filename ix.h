@@ -41,6 +41,7 @@ struct IX_FileHdr {
     int attrLength;
     int height;
     PageNum firstLeafNum;
+    int order;
 };
 
 template <typename T>
