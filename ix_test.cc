@@ -886,21 +886,41 @@ RC Test7(void)
    // int sequelLength = 6;
    // int sequel[6] = {11,6,5,17,8,7};
    // int sequelLength = 11;
-   // int sequel[11] = {11,6,5,17,8,7,18,1,9,14,15};
+   // int sequel[11] = {17,6,5,17,8,7,18,1,9,14,10};
+   // int sequelLength = 10;
+   // int sequel[10] = {11,6,5,17,8,7,18,1,9,14};
    int sequelLength = 20;
    int sequel[20] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13};
 
    IX_IndexScan scan;
-   int value = 16;
+   int value = 18;
    bool bExists = true;
    RID rid(value, value*2);
+   int value2 = 1;
+   RID rid2(value2, value2*2);
+   int value3 = 4;
+   RID rid3(value3, value3*2);
+   int value4 = 9;
+   RID rid4(value4, value4*2);
+   int value5 = 6;
+   RID rid5(value5, value5*2);
+   int value6 = 20;
+   RID rid6(value6, value6*2);
+   int value7 = 11;
+   RID rid7(value7, value7*2);
 
    printf("Test7: test for making a graphml file with a specific sequel... \n");
 
    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
       (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
       (rc = InsertSequelOfInt(ih, sequel, sequelLength)) ||
-      (rc = ih.DeleteEntry((void *)&value, rid)))
+      (rc = ih.DeleteEntry((void *)&value, rid)) ||
+      (rc = ih.DeleteEntry((void *)&value2, rid2)) ||
+      (rc = ih.DeleteEntry((void *)&value3, rid3)) ||
+      (rc = ih.DeleteEntry((void *)&value4, rid4)) ||
+      (rc = ih.DeleteEntry((void *)&value5, rid5)) ||
+      (rc = ih.DeleteEntry((void *)&value6, rid6)) ||
+      (rc = ih.DeleteEntry((void *)&value7, rid7)))
       return (rc);
 
    cout << "----- Start XML tree -------" << endl;
