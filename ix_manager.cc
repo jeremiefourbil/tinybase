@@ -56,6 +56,7 @@ RC IX_Manager::CreateIndex(const char *fileName, int indexNo,
     fileHdr->attrLength=attrLength;
     fileHdr->attrType=attrType;
     fileHdr->height = 0;
+    fileHdr->firstLeafNum = IX_EMPTY;
 
     // Mark the header page as dirty
     if (rc = pfFileHandle.MarkDirty(IX_HEADER_PAGE_NUM))

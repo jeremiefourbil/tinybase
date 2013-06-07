@@ -61,6 +61,7 @@ RC Test4(void);
 RC Test5(void);
 RC Test6(void);
 RC Test7(void);
+RC Test8(void);
 
 void PrintError(RC rc);
 void LsFiles(char *fileName);
@@ -78,7 +79,7 @@ RC PrintIndex(IX_IndexHandle &ih);
 //
 // Array of pointers to the test functions
 //
-#define NUM_TESTS       7               // number of tests
+#define NUM_TESTS       8               // number of tests
 int (*tests[])() =                      // RC doesn't work on some compilers
 {
    Test1,
@@ -87,7 +88,8 @@ int (*tests[])() =                      // RC doesn't work on some compilers
    Test4,
    Test5,
    Test6,
-   Test7
+   Test7,
+   Test8
 };
 
 //
@@ -607,7 +609,8 @@ RC Test4(void)
 
    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
       (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
-      (rc = InsertIntEntries(ih, FEW_ENTRIES)))
+      (rc = InsertIntEntries(ih, FEW_ENTRIES)) ||
+      (rc = ih.DisplayTree()))
       return (rc);
 
    // Scan <
@@ -625,7 +628,7 @@ RC Test4(void)
 if (rc != IX_EOF)
    return (rc);
 
-printf("Found %d entries in <-scan.", i);
+printf("Found %d entries in <-scan.\n", i);
 
    // Scan <=
 IX_IndexScan scanle;
@@ -674,6 +677,47 @@ if (rc != IX_EOF)
    return (rc);
 
 printf("Found %d entries in >=-scan.\n", i);
+
+
+
+// Scan <>
+IX_IndexScan scanne;
+if ((rc = scanne.OpenScan(ih, NE_OP, &value))) {
+ printf("Scan error: opening scan\n");
+ return (rc);
+}
+
+i = 0;
+while (!(rc = scanne.GetNextEntry(rid))) {
+i++;
+}
+
+if (rc != IX_EOF)
+return (rc);
+
+printf("Found %d entries in <>scan.\n", i);
+
+
+
+// Scan noscan
+IX_IndexScan scanno;
+if ((rc = scanno.OpenScan(ih, NO_OP, NULL))) {
+ printf("Scan error: opening scan\n");
+ return (rc);
+}
+
+i = 0;
+while (!(rc = scanno.GetNextEntry(rid))) {
+i++;
+}
+
+if (rc != IX_EOF)
+return (rc);
+
+printf("Found %d entries in NULL scan.\n", i);
+
+
+
 
 if ((rc = ixm.CloseIndex(ih)))
    return (rc);
@@ -884,4 +928,39 @@ if ((rc = ixm.DestroyIndex(FILENAME, index)))
 
 printf("Passed Test 7\n\n");
 return (0);
+}
+
+//
+// Test8 tests inserting a few STRING entries into the index.
+//
+RC Test8(void)
+{
+   RC rc;
+   IX_IndexHandle ih;
+   int index=0;
+
+   printf("Test8: Insert a few integer entries into an index... \n");
+
+   if ((rc = ixm.CreateIndex(FILENAME, index, STRING, sizeof(char[STRLEN]))) ||
+      (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
+      (rc = InsertStringEntries(ih, FEW_ENTRIES)) ||
+      (rc = ih.DisplayTree()) ||
+      (rc = ixm.CloseIndex(ih)) ||
+      (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
+
+         // ensure inserted entries are all there
+//      (rc = VerifyStringIndex(ih, 0, FEW_ENTRIES, TRUE)) ||
+
+         // ensure an entry not inserted is not there
+//      (rc = VerifyIntIndex(ih, FEW_ENTRIES, 1, FALSE)) ||
+      (rc = ixm.CloseIndex(ih)))
+      return (rc);
+
+   LsFiles(FILENAME);
+
+   if ((rc = ixm.DestroyIndex(FILENAME, index)))
+      return (rc);
+
+   printf("Passed Test 8\n\n");
+   return (0);
 }

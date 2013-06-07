@@ -76,6 +76,7 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
                 goto err_return;
 
         fileHdr.rootNum = pageNum;
+        fileHdr.firstLeafNum = pageNum;
     }
 
     // let's call the recursion method, start with root

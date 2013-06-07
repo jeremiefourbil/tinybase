@@ -24,7 +24,8 @@ enum NodeType {
 
 enum Direction {
     LEFT,
-    RIGHT
+    RIGHT,
+    DONTMOVE
 };
 
 enum DeleteStatus {
@@ -39,6 +40,7 @@ struct IX_FileHdr {
     AttrType attrType;
     int attrLength;
     int height;
+    PageNum firstLeafNum;
 };
 
 template <typename T>
@@ -194,6 +196,12 @@ private:
 
     RC ReadBucket(PageNum iPageNum, RID &rid);
 
+    template <typename T>
+    RC ComputePreviousLeafSlot(const PageNum iPreviousPage);
+
+    template <typename T>
+    RC ComputeNextLeafSlot(const int iFilledSlots, const PageNum iNextPage);
+
     IX_IndexHandle _indexHandle;
     CompOp _compOp;
     void * _value;
@@ -202,6 +210,11 @@ private:
     PageNum _nextLeafNum;
     int _nextLeafSlot;
     int _nextBucketSlot;
+
+    PageNum _initialLeafNum;
+    int _initialLeafSlot;
+
+    Direction _direction;
 };
 
 //
@@ -241,6 +254,8 @@ void IX_PrintError(RC rc);
 #define IX_NULLPOINTER                  (START_IX_ERR + 1)
 #define IX_BADTYPE                      (START_IX_ERR + 2)
 #define IX_ENTRY_DOES_NOT_EXIST         (START_IX_ERR + 3)
+#define IX_ARRAY_OVERFLOW               (START_IX_ERR + 4)
+#define IX_INVALID_PAGE_NUMBER          (START_IX_ERR + 5)
 //#define RM_INVALIDRECSIZE  (START_RM_WARN + 2) // invalid record size
 //#define RM_INVALIDSLOTNUM  (START_RM_WARN + 3) // invalid slot number
 //#define RM_RECORDNOTFOUND  (START_RM_WARN + 4) // record not found
