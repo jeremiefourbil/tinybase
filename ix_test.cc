@@ -33,9 +33,9 @@ using namespace std;
 #define FILENAME     "testrel"        // test file name
 #define BADFILE      "/abc/def/xyz"   // bad file name
 #define STRLEN       39               // length of strings to index
-#define FEW_ENTRIES  20
+#define FEW_ENTRIES  1000000
 #define MANY_ENTRIES 3000
-#define NENTRIES     5000             // Size of values array
+#define NENTRIES     1000001             // Size of values array
 #define PROG_UNIT    200              // how frequently to give progress
 // reports when adding lots of entries
 
@@ -918,9 +918,9 @@ RC Test7(void)
       (rc = ih.DeleteEntry((void *)&value2, rid2)) ||
       (rc = ih.DeleteEntry((void *)&value3, rid3)) ||
       (rc = ih.DeleteEntry((void *)&value4, rid4)) ||
-      (rc = ih.DeleteEntry((void *)&value5, rid5)) ||
-      (rc = ih.DeleteEntry((void *)&value6, rid6)) ||
-      (rc = ih.DeleteEntry((void *)&value7, rid7)))
+      (rc = ih.DeleteEntry((void *)&value5, rid5)))
+//      (rc = ih.DeleteEntry((void *)&value6, rid6)))
+//      (rc = ih.DeleteEntry((void *)&value7, rid7)))
       return (rc);
 
    cout << "----- Start XML tree -------" << endl;

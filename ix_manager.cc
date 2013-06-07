@@ -1,6 +1,9 @@
 #include "ix_internal.h"
 
 #include <sstream>
+#include <iostream>
+
+using namespace std;
 
 IX_Manager::IX_Manager(PF_Manager &pfm) : pPfm(&pfm)
 {

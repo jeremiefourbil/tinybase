@@ -430,6 +430,7 @@ RC PF_BufferMgr::FlushPages(int fd)
          // Ensure the page is not pinned
          if (bufTable[slot].pinCount) {
             rcWarn = PF_PAGEPINNED;
+            cerr << bufTable[slot].pageNum << endl;
          }
          else {
             // Write the page if dirty
