@@ -947,6 +947,7 @@ RC Test8(void)
     if ((rc = ixm.CreateIndex(FILENAME, index, STRING, sizeof(char[STRLEN]))) ||
             (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
             (rc = InsertStringEntries(ih, FEW_ENTRIES)) ||
+            (rc = InsertStringEntries(ih, FEW_ENTRIES)) ||
             (rc = ih.DisplayTree()) ||
             (rc = ixm.CloseIndex(ih)) ||
             (rc = ixm.OpenIndex(FILENAME, index, ih)));
