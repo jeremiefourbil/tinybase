@@ -665,6 +665,8 @@ RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
                 slotIndex++;
             }
             copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
+            if(rc = ReleaseBuffer(pageNum, true))
+                goto err_return;
         }
     }
     return rc;
@@ -720,11 +722,26 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         // mettre à jour l'index car la valeur minimale de la feuille a changé
         if(childStatus == UPDATE_ONLY)
         {
-            cout << "update from leaf :" << slotIndex << endl;
-            copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
-            if(slotIndex == 0 && (pointerIndex == 1) ){
-                copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
-                parentStatus = UPDATE_ONLY;
+            cout << "update from leaf :" << slotIndex << "- pointer:" << pointerIndex << endl;
+            if(slotIndex == pointerIndex)
+            {
+                if(slotIndex != 0)
+                {
+                    copyGeneric(updatedChildValue, pBuffer->v[slotIndex-1]);
+                    if(slotIndex == 0)
+                    {
+                        copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
+                        parentStatus = UPDATE_ONLY;
+                    }
+                }
+            }
+            else
+            {
+                copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
+                if(slotIndex == 0 && (pointerIndex == 1) ){
+                    copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
+                    parentStatus = UPDATE_ONLY;
+                }
             }
         }
         else if(childStatus == REDISTRIBUTION_RIGHT)
@@ -741,6 +758,9 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                         copyGeneric(pRedistBuffer->v[0], pBuffer->v[slotIndex]);
                         if(rc = ReleaseBuffer(pBuffer->child[pointerIndex + 1], true))
                         goto err_return;
+                        // on previent le noeud parent
+                        parentStatus = UPDATE_ONLY;
+                        copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
                     }
                     else
                     {
@@ -792,6 +812,11 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                     copyGeneric(pRedistBuffer->v[0], pBuffer->v[slotIndex]);
                     if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], true))
                         goto err_return;
+                    if(slotIndex == 0)
+                    {
+                        parentStatus = UPDATE_ONLY;
+                        copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
+                    }
                 }
                 else
                 {
@@ -852,11 +877,26 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         // if(updateChildIndex)
         if(childStatus == UPDATE_ONLY)
         {
-            cout << "update from node :" << slotIndex << endl;
-            copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
-            if(slotIndex == 0 && (pointerIndex == 1) ){
-                copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
-                parentStatus = UPDATE_ONLY;
+            cout << "update from node :" << slotIndex << "- pointer:" << pointerIndex << endl;
+            if(slotIndex == pointerIndex)
+            {
+                if(slotIndex != 0)
+                {
+                    copyGeneric(updatedChildValue, pBuffer->v[slotIndex-1]);
+                    if(slotIndex == 0)
+                    {
+                        copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
+                        parentStatus = UPDATE_ONLY;
+                    }
+                }
+            }
+            else
+            {
+                copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
+                if(slotIndex == 0 && (pointerIndex == 1) ){
+                    copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
+                    parentStatus = UPDATE_ONLY;
+                }
             }
         }
     }
@@ -933,33 +973,36 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
     {
         // 2. la feuille compte moins de IX_MAX_VALUES / 2
         // on cherche une feuille voisine appartenant au même parent
-        if(rc = GetLeafPageBuffer(pBuffer->next, pNeighborBuffer))
-            goto err_return;
-        if(pNeighborBuffer->parent == pBuffer->parent)
+        if(pBuffer->next != IX_EMPTY)
         {
-            // la feuille voisine droite a le même parent
-            if(pNeighborBuffer->nbFilledSlots > n/2)
+            if(rc = GetLeafPageBuffer(pBuffer->next, pNeighborBuffer))
+                goto err_return;
+            if(pNeighborBuffer->parent == pBuffer->parent)
             {
-                // on redistribue avec le voisin droit
-                cout << "redistribution avec le voisin de droite" << endl;
-                if(rc = RedistributeValuesAndBuckets<T,n>(pBuffer, pNeighborBuffer, iValue, updatedParentValue, bucketPageNum, pNeighborBuffer->nbFilledSlots+pBuffer->nbFilledSlots, true))
-                    return rc;
-                parentStatus = REDISTRIBUTION_RIGHT;
-                if(rc = ReleaseBuffer(pBuffer->next, true))
+                // la feuille voisine droite a le même parent
+                if(pNeighborBuffer->nbFilledSlots > IX_MAX_NUMBER_OF_VALUES/2)
+                {
+                    // on redistribue avec le voisin droit
+                    cout << "redistribution avec le voisin de droite" << endl;
+                    if(rc = RedistributeValuesAndBuckets<T>(pBuffer, pNeighborBuffer, iValue, updatedParentValue, bucketPageNum, pNeighborBuffer->nbFilledSlots+pBuffer->nbFilledSlots, true))
+                        return rc;
+                    parentStatus = REDISTRIBUTION_RIGHT;
+                    if(rc = ReleaseBuffer(pBuffer->next, true))
+                        goto err_return;
+                }
+                else
+                {
+                    // if(rc = MergeValuesAndBuckets(pBuffer, pNeighborBuffer, iValue, mergeLeft))
+                        // goto err_return;
+                    cout << "merge avec le voisin de droite" << endl;
+                }   
+            } else {
+                // on relâche le voisin droit pour charger l'autre
+                if(rc = ReleaseBuffer(pBuffer->next, false))
                     goto err_return;
             }
-            else
-            {
-                // if(rc = MergeValuesAndBuckets(pBuffer, pNeighborBuffer, iValue, mergeLeft))
-                    // goto err_return;
-                cout << "merge avec le voisin de droite" << endl;
-            }   
-        } else {
-            // on relâche le voisin droit pour charger l'autre
-            if(rc = ReleaseBuffer(pBuffer->next, false))
-                goto err_return;
         }
-        if(parentStatus == NOTHING)
+        if(parentStatus == NOTHING && pBuffer->previous != IX_EMPTY)
         {
             if(rc = GetLeafPageBuffer(pBuffer->previous, pNeighborBuffer))
                 goto err_return;
