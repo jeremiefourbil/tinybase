@@ -41,21 +41,20 @@ struct IX_FileHdr {
     int attrLength;
     int height;
     PageNum firstLeafNum;
-    int order;
 };
 
-template <typename T>
+template <typename T, int n>
 struct IX_PageNode {
     PageNum parent;
     NodeType nodeType;
 
     int nbFilledSlots;
-    T v[4];
+    T v[n];
 
-    PageNum child[5];
+    PageNum child[n+1];
 };
 
-template <typename T>
+template <typename T, int n>
 struct IX_PageLeaf {
     PageNum parent;
 
@@ -63,16 +62,11 @@ struct IX_PageLeaf {
     PageNum next;
 
     int nbFilledSlots;
-    T v[4];
-    PageNum bucket[4];
+    T v[n];
+    PageNum bucket[n+1];
 };
 
 
-
-
-
-
-//
 // IX_IndexHandle: IX Index File interface
 //
 class IX_IndexHandle {
@@ -96,34 +90,34 @@ public:
 
 private:
     // insertion
-    template <typename T>
+    template <typename T, int n>
     RC InsertEntry_t(T iValue, const RID &rid);
 
-    template <typename T>
+    template <typename T, int n>
     RC InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, PageNum &newChildPageNum,T &medianChildValue);
 
-    template <typename T>
+    template <typename T, int n>
     RC InsertEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid, PageNum &newChildPageNum,T &medianValue);
 
     RC InsertEntryInBucket(PageNum iPageNum, const RID &rid);
 
     // deletion
-    template <typename T>
+    template <typename T, int n>
     RC DeleteEntry_t(T iValue, const RID &rid);
 
-    template <typename T>
+    template <typename T, int n>
     RC DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, DeleteStatus &parentStatus);
 
-    template <typename T>
+    template <typename T, int n>
     RC DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, DeleteStatus &parentStatus);
 
     RC DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid);
 
     // allocation
-    template <typename T>
+    template <typename T, int n>
     RC AllocateNodePage_t(const NodeType nodeType, const PageNum parent, PageNum &oPageNum);
 
-    template <typename T>
+    template <typename T, int n>
     RC AllocateLeafPage_t(const PageNum parent, PageNum &oPageNum);
 
     RC AllocateBucketPage(const PageNum parent, PageNum &oPageNum);
@@ -131,29 +125,29 @@ private:
     // page management
     RC GetPageBuffer(const PageNum &iPageNum, char * &pBuffer) const;
 
-    template <typename T>
-    RC GetNodePageBuffer(const PageNum &iPageNum, IX_PageNode<T> * & pBuffer) const;
+    template <typename T, int n>
+    RC GetNodePageBuffer(const PageNum &iPageNum, IX_PageNode<T,n> * & pBuffer) const;
 
-    template <typename T>
-    RC GetLeafPageBuffer(const PageNum &iPageNum, IX_PageLeaf<T> * & pBuffer) const;
+    template <typename T, int n>
+    RC GetLeafPageBuffer(const PageNum &iPageNum, IX_PageLeaf<T,n> * & pBuffer) const;
 
     RC ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const;
 
     // pour les noeuds
-    template <typename T>
-    RC RedistributeValuesAndChildren(IX_PageNode<T> *pBufferCurrentNode, IX_PageNode<T> *pBufferNewNode,T &medianChildValue, T &medianParentValue,const PageNum &newNodePageNum);
+    template <typename T, int n>
+    RC RedistributeValuesAndChildren(IX_PageNode<T,n> *pBufferCurrentNode, IX_PageNode<T,n> *pBufferNewNode,T &medianChildValue, T &medianParentValue,const PageNum &newNodePageNum);
 
     // pour les feuilles
-    template <typename T>
-    RC RedistributeValuesAndBuckets(IX_PageLeaf<T> *pBufferCurrentLeaf, IX_PageLeaf<T> *pBufferNewLeaf, T iValue, T &medianValue, const PageNum &bucketPageNum, const int nEntries, bool redistributionOnly);
+    template <typename T, int n>
+    RC RedistributeValuesAndBuckets(IX_PageLeaf<T,n> *pBufferCurrentLeaf, IX_PageLeaf<T,n> *pBufferNewLeaf, T iValue, T &medianValue, const PageNum &bucketPageNum, const int nEntries, bool redistributionOnly);
 
     // debugging
 
-    template <typename T>
+    template <typename T, int n>
     RC DisplayTree_t();
-    template <typename T>
+    template <typename T, int n>
     RC DisplayNode_t(const PageNum pageNum,const int fatherNodeId, int &currentNodeId,int &currentEdgeId);
-    template <typename T>
+    template <typename T, int n>
     RC DisplayLeaf_t(const PageNum page,const int fatherNodeId, int &currentNodeId,int &currentEdgeId);
 
     PF_FileHandle pfFileHandle;
@@ -183,24 +177,24 @@ public:
     RC CloseScan();
 
 private:
-    template <typename T>
+    template <typename T, int n>
     RC OpenScan_t();
 
-    template <typename T>
+    template <typename T, int n>
     RC ScanNode_t(PageNum iPageNum);
 
-    template <typename T>
+    template <typename T, int n>
     RC ScanLeaf_t(PageNum iPageNum);
 
-    template <typename T>
+    template <typename T, int n>
     RC GetNextEntry_t(RID &rid);
 
     RC ReadBucket(PageNum iPageNum, RID &rid);
 
-    template <typename T>
+    template <typename T, int n>
     RC ComputePreviousLeafSlot(const PageNum iPreviousPage);
 
-    template <typename T>
+    template <typename T, int n>
     RC ComputeNextLeafSlot(const int iFilledSlots, const PageNum iNextPage);
 
     IX_IndexHandle _indexHandle;

@@ -57,7 +57,6 @@ RC IX_Manager::CreateIndex(const char *fileName, int indexNo,
     fileHdr->attrType=attrType;
     fileHdr->height = 0;
     fileHdr->firstLeafNum = IX_EMPTY;
-    fileHdr->order = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(int) - 10) / (attrLength + sizeof(int))));
 
     // Mark the header page as dirty
     if (rc = pfFileHandle.MarkDirty(IX_HEADER_PAGE_NUM))
@@ -169,56 +168,49 @@ RC IX_Manager::CloseIndex(IX_IndexHandle &indexHandle)
 {
     RC rc;
 
-    // Write back the file header if any changes made to the header
-    // while the file is open
-    if (indexHandle.bHdrChanged)
-    {
-       PF_PageHandle pageHandle;
-       char* pData;
+    PF_PageHandle pageHandle;
+    char* pData;
 
-       // Get the header page
-       if (rc = indexHandle.pfFileHandle.GetFirstPage(pageHandle))
-          // Test: unopened(closed) indexHandle, invalid file
-          goto err_return;
+    // Get the header page
+    if (rc = indexHandle.pfFileHandle.GetFirstPage(pageHandle))
+        // Test: unopened(closed) indexHandle, invalid file
+        goto err_return;
 
-       // Get a pointer where header information will be written
-       if (rc = pageHandle.GetData(pData))
-          // Should not happen
-          goto err_unpin;
+    // Get a pointer where header information will be written
+    if (rc = pageHandle.GetData(pData))
+        // Should not happen
+        goto err_unpin;
 
-       // Write the file header (to the buffer pool)
-       memcpy(pData, &indexHandle.fileHdr, sizeof(indexHandle.fileHdr));
+    // Write the file header (to the buffer pool)
+    memcpy(pData, &indexHandle.fileHdr, sizeof(indexHandle.fileHdr));
 
-       // Mark the header page as dirty
-       if (rc = indexHandle.pfFileHandle.MarkDirty(IX_HEADER_PAGE_NUM))
-          // Should not happen
-          goto err_unpin;
+    // Mark the header page as dirty
+    if (rc = indexHandle.pfFileHandle.MarkDirty(IX_HEADER_PAGE_NUM))
+        // Should not happen
+        goto err_unpin;
 
-       // Unpin the header page
-       if (rc = indexHandle.pfFileHandle.UnpinPage(IX_HEADER_PAGE_NUM))
-          // Should not happen
-          goto err_return;
+    // Unpin the header page
+    if (rc = indexHandle.pfFileHandle.UnpinPage(IX_HEADER_PAGE_NUM))
+        // Should not happen
+        goto err_return;
 
-       // Set file header to be not changed
-       indexHandle.bHdrChanged = FALSE;
-    }
+    // Set file header to be not changed
+    indexHandle.bHdrChanged = FALSE;
+
+    indexHandle.ForcePages();
 
     // Call PF_Manager::CloseFile()
     if (rc = pPfm->CloseFile(indexHandle.pfFileHandle))
-       // Test: unopened(closed) indexHandle
-       goto err_return;
+        goto err_return;
 
-    // Reset member variables
-    memset(&indexHandle.fileHdr, 0, sizeof(indexHandle.fileHdr));
-//    indexHandle.fileHdr.firstFree = IX_PAGE_LIST_END;
 
     // Return ok
     return (0);
 
     // Recover from inconsistent state due to unexpected error
- err_unpin:
+err_unpin:
     indexHandle.pfFileHandle.UnpinPage(IX_HEADER_PAGE_NUM);
- err_return:
+err_return:
     // Return error
     return (rc);
 }

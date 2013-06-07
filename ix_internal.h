@@ -14,6 +14,12 @@
 //
 const int IX_HEADER_PAGE_NUM = 0;
 
+const int order_INT = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(int) - 10) / (sizeof(int) + sizeof(int))));
+const int order_FLOAT = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(float) - 10) / (sizeof(int) + sizeof(float))));
+const int order_STRING = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(int) - 10) / (sizeof(int) + MAXSTRINGLEN * sizeof(char))));
+
+
+
 #define IX_EMPTY  -1       // the next page does not exist
 #define IX_MAX_NUMBER_OF_VALUES 4 // the maximum number of values by leaf or node
 #define IX_MAX_NUMBER_OF_CHILDS 5 // the maximum number of children by node
@@ -67,11 +73,11 @@ void getPointerIndex(const float *array, const int arrayLength, const float iVal
 void getPointerIndex(const char array[][MAXSTRINGLEN], const int arrayLength, const char iValue[MAXSTRINGLEN], int &oIndex);
 
 // defined in IX_IndexHandle to fix compilation issue
-template <typename T>
-void swapLeafEntries(int i, IX_PageLeaf<T> * pBuffer1, int j, IX_PageLeaf<T> *pBuffer2);
+template <typename T, int n>
+void swapLeafEntries(int i, IX_PageLeaf<T,n> * pBuffer1, int j, IX_PageLeaf<T,n> *pBuffer2);
 
-template <typename T>
-void sortLeaf(IX_PageLeaf<T> * pBuffer);
+template <typename T, int n>
+void sortLeaf(IX_PageLeaf<T,n> * pBuffer);
 
 
 #endif // IX_INTERNAL_H
