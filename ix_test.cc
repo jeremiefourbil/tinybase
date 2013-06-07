@@ -904,6 +904,10 @@ RC Test7(void)
    RID rid4(value4, value4*2);
    int value5 = 6;
    RID rid5(value5, value5*2);
+   int value6 = 20;
+   RID rid6(value6, value6*2);
+   int value7 = 11;
+   RID rid7(value7, value7*2);
 
    printf("Test7: test for making a graphml file with a specific sequel... \n");
 
@@ -914,7 +918,9 @@ RC Test7(void)
       (rc = ih.DeleteEntry((void *)&value2, rid2)) ||
       (rc = ih.DeleteEntry((void *)&value3, rid3)) ||
       (rc = ih.DeleteEntry((void *)&value4, rid4)) ||
-      (rc = ih.DeleteEntry((void *)&value5, rid5)))
+      (rc = ih.DeleteEntry((void *)&value5, rid5)) ||
+      (rc = ih.DeleteEntry((void *)&value6, rid6)) ||
+      (rc = ih.DeleteEntry((void *)&value7, rid7)))
       return (rc);
 
    cout << "----- Start XML tree -------" << endl;
@@ -949,32 +955,155 @@ return (0);
 //
 RC Test8(void)
 {
-   RC rc;
-   IX_IndexHandle ih;
-   int index=0;
+    RC rc;
+    IX_IndexHandle ih;
+    int index=0;
+    int            i;
+    char*            value="jeremie";
+    RID            rid;
 
-   printf("Test8: Insert a few integer entries into an index... \n");
+    printf("Test8: Insert a few string entries into an index... \n");
 
-   if ((rc = ixm.CreateIndex(FILENAME, index, STRING, sizeof(char[STRLEN]))) ||
-      (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
-      (rc = InsertStringEntries(ih, FEW_ENTRIES)) ||
-      (rc = ih.DisplayTree()) ||
-      (rc = ixm.CloseIndex(ih)) ||
-      (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
+    if ((rc = ixm.CreateIndex(FILENAME, index, STRING, sizeof(char[STRLEN]))) ||
+            (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
+            (rc = InsertStringEntries(ih, FEW_ENTRIES)) ||
+            (rc = ih.DisplayTree()) ||
+            (rc = ixm.CloseIndex(ih)) ||
+            (rc = ixm.OpenIndex(FILENAME, index, ih)));
 
-         // ensure inserted entries are all there
-//      (rc = VerifyStringIndex(ih, 0, FEW_ENTRIES, TRUE)) ||
 
-         // ensure an entry not inserted is not there
-//      (rc = VerifyIntIndex(ih, FEW_ENTRIES, 1, FALSE)) ||
-      (rc = ixm.CloseIndex(ih)))
-      return (rc);
+    // Scan =
+    IX_IndexScan scaneq;
+    if ((rc = scaneq.OpenScan(ih, EQ_OP, value))) {
+        printf("Scan error: opening scan\n");
+        return (rc);
+    }
 
-   LsFiles(FILENAME);
+    i = 0;
+    while (!(rc = scaneq.GetNextEntry(rid))) {
+        i++;
+    }
 
-   if ((rc = ixm.DestroyIndex(FILENAME, index)))
-      return (rc);
+    if (rc != IX_EOF)
+        return (rc);
 
-   printf("Passed Test 8\n\n");
-   return (0);
+    printf("Found %d entries in =scan.\n", i);
+
+    // Scan <
+    IX_IndexScan scanlt;
+    if ((rc = scanlt.OpenScan(ih, LT_OP, value))) {
+        printf("Scan error: opening scan\n");
+        return (rc);
+    }
+
+    i = 0;
+    while (!(rc = scanlt.GetNextEntry(rid))) {
+        i++;
+    }
+
+    if (rc != IX_EOF)
+        return (rc);
+
+    printf("Found %d entries in <-scan.\n", i);
+
+    // Scan <=
+    IX_IndexScan scanle;
+    if ((rc = scanle.OpenScan(ih, LE_OP, value))) {
+        printf("Scan error: opening scan\n");
+        return (rc);
+    }
+
+    i = 0;
+    while (!(rc = scanle.GetNextEntry(rid))) {
+        i++;
+    }
+    if (rc != IX_EOF)
+        return (rc);
+
+    printf("Found %d entries in <=-scan.\n", i);
+
+    // Scan >
+    IX_IndexScan scangt;
+    if ((rc = scangt.OpenScan(ih, GT_OP, value))) {
+        printf("Scan error: opening scan\n");
+        return (rc);
+    }
+
+    i = 0;
+    while (!(rc = scangt.GetNextEntry(rid))) {
+        i++;
+    }
+    if (rc != IX_EOF)
+        return (rc);
+
+    printf("Found %d entries in >-scan.\n", i);
+
+    // Scan >=
+    IX_IndexScan scange;
+    if ((rc = scange.OpenScan(ih, GE_OP, value))) {
+        printf("Scan error: opening scan\n");
+        return (rc);
+    }
+
+    i = 0;
+    while (!(rc = scange.GetNextEntry(rid))) {
+        i++;
+    }
+    if (rc != IX_EOF)
+        return (rc);
+
+    printf("Found %d entries in >=-scan.\n", i);
+
+
+
+    // Scan <>
+    IX_IndexScan scanne;
+    if ((rc = scanne.OpenScan(ih, NE_OP, value))) {
+        printf("Scan error: opening scan\n");
+        return (rc);
+    }
+
+    i = 0;
+    while (!(rc = scanne.GetNextEntry(rid))) {
+        i++;
+    }
+
+    if (rc != IX_EOF)
+        return (rc);
+
+    printf("Found %d entries in <>scan.\n", i);
+
+
+
+    // Scan noscan
+    IX_IndexScan scanno;
+    if ((rc = scanno.OpenScan(ih, NO_OP, NULL))) {
+        printf("Scan error: opening scan\n");
+        return (rc);
+    }
+
+    i = 0;
+    while (!(rc = scanno.GetNextEntry(rid))) {
+        i++;
+    }
+
+    if (rc != IX_EOF)
+        return (rc);
+
+    printf("Found %d entries in NULL scan.\n", i);
+
+
+
+
+
+    if(rc = ixm.CloseIndex(ih))
+        return (rc);
+
+    LsFiles(FILENAME);
+
+    if ((rc = ixm.DestroyIndex(FILENAME, index)))
+        return (rc);
+
+    printf("Passed Test 8\n\n");
+    return (0);
 }
