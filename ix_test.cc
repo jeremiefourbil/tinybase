@@ -939,7 +939,7 @@ RC Test8(void)
     IX_IndexHandle ih;
     int index=0;
     int            i;
-    char*            value="jeremie";
+    char*            value="number 2";
     RID            rid;
 
     printf("Test8: Insert a few string entries into an index... \n");

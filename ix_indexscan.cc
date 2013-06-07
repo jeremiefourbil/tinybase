@@ -54,7 +54,6 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle,
         default:
             rc = IX_BADTYPE;
         }
-
     }
 
     return rc;
@@ -171,52 +170,81 @@ RC IX_IndexScan::ScanLeaf_t(PageNum iPageNum)
         goto err_return;
 
     // find the right place in the tree
-    for(int i=0; i<pBuffer->nbFilledSlots; i++)
-    {
-        if(comparisonGeneric(pBuffer->v[i], *((T*) _value)) == 0)
-        {
-            slotIndex = i;
-            break;
-        }
-    }
+//    for(int i=0; i<pBuffer->nbFilledSlots; i++)
+//    {
+//        if(comparisonGeneric(pBuffer->v[i], *((T*) _value)) == 0)
+//        {
+//            slotIndex = i;
+//            break;
+//        }
+//    }
+
+    getSlotIndex(pBuffer->v, pBuffer->nbFilledSlots, *((T*) _value), slotIndex);
+    if(comparisonGeneric(pBuffer->v[slotIndex], *((T*) _value)) == 0)
+        _isValueInTree = true;
+    else
+        _isValueInTree = false;
 
     // store the initial position
     _initialLeafNum = iPageNum;
     _initialLeafSlot = slotIndex;
 
     // the value was not found
-    if(slotIndex == -1)
-    {
-        _nextLeafNum = IX_EMPTY;
-        _nextLeafSlot = IX_EMPTY;
-        _nextBucketSlot = IX_EMPTY;
-    }
-    // the value was found
-    if(slotIndex >= 0)
+    if(!_isValueInTree)
     {
         _nextLeafNum = _initialLeafNum;
         _nextLeafSlot = _initialLeafSlot;
         _nextBucketSlot = 0;
+
+        // adjust the first entry
+        switch (_compOp)
+        {
+        case EQ_OP:
+            _nextLeafNum = IX_EMPTY;
+            _nextLeafSlot = IX_EMPTY;
+            _nextBucketSlot = IX_EMPTY;
+            break;
+        case LE_OP:
+        case LT_OP:
+            if(rc = ComputePreviousLeafSlot<T,n>(pBuffer->previous))
+                goto err_return;
+            break;
+        case GT_OP:
+        case GE_OP:
+            break;
+        case NE_OP:
+            _direction = RIGHT;
+            break;
+        default:
+            break;
+        }
     }
-
-    // adjust the first entry
-    switch (_compOp)
+    // the value was found
+    else
     {
-    case LT_OP:
-        // get the previous leaf slot
-        if(rc = ComputePreviousLeafSlot<T,n>(pBuffer->previous))
-            goto err_return;
-        break;
-    case GT_OP:
-    case NE_OP:
-        // get the next leaf slot
-        if(rc = ComputeNextLeafSlot<T,n>(pBuffer->nbFilledSlots, pBuffer->next))
-            goto err_return;
+        _nextLeafNum = _initialLeafNum;
+        _nextLeafSlot = _initialLeafSlot;
+        _nextBucketSlot = 0;
 
-        _direction = RIGHT;
-        break;
-    default:
-        break;
+        // adjust the first entry
+        switch (_compOp)
+        {
+        case LT_OP:
+            // get the previous leaf slot
+            if(rc = ComputePreviousLeafSlot<T,n>(pBuffer->previous))
+                goto err_return;
+            break;
+        case GT_OP:
+        case NE_OP:
+            // get the next leaf slot
+            if(rc = ComputeNextLeafSlot<T,n>(pBuffer->nbFilledSlots, pBuffer->next))
+                goto err_return;
+
+            _direction = RIGHT;
+            break;
+        default:
+            break;
+        }
     }
 
     // release

@@ -208,6 +208,7 @@ private:
 
     PageNum _initialLeafNum;
     int _initialLeafSlot;
+    bool _isValueInTree;
 
     Direction _direction;
 };
