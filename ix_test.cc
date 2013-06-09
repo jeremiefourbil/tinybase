@@ -900,7 +900,8 @@ RC Test7(void)
    RID rid2(value2, value2*2);
    int value3 = 4;
    RID rid3(value3, value3*2);
-   int value4 = 9;
+   int value4 = 2;
+   // int value4 = 9;
    RID rid4(value4, value4*2);
    int value5 = 6;
    RID rid5(value5, value5*2);
@@ -917,10 +918,10 @@ RC Test7(void)
       (rc = ih.DeleteEntry((void *)&value, rid)) ||
       (rc = ih.DeleteEntry((void *)&value2, rid2)) ||
       (rc = ih.DeleteEntry((void *)&value3, rid3)) ||
-      (rc = ih.DeleteEntry((void *)&value4, rid4)) ||
-      (rc = ih.DeleteEntry((void *)&value5, rid5)) ||
-      (rc = ih.DeleteEntry((void *)&value6, rid6)) ||
-      (rc = ih.DeleteEntry((void *)&value7, rid7)))
+      (rc = ih.DeleteEntry((void *)&value4, rid4)))
+      // (rc = ih.DeleteEntry((void *)&value5, rid5)) ||
+      // (rc = ih.DeleteEntry((void *)&value6, rid6)) ||
+      // (rc = ih.DeleteEntry((void *)&value7, rid7)))
       return (rc);
 
    cout << "----- Start XML tree -------" << endl;

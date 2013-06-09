@@ -893,7 +893,35 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             }
         } else if (childStatus == MERGE_RIGHT)
         {
-
+            // mettre à jour les liens vers le suivant et le précédent avant de supprimer la page
+            if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex], pRedistBuffer))
+                goto err_return;
+            if(pRedistBuffer->previous != IX_EMPTY)
+            {
+                // le suivant du précédent c'est le suivant de l'actuel
+                if(rc = GetLeafPageBuffer(pRedistBuffer->previous, pRedistBufferBis))
+                    goto err_return;
+                pRedistBufferBis->next = pRedistBuffer->next;
+                if(rc = ReleaseBuffer(pRedistBuffer->previous, true))
+                    goto err_return;
+            }
+            // le précédent du suivant c'est le précédent du courant
+            if(rc = GetLeafPageBuffer(pRedistBuffer->next, pRedistBufferBis))
+                goto err_return;
+            pRedistBufferBis->previous = pRedistBuffer->previous;
+            if(rc = ReleaseBuffer(pRedistBuffer->next, true))
+                goto err_return;
+            if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
+                goto err_return;
+            // supprimer la page fils
+            // cout << "supprimer la page fils" << endl;
+            if(rc = pfFileHandle.DisposePage(pBuffer->child[pointerIndex]))
+                goto err_return;
+            // if(slotIndex == 0)
+            // {
+            //     parentStatus = UPDATE_ONLY;
+            //     copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
+            // }
         } else {
             // impossible comme cas
         }
@@ -1077,7 +1105,14 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
                 // la feuille voisine droite a le même parent
                 if(pNeighborBuffer->nbFilledSlots <= n/2)
                 {
+                    // merge avec le voisin de droite
                     cout << "merge avec le voisin de droite" << endl;
+                    if(rc = MergeValuesAndBuckets<T,n>(pBuffer, pNeighborBuffer, pBuffer->nbFilledSlots + pNeighborBuffer->nbFilledSlots))
+                        goto err_return;
+                    if(rc = ReleaseBuffer(pBuffer->next, true))
+                        goto err_return;
+                    cout << "toto" << endl;
+                    parentStatus = MERGE_RIGHT;
                 }
                 else
                 {
