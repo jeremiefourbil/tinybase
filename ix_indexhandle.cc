@@ -213,15 +213,6 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         pBuffer->nbFilledSlots++;
     }
 
-//    pointerIndex = 0;
-//    while(pointerIndex < pBuffer->nbFilledSlots && comparisonGeneric(iValue, pBuffer->v[pointerIndex]) >= 0)
-//    {
-//        pointerIndex++;
-//    }
-
-//    if(pointerIndex == pBuffer->nbFilledSlots-1 && comparisonGeneric(iValue, pBuffer->v[pointerIndex]) >= 0)
-//        pointerIndex++;
-
     getPointerIndex(pBuffer->v, pBuffer->nbFilledSlots, iValue, pointerIndex);
 
     // the child is a leaf
@@ -693,17 +684,10 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         goto err_return;
 
     // find the right slot
-    slotIndex = 0;
-    while(slotIndex < pBuffer->nbFilledSlots && comparisonGeneric(iValue, pBuffer->v[slotIndex]) > 0)
-       slotIndex++;
+    getSlotIndex(pBuffer->v, pBuffer->nbFilledSlots, iValue, pointerIndex);
 
     // find the right branch
-    pointerIndex = 0;
-    while(pointerIndex < pBuffer->nbFilledSlots && comparisonGeneric(iValue, pBuffer->v[pointerIndex]) >= 0)
-        pointerIndex++;
-
-    if(pointerIndex == pBuffer->nbFilledSlots-1 && comparisonGeneric(iValue, pBuffer->v[pointerIndex]) >= 0)
-        pointerIndex++;
+    getPointerIndex(pBuffer->v, pBuffer->nbFilledSlots, iValue, pointerIndex);
 
     // the child is a leaf
     if(pBuffer->nodeType == LASTINODE || pBuffer->nodeType == ROOTANDLASTINODE )
@@ -871,7 +855,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 goto err_return;
 
 
-            // // le suivant du précédent c'est le suivant de l'actuel
+            // le suivant du précédent c'est le suivant de l'actuel
             if(rc = GetLeafPageBuffer(pRedistBuffer->previous, pRedistBufferBis))
                 goto err_return;
             pRedistBufferBis->next = pRedistBuffer->next;
@@ -879,7 +863,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 goto err_return;
 
 
-            // // le précédent du suivant s'il existe c'est le précédent de l'actuel
+            // le précédent du suivant s'il existe c'est le précédent de l'actuel
             if(pRedistBuffer->next != IX_EMPTY)
             {
                 if(rc = GetLeafPageBuffer(pRedistBuffer->next, pRedistBufferBis))
@@ -1007,7 +991,6 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
     // have to delete bucket page and leaf value
     if(bucketPageNum = IX_EMPTY)
     {
-        rc = pfFileHandle.DisposePage(pBuffer->bucket[slotIndex]);
         pBuffer->bucket[slotIndex] = IX_EMPTY;
 
         // swap the last record and the deleted record
@@ -1245,6 +1228,7 @@ RC IX_IndexHandle::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
     RID tempRid;
     int i;
     bool foundRid = false;
+    int filledSlots;
 
     // get the current bucket
     if(rc = GetPageBuffer(ioPageNum, pBuffer))
@@ -1268,7 +1252,7 @@ RC IX_IndexHandle::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
     if(foundRid && ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots > 1)
     {
         memcpy(pBuffer + sizeof(IX_PageBucketHdr) + i * sizeof(RID),
-           pBuffer + sizeof(IX_PageBucketHdr) + ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots * sizeof(RID),
+           pBuffer + sizeof(IX_PageBucketHdr) + (((IX_PageBucketHdr *)pBuffer)->nbFilledSlots -1 )* sizeof(RID),
            sizeof(rid));
 
         ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots = ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots - 1;
@@ -1280,20 +1264,25 @@ RC IX_IndexHandle::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
         goto err_release;
     }
 
-    if(((IX_PageBucketHdr *)pBuffer)->nbFilledSlots == 0)
-    {
-        ioPageNum = IX_EMPTY;
-    }
+    filledSlots = ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots;
 
     if(rc = ReleaseBuffer(ioPageNum, true))
         goto err_return;
 
+    // if the bucket page is empty, delete it
+    if(filledSlots == 0)
+    {
+        if(rc = pfFileHandle.DisposePage(pBuffer->bucket[slotIndex]))
+            goto err_return;
+
+        ioPageNum = IX_EMPTY;
+    }
+
     return rc;
 
-
-    err_release:
+err_release:
     ReleaseBuffer(ioPageNum, false);
-    err_return:
+err_return:
     return (rc);
 }
 

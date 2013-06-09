@@ -33,7 +33,7 @@ enum DeleteStatus {
     UPDATE_ONLY, // simple mise à jour de l'index
     REDISTRIBUTION_LEFT, // impliquant une redistribution gauche
     REDISTRIBUTION_RIGHT, // impliquant une redistributtion droite
-    MERGE_LEFT, // impliquant une fusion à gauche
+    MERGE_LEFT, // impliquant une fusion à gauch
     MERGE_RIGHT // impliquant une fusion à droite
 };
 
@@ -65,7 +65,7 @@ struct IX_PageLeaf {
 
     int nbFilledSlots;
     T v[n];
-    PageNum bucket[n+1];
+    PageNum bucket[n];
 };
 
 
