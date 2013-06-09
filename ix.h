@@ -34,7 +34,8 @@ enum DeleteStatus {
     REDISTRIBUTION_LEFT, // impliquant une redistribution gauche
     REDISTRIBUTION_RIGHT, // impliquant une redistributtion droite
     MERGE_LEFT, // impliquant une fusion à gauch
-    MERGE_RIGHT // impliquant une fusion à droite
+    MERGE_RIGHT, // impliquant une fusion à droite
+    TOO_EMPTY_NODE
 };
 
 struct IX_FileHdr {

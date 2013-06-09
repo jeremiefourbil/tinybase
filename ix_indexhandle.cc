@@ -672,8 +672,8 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
 {
 
     RC rc;
-    IX_PageNode<T,n> * pBuffer;
-    IX_PageLeaf<T,n> * pRedistBuffer, *pRedistBufferBis;
+    IX_PageNode<T,n> *pBuffer, *pChildBuffer, *pSecondChildBuffer;
+    IX_PageLeaf<T,n> *pRedistBuffer, *pRedistBufferBis;
     int slotIndex;
     int pointerIndex;
     DeleteStatus childStatus = NOTHING;
@@ -888,8 +888,25 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 parentStatus = UPDATE_ONLY;
                 copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
             }
-        } else if (childStatus == MERGE_RIGHT)
+
+            // val: le noeud n'est pas assez rempli
+            if(pBuffer->nbFilledSlots < n/2)
+            {
+                parentStatus = TOO_EMPTY_NODE;
+            }
+
+        }
+        else if (childStatus == MERGE_RIGHT)
         {
+
+
+
+
+            // val: le noeud n'est pas assez rempli
+            if(pBuffer->nbFilledSlots < n/2)
+            {
+                parentStatus = TOO_EMPTY_NODE;
+            }
 
         } else {
             // impossible comme cas
@@ -933,6 +950,31 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                     parentStatus = UPDATE_ONLY;
                 }
             }
+        }
+        // val: le noeud fils n'est pas assez rempli
+        // le problème se règle ici, au niveau de son noeud père
+        else if(childStatus == TOO_EMPTY_NODE)
+        {
+            if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex], pChildBuffer))
+                goto err_return;
+
+            // 1er cas: tentative de redistribution à gauche
+            if(pointerIndex > 0)
+            {
+                if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex-1], pSecondChildBuffer))
+                    goto err_return;
+
+                if(pChildBuffer->nbFilledSlots + pSecondChildBuffer->nbFilledSlots <= n)
+                {
+
+                }
+
+                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex-1], false))
+                    goto err_return;
+            }
+
+            if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
+                goto err_return;
         }
     }
 
@@ -1272,7 +1314,7 @@ RC IX_IndexHandle::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
     // if the bucket page is empty, delete it
     if(filledSlots == 0)
     {
-        if(rc = pfFileHandle.DisposePage(pBuffer->bucket[slotIndex]))
+        if(rc = pfFileHandle.DisposePage(ioPageNum))
             goto err_return;
 
         ioPageNum = IX_EMPTY;
