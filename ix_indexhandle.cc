@@ -289,27 +289,27 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 goto err_return;
             cout << "mise à jour du parent des enfants" << endl;
             // on met à jour le parent des enfants du nouveau noeuds
-            for(int i=0;i<newPageBuffer->nbFilledSlots;i++)
+            for(int i=0;i<newPageBuffer->nbFilledSlots+1;i++)
             {
                 // on vérifie que le fils existe droit
-                if(newPageBuffer->child[i+1] != IX_EMPTY)
+                if(newPageBuffer->child[i] != IX_EMPTY)
                 {
                     if(newPageBuffer->nodeType == LASTINODE || newPageBuffer->nodeType == ROOTANDLASTINODE)
                     {
                         // le fils est une feuillle
-                        if(rc = GetLeafPageBuffer(newPageBuffer->child[i+1], tmpLeafBuffer))
+                        if(rc = GetLeafPageBuffer(newPageBuffer->child[i], tmpLeafBuffer))
                             goto err_return;
                         tmpLeafBuffer->parent = newNodePageNum;
-                        if(rc = ReleaseBuffer(newPageBuffer->child[i+1], true))
+                        if(rc = ReleaseBuffer(newPageBuffer->child[i], true))
                             return rc;
                     }
                     else if (newPageBuffer->nodeType == INODE)
                     {
                         // le fils est un noeud
-                        if(rc = GetNodePageBuffer(newPageBuffer->child[i+1], tmpNodeBuffer))
+                        if(rc = GetNodePageBuffer(newPageBuffer->child[i], tmpNodeBuffer))
                             goto err_return;
                         tmpNodeBuffer->parent = newNodePageNum;
-                        if(rc = ReleaseBuffer(newPageBuffer->child[i+1], true))
+                        if(rc = ReleaseBuffer(newPageBuffer->child[i], true))
                             return rc;
                     }
                     else
@@ -321,6 +321,8 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                     cout << "le fils droit est vide" << endl;
                 }
             }
+            // on met à jour le fils le plus à gauche
+
             cout << endl;
             if(rc = ReleaseBuffer(newNodePageNum, true))
                 return rc;
@@ -481,13 +483,18 @@ RC IX_IndexHandle::RedistributeValuesAndChildren(IX_PageNode<T,n> *pBufferCurren
             pBufferCurrentNode->nbFilledSlots++;
         } else {
         // on copie la valeur dans la nouvelle feuille
-            copyGeneric(array[j], pBufferNewNode->v[j-slotOffset]);
+            if(j != slotOffset)
+            {
+                copyGeneric(array[j], pBufferNewNode->v[j-slotOffset-1]);
+                pBufferNewNode->nbFilledSlots++;
+                cout << array[j] << "/";
+            }
         // on met à jour les buckets pour être cohérent
-            pBufferNewNode->child[j-slotOffset+1] = child[j];
+            pBufferNewNode->child[j-slotOffset] = child[j];
         // on incrémente le nombre slots remplis
-            pBufferNewNode->nbFilledSlots++;
         }
     }
+    cout << endl;
     return OK_RC;
 }
 

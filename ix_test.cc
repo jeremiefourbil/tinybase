@@ -33,7 +33,7 @@ using namespace std;
 #define FILENAME     "testrel"        // test file name
 #define BADFILE      "/abc/def/xyz"   // bad file name
 #define STRLEN       39               // length of strings to index
-#define FEW_ENTRIES  20
+#define FEW_ENTRIES  50
 #define MANY_ENTRIES 3000
 #define NENTRIES     5000             // Size of values array
 #define PROG_UNIT    200              // how frequently to give progress
@@ -881,8 +881,8 @@ RC Test7(void)
    IX_IndexHandle ih;
    int index=0;
 
-   // int sequelLength = 4;
-   // int sequel[4] = {11,6,5,17};
+   // int sequelLength = 5;
+   // int sequel[5] = {11,6,5,17,8};
    // int sequelLength = 6;
    // int sequel[6] = {11,6,5,17,8,7};
    // int sequelLength = 11;
@@ -891,6 +891,8 @@ RC Test7(void)
    // int sequel[10] = {11,6,5,17,8,7,18,1,9,14};
    int sequelLength = 20;
    int sequel[20] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13};
+   // int sequelLength = 18;
+   // int sequel[18] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14};
 
    IX_IndexScan scan;
    int value = 18;
@@ -916,19 +918,16 @@ RC Test7(void)
    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
       (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
       (rc = InsertSequelOfInt(ih, sequel, sequelLength)) ||
-      (rc = ih.DeleteEntry((void *)&value, rid)) ||
-      (rc = ih.DeleteEntry((void *)&value2, rid2)) ||
-      (rc = ih.DeleteEntry((void *)&value3, rid3)) ||
-      (rc = ih.DeleteEntry((void *)&value4, rid4)))
+      // (rc = ih.DeleteEntry((void *)&value, rid)) ||
+      // (rc = ih.DeleteEntry((void *)&value2, rid2)) ||
+      // (rc = ih.DeleteEntry((void *)&value3, rid3)) ||
+      // (rc = ih.DeleteEntry((void *)&value4, rid4)))
       // (rc = ih.DeleteEntry((void *)&value5, rid5)))
       // (rc = ih.DeleteEntry((void *)&value6, rid6)) ||
       // (rc = ih.DeleteEntry((void *)&value7, rid7)))
+      (rc = ih.DisplayTree()))
       return (rc);
 
-   cout << "----- Start XML tree -------" << endl;
-   if((rc = ih.DisplayTree()))
-      return (rc);
-   cout << "----- End XML tree -------" << endl;
    // check if one entry is in the index
   //  if ((rc = scan.OpenScan(ih, EQ_OP, &value))) {
   //     printf("Verify error: opening scan\n");
