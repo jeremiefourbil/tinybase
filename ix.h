@@ -258,6 +258,8 @@ void IX_PrintError(RC rc);
 #define IX_ENTRY_DOES_NOT_EXIST         (START_IX_ERR + 3)
 #define IX_ARRAY_OVERFLOW               (START_IX_ERR + 4)
 #define IX_INVALID_PAGE_NUMBER          (START_IX_ERR + 5)
+#define IX_DELETE_INVALID_CASE          (START_IX_ERR + 6)
+#define IX_LASTERROR          IX_DELETE_INVALID_CASE
 //#define RM_INVALIDRECSIZE  (START_RM_WARN + 2) // invalid record size
 //#define RM_INVALIDSLOTNUM  (START_RM_WARN + 3) // invalid slot number
 //#define RM_RECORDNOTFOUND  (START_RM_WARN + 4) // record not found
@@ -267,7 +269,7 @@ void IX_PrintError(RC rc);
 //#define RM_SCANOPEN        (START_RM_WARN + 8) // scan is open
 //#define RM_CLOSEDSCAN      (START_RM_WARN + 9) // scan is closed
 //#define RM_CLOSEDFILE      (START_RM_WARN + 10)// file handle is closed
-//#define RM_LASTWARN        RM_CLOSEDFILE
+#define IX_LASTWARN        START_IX_WARN
 
 #define IX_EOF             PF_EOF
 

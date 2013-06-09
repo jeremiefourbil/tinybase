@@ -14,7 +14,8 @@
 //
 const int IX_HEADER_PAGE_NUM = 0;
 
-// const int order_INT = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(int) - 10) / (sizeof(int) + sizeof(int))));
+ // const int order_INT = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(int) - 10) / (sizeof(int) + sizeof(int))));
+//const int order_INT = 8;
 const int order_INT = 4;
 const int order_FLOAT = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(float) - 10) / (sizeof(int) + sizeof(float))));
 const int order_STRING = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(int) - 10) / (sizeof(int) + MAXSTRINGLEN * sizeof(char))));
@@ -22,9 +23,6 @@ const int order_STRING = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(int) - 10) / 
 
 
 #define IX_EMPTY  -1       // the next page does not exist
-#define IX_MAX_NUMBER_OF_VALUES 4 // the maximum number of values by leaf or node
-#define IX_MAX_NUMBER_OF_CHILDS 5 // the maximum number of children by node
-
 
 //
 // IX_PageHdr: Header structure for pages
@@ -60,9 +58,12 @@ void sortGeneric(float *array, PageNum buckets[], const int arrayLength);
 void sortGeneric(char array[][MAXSTRINGLEN], PageNum buckets[], const int arrayLength);
 
 // sort
-void sortNodeGeneric(int *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int arrayLength);
-void sortNodeGeneric(float *array, PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int arrayLength);
-void sortNodeGeneric(char array[][MAXSTRINGLEN], PageNum child[IX_MAX_NUMBER_OF_CHILDS], const int arrayLength);
+template <int n>
+void sortNodeGeneric(int *array, PageNum child[n+1], const int arrayLength);
+template <int n>
+void sortNodeGeneric(float *array, PageNum child[n+1], const int arrayLength);
+template <int n>
+void sortNodeGeneric(char array[][MAXSTRINGLEN], PageNum child[n+1], const int arrayLength);
 
 // search
 void getSlotIndex(const int *array, const int arrayLength, const int iValue, int &oIndex);
