@@ -33,7 +33,7 @@ using namespace std;
 #define FILENAME     "testrel"        // test file name
 #define BADFILE      "/abc/def/xyz"   // bad file name
 #define STRLEN       39               // length of strings to index
-#define FEW_ENTRIES  50
+#define FEW_ENTRIES  70
 #define MANY_ENTRIES 3000
 #define NENTRIES     5000             // Size of values array
 #define PROG_UNIT    200              // how frequently to give progress
@@ -882,6 +882,8 @@ RC Test7(void)
    int index=0;
    int sequelLength = 20;
    int sequel[20] = {5,11,10,3,9,8,13,18,1,2,15,12,20,4,6,16,17,14,19,7};
+   // int sequelLength = 15;
+   // int sequel[15] = {5,11,10,3,9,8,13,18,1,2,15,12,20,4,6};
    // int sequelLength = 5;
    // int sequel[5] = {11,6,5,17,8};
    // int sequelLength = 6;
@@ -909,7 +911,7 @@ RC Test7(void)
    RID rid3(value3, value3*2);
    int value4 = 13;
    RID rid4(value4, value4*2);
-   int value5 = 14;
+   int value5 = 10;
    // int value5 = 16;
    RID rid5(value5, value5*2);
    int value6 = 2;

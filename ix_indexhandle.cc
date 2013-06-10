@@ -738,101 +738,38 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         }
         else if(childStatus == REDISTRIBUTION_RIGHT)
         {
-            if(slotIndex == pointerIndex)
+            if(pointerIndex == 0)
             {
-                if(slotIndex == 0)
-                {
-                    // on teste unique la valeur du fils de droite
-                    if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex + 1], pRedistBuffer))
-                        goto err_return;
-
-                    if(pRedistBuffer->v[0] != pBuffer->v[slotIndex])
-                    {
-                        copyGeneric(pRedistBuffer->v[0], pBuffer->v[slotIndex]);
-                        if(rc = ReleaseBuffer(pBuffer->child[pointerIndex + 1], true))
-                        goto err_return;
-                        // on previent le noeud parent
-                        parentStatus = UPDATE_ONLY;
-                        copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
-                    }
-                    else
-                    {
-                        if(rc = ReleaseBuffer(pBuffer->child[pointerIndex + 1], false))
-                            goto err_return;
-                    }
-                }
-                else
-                {
-                    // on teste les slots à gauche du pointerIndex
-                    // premier fils
-                    if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex], pRedistBuffer))
-                        goto err_return;
-
-                    if(pRedistBuffer->v[0] != pBuffer->v[slotIndex])
-                    {
-                        copyGeneric(pRedistBuffer->v[0], pBuffer->v[slotIndex - 1]);
-                        if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], true))
-                            goto err_return;
-                    }
-                    else
-                    {
-                        if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
-                            goto err_return;
-                    }
-                    // deuxième fils
-                    if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex+1], pRedistBuffer))
-                        goto err_return;
-
-                    if(pRedistBuffer->v[0] != pBuffer->v[slotIndex+1])
-                    {
-                        copyGeneric(pRedistBuffer->v[0], pBuffer->v[slotIndex]);
-                        if(rc = ReleaseBuffer(pBuffer->child[pointerIndex+1], true))
-                            goto err_return;
-                    }
-                    else
-                    {
-                        if(rc = ReleaseBuffer(pBuffer->child[pointerIndex+1], false))
-                            goto err_return;
-                    }
-                }
+                // on met à jour la valeur
+                cout << "update slot" << endl;
+                if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex], pRedistBuffer))
+                    goto err_return;
+                parentStatus = UPDATE_ONLY;
+                copyGeneric(pRedistBuffer->v[0], updatedParentValue);
+                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
+                    goto err_return;
+                if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex+1], pRedistBuffer))
+                    goto err_return;
+                parentStatus = UPDATE_ONLY;
+                copyGeneric(pRedistBuffer->v[0], pBuffer->v[slotIndex]);
+                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex+1], false))
+                    goto err_return;
             }
             else
             {
-                // on traite que les fils de droite car slotIndex < pointerIndex
-                // premier fils
+                cout << "update slot" << endl;
                 if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex], pRedistBuffer))
                     goto err_return;
-
-                if(pRedistBuffer->v[0] != pBuffer->v[slotIndex])
-                {
-                    copyGeneric(pRedistBuffer->v[0], pBuffer->v[slotIndex]);
-                    if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], true))
-                        goto err_return;
-                    if(slotIndex == 0)
-                    {
-                        parentStatus = UPDATE_ONLY;
-                        copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
-                    }
-                }
-                else
-                {
-                    if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
-                        goto err_return;
-                }
-                // deuxième fils
+                // parentStatus = UPDATE_ONLY;
+                copyGeneric(pRedistBuffer->v[0], pBuffer->v[slotIndex]);
+                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
+                    goto err_return;
                 if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex+1], pRedistBuffer))
                     goto err_return;
-                if(pRedistBuffer->v[0] != pBuffer->v[slotIndex + 1])
-                {
-                    copyGeneric(pRedistBuffer->v[0], pBuffer->v[slotIndex + 1]);
-                    if(rc = ReleaseBuffer(pBuffer->child[pointerIndex+1], true))
-                        goto err_return;
-                }
-                else
-                {
-                    if(rc = ReleaseBuffer(pBuffer->child[pointerIndex+1], false))
-                        goto err_return;
-                }
+                // parentStatus = UPDATE_ONLY;
+                copyGeneric(pRedistBuffer->v[0], pBuffer->v[slotIndex+1]);
+                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex+1], false))
+                    goto err_return;
             }
         }
         else if (childStatus == REDISTRIBUTION_LEFT)
@@ -932,7 +869,14 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             if(rc = pfFileHandle.DisposePage(pBuffer->child[pointerIndex+1]))
                 goto err_return;
             pBuffer->child[pointerIndex+1] = IX_EMPTY;
-            DeleteNodeValue<T,n>(pBuffer, slotIndex, pBuffer->nbFilledSlots);
+            if(pointerIndex == 0)
+            {
+                DeleteNodeValue<T,n>(pBuffer, slotIndex, pBuffer->nbFilledSlots);
+            }
+            else
+            {
+                DeleteNodeValue<T,n>(pBuffer, slotIndex+1, pBuffer->nbFilledSlots);
+            }
             if(pointerIndex == 0)
             {
                 // on propage la nouvelle valeur minimum au père
@@ -950,7 +894,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 cout << "update slot" << endl;
                 if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex], pRedistBuffer))
                     goto err_return;
-                parentStatus = UPDATE_ONLY;
+                // parentStatus = UPDATE_ONLY;
                 copyGeneric(pRedistBuffer->v[0], pBuffer->v[slotIndex]);
                 if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
                     goto err_return;
@@ -1113,6 +1057,7 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
     RC rc = OK_RC;
     IX_PageLeaf<T,n> *pBuffer, *pNeighborBuffer;
     int slotIndex;
+    int pointerIndex;
     bool foundInLeaf = false;
     PageNum bucketPageNum;
 
@@ -1129,6 +1074,8 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
             foundInLeaf = true;
         }
     }
+
+    getPointerIndex(pBuffer->v, pBuffer->nbFilledSlots, iValue, pointerIndex);
 
     if(!foundInLeaf)
     {
