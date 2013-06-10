@@ -943,7 +943,7 @@ RC Test7(void)
            (rc = ih.DeleteEntry((void *)&value9, rid9)) ||
            (rc = ih.DisplayTree()) ||
            (rc = ih.DeleteEntry((void *)&value10, rid10)) ||
-//           (rc = ih.DeleteEntry((void *)&value11, rid11)) ||
+           (rc = ih.DeleteEntry((void *)&value11, rid11)) ||
            (rc = ih.DisplayTree()) ||
            false)
        return (rc);
