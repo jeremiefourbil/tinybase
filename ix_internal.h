@@ -81,5 +81,8 @@ void swapLeafEntries(int i, IX_PageLeaf<T,n> * pBuffer1, int j, IX_PageLeaf<T,n>
 template <typename T, int n>
 void sortLeaf(IX_PageLeaf<T,n> * pBuffer);
 
+//template <typename T, int n>
+//void setOffsetInNode(IX_PageNode<T,n> *pBuffer, const int startIndex, const int offset);
+
 
 #endif // IX_INTERNAL_H

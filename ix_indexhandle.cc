@@ -684,7 +684,6 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
     DeleteStatus childStatus = NOTHING;
     T updatedChildValue;
     bool problemSolved;
-    int index;
 
     // get the current node
     if(rc = GetNodePageBuffer(iPageNum, pBuffer))
@@ -895,10 +894,10 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             }
 
             // val: le noeud n'est pas assez rempli
-//            if(pBuffer->nbFilledSlots < n/2)
-//            {
-//                parentStatus = TOO_EMPTY_NODE;
-//            }
+            if(pBuffer->nbFilledSlots < n/2)
+            {
+                parentStatus = TOO_EMPTY_NODE;
+            }
         }
         else if (childStatus == MERGE_RIGHT)
         {
@@ -958,10 +957,10 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
 
 
             // val: le noeud n'est pas assez rempli
-//            if(pBuffer->nbFilledSlots < n/2)
-//            {
-//                parentStatus = TOO_EMPTY_NODE;
-//            }
+            if(pBuffer->nbFilledSlots < n/2)
+            {
+                parentStatus = TOO_EMPTY_NODE;
+            }
 
         } else {
             // childStatus = NOTHING
@@ -1009,6 +1008,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         // le problème se règle ici, au niveau de son noeud père
         else if(childStatus == TOO_EMPTY_NODE)
         {
+            cout << "TOO EMPTY in " << iPageNum << endl;
             problemSolved = false;
 
             if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex], pChildBuffer))
@@ -1020,14 +1020,26 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex-1], pSecondChildBuffer))
                     goto err_return;
 
-                if(pSecondChildBuffer->nbFilledSlots > n/2 + 1)
+                if(pSecondChildBuffer->nbFilledSlots > n/2)
                 {
+                    cout << "Redistribution à gauche" << endl;
+
                     // start the redistribution at the following index
                     int index = (pChildBuffer->nbFilledSlots + pSecondChildBuffer->nbFilledSlots)/2;
 
-                    // utiliser fonction de décallage
+                    // move the first entries to enable the values to be copied
+                    setOffsetInNode(pChildBuffer, pSecondChildBuffer->nbFilledSlots - index);
 
-                    // TO BE CONTINUED
+                    // copy the values
+                    for(int i=index; i<pSecondChildBuffer->nbFilledSlots; i++)
+                    {
+                        copyGeneric(pBuffer->v[slotIndex], pChildBuffer->v[i - index]);
+                        copyGeneric(pSecondChildBuffer->v[i],pBuffer->v[slotIndex]);
+                        pChildBuffer->child[i - index] = pSecondChildBuffer->child[i+1];
+                    }
+
+                    // update the nb of filled slots
+                    pSecondChildBuffer->nbFilledSlots = index;
 
                     problemSolved = true;
                 }
@@ -1042,11 +1054,26 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex+1], pSecondChildBuffer))
                     goto err_return;
 
-                if(pSecondChildBuffer->nbFilledSlots > n/2 + 1)
+                if(pSecondChildBuffer->nbFilledSlots > n/2)
                 {
-                    // Write the solution
+                    cout << "Redistribution à droite" << endl;
 
-                    // End
+                    // start the redistribution at the following index
+                    int index = pSecondChildBuffer->nbFilledSlots - (pChildBuffer->nbFilledSlots + pSecondChildBuffer->nbFilledSlots)/2;
+
+                    int startSlot = pChildBuffer->nbFilledSlots;
+                    pChildBuffer->nbFilledSlots = startSlot + index;
+
+                    // copy the values
+                    for(int i=0; i<index; i++)
+                    {
+                        copyGeneric(pBuffer->v[slotIndex], pChildBuffer->v[startSlot + i]);
+                        copyGeneric(pSecondChildBuffer->v[i], pBuffer->v[slotIndex]);
+                        pChildBuffer->child[startSlot + i + 1] = pSecondChildBuffer->child[i];
+                    }
+
+                    // remove the values extracted
+                    removeFirstChildrenInNode(pSecondChildBuffer, index);
 
                     problemSolved = true;
                 }
@@ -1060,6 +1087,8 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             {
                 if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex-1], pSecondChildBuffer))
                     goto err_return;
+
+                cout << "Fusion à gauche" << endl;
 
                 // Write the solution
 
@@ -1076,6 +1105,8 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             {
                 if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex+1], pSecondChildBuffer))
                     goto err_return;
+
+                cout << "Fusion à droite" << endl;
 
                 // Write the solution
 
@@ -1986,4 +2017,76 @@ template <typename T, int n>
 void sortLeaf(IX_PageLeaf<T,n> * pBuffer)
 {
     sortGeneric(pBuffer->v, pBuffer->bucket, pBuffer->nbFilledSlots);
+}
+
+// offset starting at startIndex
+//template <typename T, int n>
+//void setOffsetInNode(IX_PageNode<T,n> *pBuffer, const int startIndex, const int offset)
+//{
+//    if(offset > 0)
+//    {
+//        if(n <= startIndex + offset)
+//        {
+//            cout << "Error: overflow" << endl;
+//            return;
+//        }
+
+//        for(int i=pBuffer->nbFilledSlots-1; i>= startIndex; i--)
+//        {
+//            copyGeneric(pBuffer->v[i], pBuffer->v[i+offset]);
+//            pBuffer->child[i+offset+1] = pBuffer->child[i+1];
+//        }
+
+//        pBuffer->nbFilledSlots = pBuffer->nbFilledSlots + offset;
+//    }
+//    else if(offset < 0)
+//    {
+//        if(startIndex + offset < 0)
+//        {
+//            cout << "Error: overflow" << endl;
+//            return;
+//        }
+
+//        for(int i=startIndex; i<pBuffer->nbFilledSlots; i++)
+//        {
+//            copyGeneric(pBuffer->v[i], pBuffer->v[i+offset]);
+//            pBuffer->child[i+offset+1] = pBuffer->child[i+1];
+//        }
+
+//        pBuffer->nbFilledSlots = pBuffer->nbFilledSlots + offset;
+//    }
+//}
+
+// offset starting at 0 ; moves even the first child
+template <typename T, int n>
+void setOffsetInNode(IX_PageNode<T,n> *pBuffer, const int offset)
+{
+    if(n <= pBuffer->nbFilledSlots + offset)
+    {
+        cout << "Error: overflow" << endl;
+        return;
+    }
+
+    for(int i=pBuffer->nbFilledSlots-1; i>= 0; i--)
+    {
+        copyGeneric(pBuffer->v[i], pBuffer->v[i+offset]);
+        pBuffer->child[i+offset+1] = pBuffer->child[i+1];
+    }
+
+    pBuffer->child[offset] = pBuffer->child[0];
+
+
+    pBuffer->nbFilledSlots = pBuffer->nbFilledSlots + offset;
+}
+
+template <typename T, int n>
+void removeFirstChildrenInNode(IX_PageNode<T,n> *pBuffer, const int offset)
+{
+    for(int i=offset; i<pBuffer->nbFilledSlots; i++)
+    {
+        copyGeneric(pBuffer->v[i], pBuffer->v[i-offset]);
+        pBuffer->child[i-offset] = pBuffer->child[i];
+    }
+
+    pBuffer->nbFilledSlots = pBuffer->nbFilledSlots - offset;
 }
