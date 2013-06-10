@@ -33,7 +33,7 @@ using namespace std;
 #define FILENAME     "testrel"        // test file name
 #define BADFILE      "/abc/def/xyz"   // bad file name
 #define STRLEN       39               // length of strings to index
-#define FEW_ENTRIES  60
+#define FEW_ENTRIES  50
 #define MANY_ENTRIES 3000
 #define NENTRIES     5000             // Size of values array
 #define PROG_UNIT    200              // how frequently to give progress
@@ -880,7 +880,8 @@ RC Test7(void)
    RC rc;
    IX_IndexHandle ih;
    int index=0;
-
+   int sequelLength = 20;
+   int sequel[20] = {5,11,10,3,9,8,13,18,1,2,15,12,20,4,6,16,17,14,19,7};
    // int sequelLength = 5;
    // int sequel[5] = {11,6,5,17,8};
    // int sequelLength = 6;
@@ -889,31 +890,36 @@ RC Test7(void)
    // int sequel[11] = {17,6,5,17,8,7,18,1,9,14,10};
    // int sequelLength = 10;
    // int sequel[10] = {11,6,5,17,8,7,18,1,9,14};
-   int sequelLength = 20;
-   int sequel[20] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13};
+   // int sequelLength = 20;
+   // int sequel[20] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13};
    // int sequelLength = 50;
    // int sequel[50] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13,21,22,23,24,25,30,31,32,33,34,35,26,27,28,29,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50};
    // int sequelLength = 18;
    // int sequel[18] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14};
 
    IX_IndexScan scan;
-   int value = 18;
+   // int value = 18;
+   int value = 11;
    bool bExists = true;
    RID rid(value, value*2);
-   int value2 = 1;
+   int value2 = 9;
    RID rid2(value2, value2*2);
-   int value3 = 12;
+   int value3 = 16;
    // int value3 = 4;
    RID rid3(value3, value3*2);
    int value4 = 13;
    RID rid4(value4, value4*2);
-   int value5 = 10;
+   int value5 = 14;
    // int value5 = 16;
    RID rid5(value5, value5*2);
    int value6 = 2;
    RID rid6(value6, value6*2);
-   int value7 = 3;
+   int value7 = 14;
    RID rid7(value7, value7*2);
+   int value8 = 26;
+   RID rid8(value8, value8*2);
+   int value9 = 34;
+   RID rid9(value9, value9*2);
 
    printf("Test7: test for making a graphml file with a specific sequel... \n");
 
@@ -925,8 +931,10 @@ RC Test7(void)
       (rc = ih.DeleteEntry((void *)&value3, rid3)) ||
       (rc = ih.DeleteEntry((void *)&value4, rid4)) ||
       (rc = ih.DeleteEntry((void *)&value5, rid5)) ||
-      (rc = ih.DeleteEntry((void *)&value6, rid6)) ||
-      (rc = ih.DeleteEntry((void *)&value7, rid7)) ||
+      // (rc = ih.DeleteEntry((void *)&value6, rid6)) ||
+      // (rc = ih.DeleteEntry((void *)&value7, rid7)) ||
+      // (rc = ih.DeleteEntry((void *)&value8, rid8)) ||
+      // (rc = ih.DeleteEntry((void *)&value9, rid9)) ||
       (rc = ih.DisplayTree()))
       return (rc);
 

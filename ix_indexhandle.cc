@@ -1268,7 +1268,6 @@ RC IX_IndexHandle::DeleteNodeValue(IX_PageNode<T,n> *pBuffer, const int & slotIn
         }
     }
     cout << endl;
-    sortGeneric(arr, child, nEntries-1);
     pBuffer->nbFilledSlots = nEntries-1;
     for(int i=0;i<nEntries-1;i++)
     {
