@@ -1043,7 +1043,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
 
                     // TODO: pour être logique, il faudrait faire un parcours DECROISSANT
                     // copy the values
-                    for(int i=index; i<pSecondChildBuffer->nbFilledSlots; i++)
+                    for(int i=pSecondChildBuffer->nbFilledSlots-1; i>=index; i--)
                     {
                         copyGeneric(pBuffer->v[slotIndex], pChildBuffer->v[i - index]);
                         copyGeneric(pSecondChildBuffer->v[i],pBuffer->v[slotIndex]);
@@ -1079,29 +1079,20 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                     int index = pSecondChildBuffer->nbFilledSlots - (pChildBuffer->nbFilledSlots + pSecondChildBuffer->nbFilledSlots)/2;
 
                     int startSlot = pChildBuffer->nbFilledSlots;
-                    pChildBuffer->nbFilledSlots = startSlot + index + 1;
-
-                    copyGeneric(pBuffer->v[pointerIndex], pChildBuffer->v[startSlot]);
-//                    pChildBuffer->child[startSlot + 1] = pSecondChildBuffer->child[0];
-
-//                    // update the parent
-//                    if(rc = GetNodePageBuffer(pChildBuffer->child[startSlot + 1], pTempBuffer)) goto err_return;
-//                    pTempBuffer->parent = pBuffer->child[pointerIndex];
-//                    if(rc = ReleaseBuffer(pChildBuffer->child[startSlot + 1], false)) goto err_return;
-
+                    pChildBuffer->nbFilledSlots = startSlot + index;
 
                     // copy the values
                     for(int i=0; i<index; i++)
                     {
+                        copyGeneric(pBuffer->v[pointerIndex], pChildBuffer->v[startSlot + i]);
                         copyGeneric(pSecondChildBuffer->v[i], pBuffer->v[pointerIndex]);
-                        copyGeneric(pBuffer->v[pointerIndex], pChildBuffer->v[startSlot + 1 + i]);
 
                         pChildBuffer->child[startSlot + i + 1] = pSecondChildBuffer->child[i];
 
                         // update the parent
-                        if(rc = GetNodePageBuffer(pChildBuffer->child[startSlot + i + 1], pTempBuffer)) goto err_return;
+                        if(rc = GetNodePageBuffer(pChildBuffer->child[startSlot+i+1], pTempBuffer)) goto err_return;
                         pTempBuffer->parent = pBuffer->child[pointerIndex];
-                        if(rc = ReleaseBuffer(pChildBuffer->child[startSlot + i + 1], false)) goto err_return;
+                        if(rc = ReleaseBuffer(pChildBuffer->child[startSlot+i+1], false)) goto err_return;
                     }
 
 

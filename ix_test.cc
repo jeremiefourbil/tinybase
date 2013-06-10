@@ -33,7 +33,7 @@ using namespace std;
 #define FILENAME     "testrel"        // test file name
 #define BADFILE      "/abc/def/xyz"   // bad file name
 #define STRLEN       39               // length of strings to index
-#define FEW_ENTRIES  20
+#define FEW_ENTRIES  50
 #define MANY_ENTRIES 3000
 #define NENTRIES     5000             // Size of values array
 #define PROG_UNIT    200              // how frequently to give progress
@@ -493,7 +493,7 @@ int main(int argc, char *argv[])
          return (rc);
       }
 
-      printf("Entry %d correctly found\n", value);
+      printf("Entry %d correctly found: %d\n", value, bExists);
    }
 
    return (0);
@@ -803,18 +803,19 @@ RC Test6(void)
    RC rc;
    IX_IndexHandle ih;
    int index=0;
+   int m=0;
 //   int sequelLength = 7;
 //   int sequel[7] = {10,1,13,3,4,5,2};
    // int sequelLength = 11;
    // int sequel[11] = {11,6,5,17,8,7,18,1,9,14,15};
     int sequelLength = 20;
-    int sequel[20] = {19,12,20,14,1,8,2,15,9,16,10,6,13,11,7,18,3,4,17,5};
+    int sequel[20] = {4,8,6,3,9,15,12,13,11,1,5,7,17,20,14,19,2,16,18,10};
 
-    const int deleteSequelLength = 3;
-    int deleteSequel[deleteSequelLength] = {3,1,8};
+    const int deleteSequelLength = 16;
+    int deleteSequel[deleteSequelLength] = {10,8,2,13,7,16,6,5,14,9,15,12,4,3,1,11};
 
-//    const int deleteSequelLength = 4;
-//    int deleteSequel[deleteSequelLength] = {3,1,8,11};
+//    const int deleteSequelLength = 7;
+//    int deleteSequel[deleteSequelLength] = {10,8,2,13,7,16,6,5};
 
 
 
@@ -837,8 +838,31 @@ RC Test6(void)
    if((rc = ih.DisplayTree()))
       return (rc);
 
-//   if((rc = ixm.CloseIndex(ih)))
-//       return rc;
+   for(int k=0; k<deleteSequelLength; k++)
+   {
+       RID rid;
+       // Scan =
+       IX_IndexScan scaneq;
+       if ((rc = scaneq.OpenScan(ih, EQ_OP, &deleteSequel[k]))) {
+           printf("Scan error: opening scan\n");
+           return (rc);
+       }
+
+       m = 0;
+       while (!(rc = scaneq.GetNextEntry(rid))) {
+           m++;
+       }
+
+       if (rc != IX_EOF)
+           return (rc);
+
+       printf("Found %d entries in =scan for %d.\n", m, deleteSequel[k]);
+   }
+
+
+
+   if((rc = ixm.CloseIndex(ih)))
+       return rc;
 
    if ((rc = ixm.DestroyIndex(FILENAME, index)))
        return (rc);
@@ -856,8 +880,8 @@ RC Test7(void)
 //    int sequelLength = 20;
 //    int sequel[20] = {5,20,71,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13};
 
-    const int deleteSequelLength = 2;
-    int deleteSequel[deleteSequelLength] = {26,34};
+    const int deleteSequelLength = 3;
+    int deleteSequel[deleteSequelLength] = {26,34,18};
      int sequelLength = 50;
      int sequel[50] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13,21,22,23,24,25,30,31,32,33,34,35,26,27,28,29,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50};
 
@@ -875,6 +899,8 @@ RC Test7(void)
         if((rc = ih.DeleteEntry((void *)&deleteSequel[i], rid)))
             return rc;
     }
+
+
 
     // create the xml file
     if((rc = ih.DisplayTree()))

@@ -254,13 +254,13 @@ private:
 //
 void IX_PrintError(RC rc);
 
-#define IX_INSUFFISANT_PAGE_SIZE        (START_IX_ERR + 0)
-#define IX_NULLPOINTER                  (START_IX_ERR + 1)
-#define IX_BADTYPE                      (START_IX_ERR + 2)
-#define IX_ENTRY_DOES_NOT_EXIST         (START_IX_ERR + 3)
-#define IX_ARRAY_OVERFLOW               (START_IX_ERR + 4)
-#define IX_INVALID_PAGE_NUMBER          (START_IX_ERR + 5)
-#define IX_DELETE_INVALID_CASE          (START_IX_ERR + 6)
+#define IX_INSUFFISANT_PAGE_SIZE        (START_IX_ERR - 0)
+#define IX_NULLPOINTER                  (START_IX_ERR - 1)
+#define IX_BADTYPE                      (START_IX_ERR - 2)
+#define IX_ENTRY_DOES_NOT_EXIST         (START_IX_ERR - 3)
+#define IX_ARRAY_OVERFLOW               (START_IX_ERR - 4)
+#define IX_INVALID_PAGE_NUMBER          (START_IX_ERR - 5)
+#define IX_DELETE_INVALID_CASE          (START_IX_ERR - 6)
 #define IX_LASTERROR          IX_DELETE_INVALID_CASE
 //#define RM_INVALIDRECSIZE  (START_RM_WARN + 2) // invalid record size
 //#define RM_INVALIDSLOTNUM  (START_RM_WARN + 3) // invalid slot number
