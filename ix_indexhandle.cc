@@ -674,23 +674,26 @@ template <typename T, int n>
 RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, T &updatedParentValue, DeleteStatus &parentStatus)
 {
     RC rc;
-    IX_PageNode<T,n> * pBuffer, *pRedistNodeBuffer;
+
+    IX_PageNode<T,n> * pBuffer, *pRedistNodeBuffer, *pChildBuffer, *pSecondChildBuffer;
     IX_PageLeaf<T,n> * pRedistBuffer, *pRedistBufferBis, *pRedistBufferTer;
     PageNum childPageNum;
+
     int slotIndex;
     int pointerIndex;
     DeleteStatus childStatus = NOTHING;
     T updatedChildValue;
+    bool problemSolved;
+    int index;
 
     // get the current node
     if(rc = GetNodePageBuffer(iPageNum, pBuffer))
         goto err_return;
 
     // find the right slot
-    slotIndex = 0;
-    while(slotIndex < pBuffer->nbFilledSlots && comparisonGeneric(iValue, pBuffer->v[slotIndex]) > 0)
-       slotIndex++;
+    getSlotIndex(pBuffer->v, pBuffer->nbFilledSlots, iValue, slotIndex);
 
+    // find the right branch
    getPointerIndex(pBuffer->v, pBuffer->nbFilledSlots, iValue, pointerIndex);
 
     // the child is a leaf
@@ -858,7 +861,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 goto err_return;
 
 
-            // // le suivant du précédent c'est le suivant de l'actuel
+            // le suivant du précédent c'est le suivant de l'actuel
             if(rc = GetLeafPageBuffer(pRedistBuffer->previous, pRedistBufferBis))
                 goto err_return;
             pRedistBufferBis->next = pRedistBuffer->next;
@@ -866,7 +869,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 goto err_return;
 
 
-            // // le précédent du suivant s'il existe c'est le précédent de l'actuel
+            // le précédent du suivant s'il existe c'est le précédent de l'actuel
             if(pRedistBuffer->next != IX_EMPTY)
             {
                 if(rc = GetLeafPageBuffer(pRedistBuffer->next, pRedistBufferBis))
@@ -890,11 +893,16 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 parentStatus = UPDATE_ONLY;
                 copyGeneric(pBuffer->v[slotIndex], updatedParentValue);
             }
+
+            // val: le noeud n'est pas assez rempli
+//            if(pBuffer->nbFilledSlots < n/2)
+//            {
+//                parentStatus = TOO_EMPTY_NODE;
+//            }
         }
         else if (childStatus == MERGE_RIGHT)
         {
             // mettre à jour les liens vers le suivant et le précédent avant de supprimer la page
-
             if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex], pRedistBuffer))
                 goto err_return;
             if(pRedistBuffer->next != IX_EMPTY)
@@ -947,6 +955,14 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
                     goto err_return;
             }
+
+
+            // val: le noeud n'est pas assez rempli
+//            if(pBuffer->nbFilledSlots < n/2)
+//            {
+//                parentStatus = TOO_EMPTY_NODE;
+//            }
+
         } else {
             // childStatus = NOTHING
         }
@@ -988,6 +1004,92 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 // parentStatus = UPDATE_ONLY;
                 copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
             }
+        }
+        // val: le noeud fils n'est pas assez rempli
+        // le problème se règle ici, au niveau de son noeud père
+        else if(childStatus == TOO_EMPTY_NODE)
+        {
+            problemSolved = false;
+
+            if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex], pChildBuffer))
+                goto err_return;
+
+            // 1er cas: tentative de redistribution à gauche
+            if(pointerIndex > 0)
+            {
+                if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex-1], pSecondChildBuffer))
+                    goto err_return;
+
+                if(pSecondChildBuffer->nbFilledSlots > n/2 + 1)
+                {
+                    // start the redistribution at the following index
+                    int index = (pChildBuffer->nbFilledSlots + pSecondChildBuffer->nbFilledSlots)/2;
+
+                    // utiliser fonction de décallage
+
+                    // TO BE CONTINUED
+
+                    problemSolved = true;
+                }
+
+                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex-1], false))
+                    goto err_return;
+            }
+
+            // 2e cas: tentative de redistribution à droite
+            if(!problemSolved && pointerIndex < pBuffer->nbFilledSlots)
+            {
+                if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex+1], pSecondChildBuffer))
+                    goto err_return;
+
+                if(pSecondChildBuffer->nbFilledSlots > n/2 + 1)
+                {
+                    // Write the solution
+
+                    // End
+
+                    problemSolved = true;
+                }
+
+                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex+1], false))
+                    goto err_return;
+            }
+
+            // 3e cas: pas de redistribution possible, on tente une fusion à gauche
+            if(!problemSolved && pointerIndex > 0)
+            {
+                if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex-1], pSecondChildBuffer))
+                    goto err_return;
+
+                // Write the solution
+
+                // End
+
+                problemSolved = true;
+
+                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex-1], false))
+                    goto err_return;
+            }
+
+            // 4e cas: fusion à droite
+            if(!problemSolved && pointerIndex < pBuffer->nbFilledSlots)
+            {
+                if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex+1], pSecondChildBuffer))
+                    goto err_return;
+
+                // Write the solution
+
+                // End
+
+                problemSolved = true;
+
+                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex+1], false))
+                    goto err_return;
+            }
+
+
+            if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
+                goto err_return;
         }
     }
 
@@ -1043,7 +1145,6 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
     // have to delete bucket page and leaf value
     if(bucketPageNum = IX_EMPTY)
     {
-        rc = pfFileHandle.DisposePage(pBuffer->bucket[slotIndex]);
         pBuffer->bucket[slotIndex] = IX_EMPTY;
         // swap the last record and the deleted record
         swapLeafEntries<T,n>(slotIndex, pBuffer, pBuffer->nbFilledSlots-1, pBuffer);
@@ -1288,6 +1389,7 @@ RC IX_IndexHandle::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
     RID tempRid;
     int i;
     bool foundRid = false;
+    int filledSlots;
 
     // get the current bucket
     if(rc = GetPageBuffer(ioPageNum, pBuffer))
@@ -1311,7 +1413,7 @@ RC IX_IndexHandle::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
     if(foundRid && ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots > 1)
     {
         memcpy(pBuffer + sizeof(IX_PageBucketHdr) + i * sizeof(RID),
-           pBuffer + sizeof(IX_PageBucketHdr) + ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots * sizeof(RID),
+           pBuffer + sizeof(IX_PageBucketHdr) + (((IX_PageBucketHdr *)pBuffer)->nbFilledSlots -1 )* sizeof(RID),
            sizeof(rid));
 
         ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots = ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots - 1;
@@ -1323,20 +1425,25 @@ RC IX_IndexHandle::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
         goto err_release;
     }
 
-    if(((IX_PageBucketHdr *)pBuffer)->nbFilledSlots == 0)
-    {
-        ioPageNum = IX_EMPTY;
-    }
+    filledSlots = ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots;
 
     if(rc = ReleaseBuffer(ioPageNum, true))
         goto err_return;
 
+    // if the bucket page is empty, delete it
+    if(filledSlots == 0)
+    {
+        if(rc = pfFileHandle.DisposePage(ioPageNum))
+            goto err_return;
+
+        ioPageNum = IX_EMPTY;
+    }
+
     return rc;
 
-
-    err_release:
+err_release:
     ReleaseBuffer(ioPageNum, false);
-    err_return:
+err_return:
     return (rc);
 }
 
