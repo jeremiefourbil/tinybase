@@ -1079,13 +1079,23 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                     int index = pSecondChildBuffer->nbFilledSlots - (pChildBuffer->nbFilledSlots + pSecondChildBuffer->nbFilledSlots)/2;
 
                     int startSlot = pChildBuffer->nbFilledSlots;
-                    pChildBuffer->nbFilledSlots = startSlot + index;
+                    pChildBuffer->nbFilledSlots = startSlot + index + 1;
+
+                    copyGeneric(pBuffer->v[pointerIndex], pChildBuffer->v[startSlot]);
+//                    pChildBuffer->child[startSlot + 1] = pSecondChildBuffer->child[0];
+
+//                    // update the parent
+//                    if(rc = GetNodePageBuffer(pChildBuffer->child[startSlot + 1], pTempBuffer)) goto err_return;
+//                    pTempBuffer->parent = pBuffer->child[pointerIndex];
+//                    if(rc = ReleaseBuffer(pChildBuffer->child[startSlot + 1], false)) goto err_return;
+
 
                     // copy the values
                     for(int i=0; i<index; i++)
                     {
-                        copyGeneric(pBuffer->v[slotIndex], pChildBuffer->v[startSlot + i]);
-                        copyGeneric(pSecondChildBuffer->v[i], pBuffer->v[slotIndex]);
+                        copyGeneric(pSecondChildBuffer->v[i], pBuffer->v[pointerIndex]);
+                        copyGeneric(pBuffer->v[pointerIndex], pChildBuffer->v[startSlot + 1 + i]);
+
                         pChildBuffer->child[startSlot + i + 1] = pSecondChildBuffer->child[i];
 
                         // update the parent
@@ -1093,6 +1103,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                         pTempBuffer->parent = pBuffer->child[pointerIndex];
                         if(rc = ReleaseBuffer(pChildBuffer->child[startSlot + i + 1], false)) goto err_return;
                     }
+
 
                     // remove the values extracted
                     removeFirstChildrenInNode(pSecondChildBuffer, index);

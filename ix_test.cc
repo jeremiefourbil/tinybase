@@ -33,7 +33,7 @@ using namespace std;
 #define FILENAME     "testrel"        // test file name
 #define BADFILE      "/abc/def/xyz"   // bad file name
 #define STRLEN       39               // length of strings to index
-#define FEW_ENTRIES  50
+#define FEW_ENTRIES  20
 #define MANY_ENTRIES 3000
 #define NENTRIES     5000             // Size of values array
 #define PROG_UNIT    200              // how frequently to give progress
@@ -803,75 +803,45 @@ RC Test6(void)
    RC rc;
    IX_IndexHandle ih;
    int index=0;
-   int sequelLength = 7;
-   int sequel[7] = {10,1,13,3,4,5,2};
+//   int sequelLength = 7;
+//   int sequel[7] = {10,1,13,3,4,5,2};
    // int sequelLength = 11;
    // int sequel[11] = {11,6,5,17,8,7,18,1,9,14,15};
-   // int sequelLength = 12;
-   // int sequel[12] = {11,6,5,17,8,7,18,1,9,14,15,10};
+    int sequelLength = 20;
+    int sequel[20] = {19,12,20,14,1,8,2,15,9,16,10,6,13,11,7,18,3,4,17,5};
+
+    const int deleteSequelLength = 3;
+    int deleteSequel[deleteSequelLength] = {3,1,8};
+
+//    const int deleteSequelLength = 4;
+//    int deleteSequel[deleteSequelLength] = {3,1,8,11};
 
 
-//   int sequelLength = 2;
-//   int sequel[7] = {10,10};
-
-   IX_IndexScan scan;
-   int value = 5;
-   bool bExists = true;
-   RID rid;
 
    printf("Test7: test de suppression simple d'une valeur \n");
 
    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
-      (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
-      (rc = InsertSequelOfInt(ih, sequel, sequelLength)))
-      return (rc);
+           (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
+           (rc = InsertSequelOfInt(ih, sequel, sequelLength)))
+       return rc;
+
+
+   for(int i=0; i<deleteSequelLength; i++)
+   {
+       RID rid(deleteSequel[i], deleteSequel[i]*2);
+       if((rc = ih.DeleteEntry((void *)&deleteSequel[i], rid)))
+           return rc;
+   }
 
    // create the xml file
    if((rc = ih.DisplayTree()))
       return (rc);
 
+//   if((rc = ixm.CloseIndex(ih)))
+//       return rc;
 
-   // check if one entry is in the index
-   if ((rc = scan.OpenScan(ih, EQ_OP, &value))) {
-      printf("Verify error: opening scan\n");
-      return (rc);
-   }
-
-   for(int i=0; i<5; i++)
-   {
-     rc = scan.GetNextEntry(rid);
-     if (!bExists && rc == 0) {
-        printf("Verify error: found non-existent entry %d\n", value);
-          return (IX_EOF);  // What should be returned here?
-       }
-       else if (bExists && rc == IX_EOF) {
-        printf("Verify error: entry %d not found\n", value);
-          return (IX_EOF);  // What should be returned here?
-       }
-       else if (rc != 0 && rc != IX_EOF)
-        return (rc);
-
-//   int sequelLength = 16;
-//   int sequel[16] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24};
-
-   int sequelLength = FEW_ENTRIES;
-   int sequel[FEW_ENTRIES] = {10,17,16,8,12,19,18,13,4,18,7,9,20,27,19,24,19,19,23,18};
-
-     printf("Value %d found!\n", value);
-  }
-
-  if ((rc = scan.CloseScan())) {
-     printf("Verify error: closing scan\n");
-     return (rc);
-  }
-
-  if((rc = ixm.CloseIndex(ih)))
-   return rc;
-
-LsFiles(FILENAME);
-
-if ((rc = ixm.DestroyIndex(FILENAME, index)))
-   return (rc);
+   if ((rc = ixm.DestroyIndex(FILENAME, index)))
+       return (rc);
 
 printf("Passed Test 6\n\n");
 return (0);
@@ -883,11 +853,13 @@ RC Test7(void)
     RC rc;
     IX_IndexHandle ih;
     int index=0;
-    int sequelLength = 20;
-    int sequel[20] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13};
+//    int sequelLength = 20;
+//    int sequel[20] = {5,20,71,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13};
 
-    const int deleteSequelLength = 6;
-    int deleteSequel[deleteSequelLength] = {20,19,18,17,16,15};
+    const int deleteSequelLength = 2;
+    int deleteSequel[deleteSequelLength] = {26,34};
+     int sequelLength = 50;
+     int sequel[50] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13,21,22,23,24,25,30,31,32,33,34,35,26,27,28,29,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50};
 
     printf("Test7: test for making a graphml file with a specific sequel... \n");
 
@@ -1122,6 +1094,49 @@ RC Test9(void)
         return (rc);
 
     printf("Passed Test 9\n\n");
+    return (0);
+}
+
+// Test 10: suppression par la gauche
+// merge successifs de feuilles et de noeuds à droite
+// changement de racine
+RC Test10(void)
+{
+    RC rc;
+    IX_IndexHandle ih;
+    int index=0;
+    int sequelLength = 20;
+    int sequel[20] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13};
+
+    const int deleteSequelLength = 20;
+    int deleteSequel[deleteSequelLength] = {20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1};
+
+    printf("Test10: Insert entries, delete 20 then 19 then 18...\n");
+
+    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
+            (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
+            (rc = InsertSequelOfInt(ih, sequel, sequelLength)))
+        return rc;
+
+
+    for(int i=0; i<deleteSequelLength; i++)
+    {
+        RID rid(deleteSequel[i], deleteSequel[i]*2);
+        if((rc = ih.DeleteEntry((void *)&deleteSequel[i], rid)))
+            return rc;
+    }
+
+    // create the xml file
+    if((rc = ih.DisplayTree()))
+       return (rc);
+
+    if((rc = ixm.CloseIndex(ih)))
+        return rc;
+
+    if ((rc = ixm.DestroyIndex(FILENAME, index)))
+        return (rc);
+
+    printf("Passed Test 10\n\n");
     return (0);
 }
 
