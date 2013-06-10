@@ -678,6 +678,8 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
     int pointerIndex;
     DeleteStatus childStatus = NOTHING;
     T updatedChildValue;
+    bool problemSolved;
+    int index;
 
     // get the current node
     if(rc = GetNodePageBuffer(iPageNum, pBuffer))
@@ -955,6 +957,8 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         // le problème se règle ici, au niveau de son noeud père
         else if(childStatus == TOO_EMPTY_NODE)
         {
+            problemSolved = false;
+
             if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex], pChildBuffer))
                 goto err_return;
 
@@ -964,14 +968,73 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex-1], pSecondChildBuffer))
                     goto err_return;
 
-                if(pChildBuffer->nbFilledSlots + pSecondChildBuffer->nbFilledSlots <= n)
+                if(pSecondChildBuffer->nbFilledSlots > n/2 + 1)
                 {
+                    // start the redistribution at the following index
+                    int index = (pChildBuffer->nbFilledSlots + pSecondChildBuffer->nbFilledSlots)/2;
 
+                    // utiliser fonction de décallage
+
+                    // TO BE CONTINUED
+
+                    problemSolved = true;
                 }
 
                 if(rc = ReleaseBuffer(pBuffer->child[pointerIndex-1], false))
                     goto err_return;
             }
+
+            // 2e cas: tentative de redistribution à droite
+            if(!problemSolved && pointerIndex < pBuffer->nbFilledSlots)
+            {
+                if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex+1], pSecondChildBuffer))
+                    goto err_return;
+
+                if(pSecondChildBuffer->nbFilledSlots > n/2 + 1)
+                {
+                    // Write the solution
+
+                    // End
+
+                    problemSolved = true;
+                }
+
+                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex+1], false))
+                    goto err_return;
+            }
+
+            // 3e cas: pas de redistribution possible, on tente une fusion à gauche
+            if(!problemSolved && pointerIndex > 0)
+            {
+                if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex-1], pSecondChildBuffer))
+                    goto err_return;
+
+                // Write the solution
+
+                // End
+
+                problemSolved = true;
+
+                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex-1], false))
+                    goto err_return;
+            }
+
+            // 4e cas: fusion à droite
+            if(!problemSolved && pointerIndex < pBuffer->nbFilledSlots)
+            {
+                if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex+1], pSecondChildBuffer))
+                    goto err_return;
+
+                // Write the solution
+
+                // End
+
+                problemSolved = true;
+
+                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex+1], false))
+                    goto err_return;
+            }
+
 
             if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
                 goto err_return;
