@@ -32,7 +32,9 @@ const int order_STRING = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(int) - 10) / 
 
 struct IX_PageBucketHdr {
     PageNum parent;
-    PageNum next;
+
+    PageNum previous; // left
+    PageNum next; // right
 
     int nbFilledSlots;
 };
