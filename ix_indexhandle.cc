@@ -1696,7 +1696,6 @@ RC IX_IndexHandle::AllocateBucketPage(const PageNum parent, PageNum &oPageNum)
     // Fill node
 
     ((IX_PageBucketHdr *)pReadData)->parent = parent;
-    ((IX_PageBucketHdr *)pReadData)->next = IX_EMPTY;
     ((IX_PageBucketHdr *)pReadData)->nbFilledSlots = 0;
 
     // Mark the page dirty since we changed the next pointer

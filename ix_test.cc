@@ -33,9 +33,9 @@ using namespace std;
 #define FILENAME     "testrel"        // test file name
 #define BADFILE      "/abc/def/xyz"   // bad file name
 #define STRLEN       39               // length of strings to index
-#define FEW_ENTRIES  1000000
+#define FEW_ENTRIES  20
 #define MANY_ENTRIES 3000
-#define NENTRIES     1000000           // Size of values array
+#define NENTRIES     20          // Size of values array
 #define PROG_UNIT    200              // how frequently to give progress
 // reports when adding lots of entries
 

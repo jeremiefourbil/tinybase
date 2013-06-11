@@ -189,10 +189,13 @@ private:
     RC OpenScan_t();
 
     template <typename T, int n>
-    RC ScanNode_t(PageNum iPageNum);
+    RC FindInTree_t(const void* iValue, PageNum &oLeafNum, int &oSlotIndex, bool &inTree, void *oValue);
 
     template <typename T, int n>
-    RC ScanLeaf_t(PageNum iPageNum);
+    RC ScanNode_t(PageNum iPageNum, const void *iValue, PageNum &oLeafNum, int &oSlotIndex, bool &inTree, void *oValue);
+
+    template <typename T, int n>
+    RC ScanLeaf_t(PageNum iPageNum, const void *iValue, PageNum &oLeafNum, int &oSlotIndex, bool &inTree, void *oValue);
 
     template <typename T, int n>
     RC GetNextEntry_t(RID &rid);
@@ -200,10 +203,10 @@ private:
     RC ReadBucket(PageNum iPageNum, RID &rid);
 
     template <typename T, int n>
-    RC ComputePreviousLeafSlot(const PageNum iPreviousPage);
+    RC ComputePreviousLeafSlot(PageNum &ioLeafNum, int &ioSlotIndex, void *oValue);
 
     template <typename T, int n>
-    RC ComputeNextLeafSlot(const int iFilledSlots, const PageNum iNextPage);
+    RC ComputeNextLeafSlot(PageNum &ioLeafNum, int &ioSlotIndex, void *oValue);
 
     IX_IndexHandle _indexHandle;
     CompOp _compOp;
@@ -213,9 +216,8 @@ private:
     PageNum _nextLeafNum;
     int _nextLeafSlot;
     int _nextBucketSlot;
+    void * _nextValue;
 
-    PageNum _initialLeafNum;
-    int _initialLeafSlot;
     bool _isValueInTree;
 
     Direction _direction;
