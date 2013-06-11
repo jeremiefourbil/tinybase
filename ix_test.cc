@@ -33,9 +33,9 @@ using namespace std;
 #define FILENAME     "testrel"        // test file name
 #define BADFILE      "/abc/def/xyz"   // bad file name
 #define STRLEN       39               // length of strings to index
-#define FEW_ENTRIES  1000000
+#define FEW_ENTRIES  500000
 #define MANY_ENTRIES 3000
-#define NENTRIES     1000001           // Size of values array
+#define NENTRIES     2000000           // Size of values array
 #define PROG_UNIT    200              // how frequently to give progress
 // reports when adding lots of entries
 
@@ -241,7 +241,7 @@ int main(int argc, char *argv[])
          if ((rc = ih.InsertEntry((void *)&value, rid)))
             return (rc);
 
-         printf("Value inserted: %d \n", value);
+         // printf("Value inserted: %d \n", value);
 
          if((i + 1) % PROG_UNIT == 0){
          // cast to long for PC's
@@ -253,12 +253,12 @@ int main(int argc, char *argv[])
       }
       printf("\r\t%d%%      \n", (int)(i*100L/nEntries));
 
-      printf("\n Inserted sequence:\n");
-      for(int i=0; i<nEntries; i++)
-      {
-          printf("%d,", sequence[i]);
-      }
-      printf("\n\n");
+      // printf("\n Inserted sequence:\n");
+      // for(int i=0; i<nEntries; i++)
+      // {
+      //     printf("%d,", sequence[i]);
+      // }
+      // printf("\n\n");
 
    // Return ok
       return (0);
@@ -376,7 +376,7 @@ int main(int argc, char *argv[])
          value = values[i] + 1;
          RID rid(value, value*2);
          sequence[i] = value;
-         printf("before %d\n", i);
+         // printf("before %d\n", i);
          if ((rc = ih.DeleteEntry((void *)&value, rid)))
          {
              printf("\n Deletion sequence (%d):\n", i+1);
@@ -523,7 +523,7 @@ int main(int argc, char *argv[])
          return (rc);
       }
 
-      printf("Entry %d correctly found: %d\n", value, bExists);
+      // printf("Entry %d correctly found: %d\n", value, bExists);
    }
 
    return (0);

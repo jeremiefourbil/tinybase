@@ -1,0 +1,27 @@
+Design général
+
+Nous avons choisi d'implémenter un arbre B+ maintenant en permanence son équilibre et la condition de remplissage.
+Les fonctions utilisées pour le parcourir sont récursives.
+
+Structures de données
+
+L'arbre B+ est gardé en mémoire de la façon suivante :
+- un noeud est stocké dans une page ;
+- une feuille est stockée dans une page ;
+- les RIDs associés à une valeur sont stockés dans une page.
+
+Afin d'éviter d'utiliser des memcpy et de calculer à la main des décallages, ce qui aurait été propice à l'insertion d'erreurs, nous avons utilisé, pour les noeuds et les feuilles, des structures C++ associées à des templates. Nous avons ainsi pu lire et modifier simplement les valeurs enregistrées. Les templates servent à garantir la généricité du type et à utiliser des tableaux de taille fixe une fois l'ordre de l'arbre calculé.
+
+
+Procédures de test
+
+Afin de tester notre programme, nous avons tout d'abord implémenté une exportation en .graphml pour visualiser l'arbre B+. A tout moment, nous pouvons consulter l'état de l'arbre, ce qui accélère la maintenance du code.
+Par ailleurs, nous avons ajouté plusieurs fonctions de test à ix_test.cc afin d'effectuer des vérifications spécifiques, notamment sur les divers cas possibles lors d'une suppression : redistribution à droite ou à gauche et fusion à droite ou à gauche au niveau des feuilles et des noeuds, remontée d'information, etc.
+Avant d'arriver à traiter tous les cas de suppression, nous nous sommes initiés à gdb et valgrind.
+Aucune fuite mémoire n'a été découverte.
+
+
+Bugs connus
+
+Nous n'avons ce jour pas connaissance de bugs présents dans notre module IX.
+La limitation de l'ordre du million d'insertion provient de la taille du fichier géré par PF.
