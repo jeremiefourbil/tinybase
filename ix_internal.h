@@ -14,9 +14,9 @@
 //
 const int IX_HEADER_PAGE_NUM = 0;
 
- // const int order_INT = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(int) - 10) / (sizeof(int) + sizeof(int))));
+  const int order_INT = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(int) - 10) / (sizeof(int) + sizeof(int))));
 //const int order_INT = 8;
-const int order_INT = 4;
+//const int order_INT = 4;
 const int order_FLOAT = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(float) - 10) / (sizeof(int) + sizeof(float))));
 const int order_STRING = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(int) - 10) / (sizeof(int) + MAXSTRINGLEN * sizeof(char))));
 

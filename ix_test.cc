@@ -33,9 +33,9 @@ using namespace std;
 #define FILENAME     "testrel"        // test file name
 #define BADFILE      "/abc/def/xyz"   // bad file name
 #define STRLEN       39               // length of strings to index
-#define FEW_ENTRIES  50
+#define FEW_ENTRIES  2000000
 #define MANY_ENTRIES 3000
-#define NENTRIES     5000             // Size of values array
+#define NENTRIES     2000000            // Size of values array
 #define PROG_UNIT    200              // how frequently to give progress
 // reports when adding lots of entries
 
@@ -226,6 +226,9 @@ int main(int argc, char *argv[])
       int i;
       int value;
 
+      const int length = nEntries;
+      int sequence[length];
+
       printf("             Adding %d int entries\n", nEntries);
       ran(nEntries);
       for(i = 0; i < nEntries; i++) {
@@ -241,8 +244,17 @@ int main(int argc, char *argv[])
             printf("\r\t%d%%    ", (int)((i+1)*100L/nEntries));
             fflush(stdout);
          }
+
+         sequence[i] = value;
       }
       printf("\r\t%d%%      \n", (int)(i*100L/nEntries));
+
+      printf("\n Inserted sequence:\n");
+      for(int i=0; i<nEntries; i++)
+      {
+          printf("%d,", sequence[i]);
+      }
+      printf("\n\n");
 
    // Return ok
       return (0);
@@ -348,22 +360,36 @@ int main(int argc, char *argv[])
       int i;
       int value;
 
+      const int length = nEntries;
+      int sequence[length];
+
       printf("        Deleting %d int entries\n", nEntries);
       ran(nEntries);
       for (i = 0; i < nEntries; i++) {
+
 //          if((rc == ih.DisplayTree()))
 //              return rc;
          value = values[i] + 1;
          RID rid(value, value*2);
+         sequence[i] = value;
          printf("before %d\n", i);
          if ((rc = ih.DeleteEntry((void *)&value, rid)))
+         {
+             printf("\n Deletion sequence (%d):\n", i+1);
+             for(int k=0; k<=i; k++)
+             {
+                 printf("%d,", sequence[k]);
+             }
+             printf("\n\n");
             return (rc);
-         printf("after\n");
+         }
 
          if((i + 1) % PROG_UNIT == 0){
             printf("\r\t%d%%      ", (int)((i+1)*100L/nEntries));
             fflush(stdout);
          }
+
+
       }
       printf("\r\t%d%%      \n", (int)(i*100L/nEntries));
 
@@ -880,11 +906,15 @@ RC Test7(void)
 //    int sequelLength = 20;
 //    int sequel[20] = {5,20,71,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13};
 
-    const int deleteSequelLength = 3;
-    int deleteSequel[deleteSequelLength] = {26,34,18};
-     int sequelLength = 50;
-     int sequel[50] = {5,20,7,10,11,16,17,3,1,6,4,19,12,18,2,15,9,14,8,13,21,22,23,24,25,30,31,32,33,34,35,26,27,28,29,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50};
 
+     const int sequelLength = 90;
+     int sequel[sequelLength] = {57,58,9,14,50,43,34,46,20,2,25,32,73,47,13,87,78,18,11,40,75,72,29,70,19,30,6,12,26,36,41,15,60,90,3,7,76,21,77,39,10,81,8,16,51,45,85,82,48,54,68,5,23,27,56,64,62,49,38,74,59,86,67,63,65,22,37,61,79,28,88,17,52,35,84,66,83,69,89,42,80,44,4,33,24,71,55,1,53,31};
+
+//     const int deleteSequelLength = 43;
+//     int deleteSequel[deleteSequelLength] = {59,15,33,43,67,28,34,37,23,30,54,26,64,62,46,56,49,53,17,51,48,29,65,16,18,44,3,5,68,52,40,19,20,47,66,61,25,36,9,8,27,35,10};
+
+     const int deleteSequelLength = 38;
+     int deleteSequel[deleteSequelLength] = {59,15,33,43,67,28,34,37,23,30,54,26,64,62,46,56,49,53,17,51,48,29,65,16,18,44,3,5,68,52,40,19,20,47,66,61,25,36};
     printf("Test7: test for making a graphml file with a specific sequel... \n");
 
     if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||

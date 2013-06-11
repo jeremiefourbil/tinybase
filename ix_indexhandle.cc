@@ -589,6 +589,7 @@ RC IX_IndexHandle::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
 RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid)
 {
     RC rc;
+    IX_PageLeaf<int,order_INT> *pLeaf, *pLeaf2;
 
     if (pData == NULL)
         return (IX_NULLPOINTER);
@@ -596,7 +597,19 @@ RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid)
     switch(fileHdr.attrType)
     {
         case INT:
+        if(* ((int *) pData) == 47)
+        {
+//            GetLeafPageBuffer(39, pLeaf);
+//            GetLeafPageBuffer(39, pLeaf2);
+        }
+
         rc = DeleteEntry_t<int,order_INT>(* ((int *) pData), rid);
+
+        if(* ((int *) pData) == 47)
+        {
+//            ReleaseBuffer(39, false);
+//            ReleaseBuffer(39, false);
+        }
         break;
         case FLOAT:
         rc = DeleteEntry_t<float,order_FLOAT>(* ((float *) pData), rid);
@@ -623,6 +636,7 @@ RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
     DeleteStatus childStatus = NOTHING;
     int slotIndex = 0;
     int pointerIndex = 0;
+
 
     pageNum = fileHdr.rootNum;
     cout << " ###### start deleting #######" << iValue <<endl;
@@ -737,7 +751,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
 
     IX_PageNode<T,n> * pBuffer, *pRedistNodeBuffer, *pChildBuffer, *pSecondChildBuffer, *pTempBuffer;
     IX_PageLeaf<T,n> * pRedistBuffer, *pRedistBufferBis, *pRedistBufferTer;
-    PageNum childPageNum;
+    PageNum childPageNum, tempPageNum;
 
     int slotIndex;
     int pointerIndex;
@@ -841,14 +855,9 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             if(pRedistBuffer->v[0] != pBuffer->v[slotIndex])
             {
                 copyGeneric(pRedistBuffer->v[0], pBuffer->v[slotIndex]);
-                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], true))
-                    goto err_return;
             }
-            else
-            {
-                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
-                    goto err_return;
-            }
+            if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
+                goto err_return;
         }
         else if (childStatus == MERGE_LEFT)
         {
@@ -904,10 +913,14 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             // mettre à jour les liens vers le suivant et le précédent avant de supprimer la page
             if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex], pRedistBuffer))
                 goto err_return;
-            if(pRedistBuffer->next != IX_EMPTY)
+
+            tempPageNum = pRedistBuffer->next;
+
+            if(tempPageNum != IX_EMPTY)
             {
                 // le suivant du suivant c'est le suivant du courant
-                if(rc = GetLeafPageBuffer(pRedistBuffer->next, pRedistBufferBis))
+
+                if(rc = GetLeafPageBuffer(tempPageNum, pRedistBufferBis))
                     goto err_return;
                 pRedistBuffer->next = pRedistBufferBis->next;
                 if(pRedistBufferBis->next != IX_EMPTY)
@@ -919,16 +932,20 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                     if(rc = ReleaseBuffer(pRedistBufferBis->next, true))
                         goto err_return;
                 }
-                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex+1], false))
+                if(rc = ReleaseBuffer(tempPageNum, false))
                     goto err_return;
             }
             else
             {
                 // ne doit pas arriver car cela voudrait dire que c'est la dernière feuille
             }
+
             if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], true))
                 goto err_return;
-            if(rc = pfFileHandle.DisposePage(pBuffer->child[pointerIndex+1]))
+
+
+
+            if(rc = pfFileHandle.DisposePage(tempPageNum))
                 goto err_return;
             pBuffer->child[pointerIndex+1] = IX_EMPTY;
             if(pointerIndex == 0)
@@ -939,6 +956,9 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             {
                 DeleteNodeValue<T,n>(pBuffer, slotIndex+1, pBuffer->nbFilledSlots);
             }
+
+
+
             if(pointerIndex == 0)
             {
                 // on propage la nouvelle valeur minimum au père
@@ -999,12 +1019,12 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             {
                 // on propage la nouvelle valeur minimum au père
                 cout << "propag" << endl;
-                if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex], pRedistNodeBuffer))
-                    goto err_return;
+//                if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex], pRedistNodeBuffer))
+//                    goto err_return;
                 parentStatus = UPDATE_ONLY;
                 copyGeneric(updatedChildValue, updatedParentValue);
-                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
-                    goto err_return;
+//                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
+//                    goto err_return;
             }
             else
             {
@@ -1021,7 +1041,9 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             cout << "TOO EMPTY in " << iPageNum << endl;
             problemSolved = false;
 
-            if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex], pChildBuffer))
+
+
+            if(rc = GetNodePageBuffer(childPageNum, pChildBuffer))
                 goto err_return;
 
             // 1er cas: tentative de redistribution à gauche
@@ -1052,7 +1074,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                         // update the parent
                         if(rc = GetNodePageBuffer(pChildBuffer->child[i - index], pTempBuffer)) goto err_return;
                         pTempBuffer->parent = pBuffer->child[pointerIndex];
-                        if(rc = ReleaseBuffer(pChildBuffer->child[i - index], false)) goto err_return;
+                        if(rc = ReleaseBuffer(pChildBuffer->child[i - index], true)) goto err_return;
                     }
 
                     // update the nb of filled slots
@@ -1092,7 +1114,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                         // update the parent
                         if(rc = GetNodePageBuffer(pChildBuffer->child[startSlot+i+1], pTempBuffer)) goto err_return;
                         pTempBuffer->parent = pBuffer->child[pointerIndex];
-                        if(rc = ReleaseBuffer(pChildBuffer->child[startSlot+i+1], false)) goto err_return;
+                        if(rc = ReleaseBuffer(pChildBuffer->child[startSlot+i+1], true)) goto err_return;
                     }
 
 
@@ -1126,7 +1148,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 // update the parent
                 if(rc = GetNodePageBuffer(pChildBuffer->child[index+1], pTempBuffer)) goto err_return;
                 pTempBuffer->parent = pBuffer->child[pointerIndex];
-                if(rc = ReleaseBuffer(pChildBuffer->child[index+1], false)) goto err_return;
+                if(rc = ReleaseBuffer(pChildBuffer->child[index+1], true)) goto err_return;
 
                 // copy the values
                 for(int i=index; i>=0; i--)
@@ -1138,17 +1160,13 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                     // update the parent
                     if(rc = GetNodePageBuffer(pChildBuffer->child[i], pTempBuffer)) goto err_return;
                     pTempBuffer->parent = pBuffer->child[pointerIndex];
-                    if(rc = ReleaseBuffer(pChildBuffer->child[i], false)) goto err_return;
+                    if(rc = ReleaseBuffer(pChildBuffer->child[i], true)) goto err_return;
                 }
 
 
 
                 // update the nb of filled slots
                 pSecondChildBuffer->nbFilledSlots = 0;
-
-
-
-
 
 
                 // the problem is solved
@@ -1163,6 +1181,9 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                     goto err_return;
 
                 pBuffer->child[pointerIndex-1] = IX_EMPTY;
+
+                // remove one slot from the parent
+                removeInNode(pBuffer, slotIndex, pointerIndex-1);
 
 
                 // alert parent if too empty
@@ -1190,7 +1211,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 // update its parent
                 if(rc = GetNodePageBuffer(pChildBuffer->child[startSlot + 1], pTempBuffer)) goto err_return;
                 pTempBuffer->parent = pBuffer->child[pointerIndex];
-                if(rc = ReleaseBuffer(pChildBuffer->child[startSlot + 1], false)) goto err_return;
+                if(rc = ReleaseBuffer(pChildBuffer->child[startSlot + 1], true)) goto err_return;
 
                 // copy the values
                 for(int i=0; i<pSecondChildBuffer->nbFilledSlots; i++)
@@ -1202,7 +1223,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                     // update the parent
                     if(rc = GetNodePageBuffer(pChildBuffer->child[startSlot + i + 2], pTempBuffer)) goto err_return;
                     pTempBuffer->parent = pBuffer->child[pointerIndex];
-                    if(rc = ReleaseBuffer(pChildBuffer->child[startSlot + i + 2], false)) goto err_return;
+                    if(rc = ReleaseBuffer(pChildBuffer->child[startSlot + i + 2], true)) goto err_return;
                 }
 
 
@@ -1220,6 +1241,9 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
 
                 pBuffer->child[pointerIndex+1] = IX_EMPTY;
 
+                // remove one slot from the parent
+                removeInNode(pBuffer, slotIndex, pointerIndex+1);
+
                 // alert parent if too empty
                 if(pBuffer->nbFilledSlots < n/2)
                 {
@@ -1228,7 +1252,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             }
 
 
-            if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
+            if(rc = ReleaseBuffer(childPageNum, true))
                 goto err_return;
         }
     }
@@ -1407,7 +1431,6 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
                             goto err_return;
                         if(rc = ReleaseBuffer(pBuffer->previous, true))
                             goto err_return;
-                        cout << "toto" << endl;
                         parentStatus = MERGE_LEFT;
                     }
                     else
@@ -1454,9 +1477,6 @@ RC IX_IndexHandle::MergeValuesAndBuckets(IX_PageLeaf<T,n> *pBufferCurrentLeaf, I
     T arr[nEntries];
     PageNum buck[nEntries];
 
-    cout << "--- merge --" << endl;
-    cout << "--- before :" << endl;
-
     // on remplit le nouveau tableau avec les valeurs de la feuille gauche
     int i;
 
@@ -1464,22 +1484,19 @@ RC IX_IndexHandle::MergeValuesAndBuckets(IX_PageLeaf<T,n> *pBufferCurrentLeaf, I
     {
         copyGeneric(pBufferCurrentLeaf->v[i], arr[i]);
         buck[i] = pBufferCurrentLeaf->bucket[i];
-        cout << i << ":(" << arr[i] << "," << buck[i] << ") " ;
     }
-    cout << "i:"<< i << " ";
+
     // on remplit le nouveau tableau avec les valeurs de la feuille droite
     for(int j=0;j<pBufferNewLeaf->nbFilledSlots;j++)
     {
         copyGeneric(pBufferNewLeaf->v[j], arr[j+i]);
         buck[i+j] = pBufferNewLeaf->bucket[j];
-        cout << i+j << ":(" << arr[i+j] << "," << buck[i+j] <<") " ;
     }
-    cout << endl;
     sortGeneric(arr, buck, nEntries);
 
     pBufferNewLeaf->nbFilledSlots = 0;
     // on remplit la cible
-    cout << "--- after :" << endl;
+
     for(int j=0;j<nEntries;j++)
     {
         copyGeneric(arr[j], pBufferNewLeaf->v[j]);
@@ -1487,9 +1504,7 @@ RC IX_IndexHandle::MergeValuesAndBuckets(IX_PageLeaf<T,n> *pBufferCurrentLeaf, I
         pBufferNewLeaf->bucket[j] = buck[j];
         // on incrémente le nombre slots remplis
         pBufferNewLeaf->nbFilledSlots++;
-        cout << "(" << arr[j] << "," << buck[j] <<")" ;
     }
-    cout << endl;
     return OK_RC;
 }
 
@@ -1501,26 +1516,21 @@ RC IX_IndexHandle::DeleteNodeValue(IX_PageNode<T,n> *pBuffer, const int & slotIn
     PageNum child[nEntries];
     int j=0;
     cout << "---- Delete node value ----" << endl;
-    cout << "---- before ----" << endl;
     for(int i=0;i<pBuffer->nbFilledSlots;i++)
     {
         if(i != slotIndex)
         {
             copyGeneric(pBuffer->v[i], arr[j]);
             child[j] = pBuffer->child[i+1];
-            cout << j << ":(" << arr[j] << "," << child[j] << ") " ;
             j++;
         }
     }
-    cout << endl;
     pBuffer->nbFilledSlots = nEntries-1;
     for(int i=0;i<nEntries-1;i++)
     {
         copyGeneric(arr[i],pBuffer->v[i]);
         pBuffer->child[i+1] = child[i];
-        cout << i << ":(" << arr[i] << "," << child[i] << ") " ;
     }
-    cout << endl;
     return OK_RC;
 }
 
@@ -2165,5 +2175,21 @@ void removeFirstChildrenInNode(IX_PageNode<T,n> *pBuffer, const int offset)
     pBuffer->child[pBuffer->nbFilledSlots - offset] = pBuffer->child[pBuffer->nbFilledSlots];
 
     pBuffer->nbFilledSlots = pBuffer->nbFilledSlots - offset;
+}
+
+template <typename T, int n>
+void removeInNode(IX_PageNode<T,n> *pBuffer, const int slotIndex, const int pointerIndex)
+{
+    for(int i=slotIndex+1; i<pBuffer->nbFilledSlots; i++)
+    {
+        copyGeneric(pBuffer->v[i], pBuffer->v[i-1]);
+    }
+
+    for(int i=pointerIndex+1; i<=pBuffer->nbFilledSlots; i++)
+    {
+        pBuffer->child[i-1] = pBuffer->child[i];
+    }
+
+    pBuffer->nbFilledSlots--;
 }
 
