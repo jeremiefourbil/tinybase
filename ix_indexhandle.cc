@@ -138,7 +138,7 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
                 return rc;
         } else {
             // la racine était une feuille
-            cout << "Root split" << endl;
+            // cout << "Root split" << endl;
             // nouvelle racine
             if(rc = AllocateNodePage_t<T,n>(ROOTANDLASTINODE,IX_EMPTY, newRootNum))
                 goto err_return;
@@ -234,7 +234,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         if(childPageNum == IX_EMPTY)
         {
             // Todo : error state
-            cout << "Error: Empty Node child" << endl;
+            // cout << "Error: Empty Node child" << endl;
         }
 
         if(rc = InsertEntryInNode_t<T,n>(childPageNum, iValue, rid, newChildPageNum, medianChildValue))
@@ -245,7 +245,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
     if(newChildPageNum != IX_EMPTY)
     {
         // on essaye d'insérer la valeur médiane dans le noeud courant
-        cout << "split en dessous" << endl;
+        // cout << "split en dessous" << endl;
         if(pBuffer->nbFilledSlots<n)
         {
             // on insère la valeur médiane liée à son fils droit
@@ -299,7 +299,7 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                     }
                 } else {
                     // ne doit pas se produire
-                    cout << "le fils droit est vide" << endl;
+                    // cout << "le fils droit est vide" << endl;
                 }
             }
             // on met à jour le fils le plus à gauche
@@ -351,7 +351,7 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
     {
         if(pBuffer->nbFilledSlots == n)
         {
-            cout << "Overflow" << endl;
+            // cout << "Overflow" << endl;
             // créer une nouvelle page
             if (rc = AllocateLeafPage_t<T,n>(pBuffer->parent, newChildPageNum))
                 goto err_return;
@@ -400,7 +400,7 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
     // error
     if(bucketPageNum == IX_EMPTY)
     {
-        cout << "Error: bucket page empty" << endl;
+        // cout << "Error: bucket page empty" << endl;
         return IX_INVALID_PAGE_NUMBER;
     }
 
@@ -479,7 +479,7 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T,n> *pBufferCurrent
 
     int slotOffset = nEntries/2;
 
-    cout << "Redistribution" << endl;
+    // cout << "Redistribution" << endl;
 
     // on remplit le nouveau tableau avec les valeurs de la feuille gauche
     int i;
@@ -616,7 +616,7 @@ RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
 
 
     pageNum = fileHdr.rootNum;
-    cout << "Deletion start - Value to remove: " << iValue <<endl;
+    // cout << "Deletion start - Value to remove: " << iValue <<endl;
     // no root, create one
     if(pageNum == IX_EMPTY)
     {
@@ -643,7 +643,7 @@ RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
             if(pointerIndex != 0)
             {
                 // on met à jour la valeur
-                cout << "update slot" << endl;
+                // cout << "update slot" << endl;
                 copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
                 if(rc = ReleaseBuffer(pageNum, true))
                     goto err_return;
@@ -656,7 +656,7 @@ RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
         }
         if(childStatus == TOO_EMPTY_NODE || childStatus == TOO_EMPTY_NODE_WITH_UPDATE)
         {
-            cout << "TOO EMPTY ROOT CHILD" << endl;
+            // cout << "TOO EMPTY ROOT CHILD" << endl;
 
             if(rc = GetNodePageBuffer(pageNum, pBuffer))
                     goto err_return;
@@ -763,11 +763,11 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         // mettre à jour l'index car la valeur minimale de la feuille a changé
         if(childStatus == UPDATE_ONLY)
         {
-            cout << "update from leaf "<< iPageNum <<" : " << slotIndex << "- pointer:" << pointerIndex << endl;
+            // cout << "update from leaf "<< iPageNum <<" : " << slotIndex << "- pointer:" << pointerIndex << endl;
             if(pointerIndex == 0)
             {
                 // on propage la nouvelle valeur minimum au père
-                cout << "propag" << endl;
+                // cout << "propag" << endl;
                 if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex], pRedistBuffer))
                     goto err_return;
                 parentStatus = UPDATE_ONLY;
@@ -778,7 +778,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             else
             {
                 // on met à jour la valeur
-                cout << "update slot" << endl;
+                // cout << "update slot" << endl;
                 if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex], pRedistBuffer))
                     goto err_return;
                 copyGeneric(pRedistBuffer->v[0], pBuffer->v[slotIndex]);
@@ -791,7 +791,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             if(pointerIndex == 0)
             {
                 // on met à jour la valeur
-                cout << "update slot" << endl;
+                // cout << "update slot" << endl;
                 if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex], pRedistBuffer))
                     goto err_return;
                 parentStatus = UPDATE_ONLY;
@@ -807,7 +807,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             }
             else
             {
-                cout << "update slot" << endl;
+                // cout << "update slot" << endl;
                 if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex], pRedistBuffer))
                     goto err_return;
                 // parentStatus = UPDATE_ONLY;
@@ -939,7 +939,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             if(pointerIndex == 0)
             {
                 // on propage la nouvelle valeur minimum au père
-                cout << "propag" << endl;
+                // cout << "propag" << endl;
                 if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex], pRedistBuffer))
                     goto err_return;
                 parentStatus = UPDATE_ONLY;
@@ -949,7 +949,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             else
             {
                 // on met à jour la valeur
-                cout << "update slot" << endl;
+                // cout << "update slot" << endl;
                 if(rc = GetLeafPageBuffer(pBuffer->child[pointerIndex], pRedistBuffer))
                     goto err_return;
                 // parentStatus = UPDATE_ONLY;
@@ -990,12 +990,12 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         // if(updateChildIndex)
         if(childStatus == UPDATE_ONLY || childStatus == TOO_EMPTY_NODE_WITH_UPDATE)
         {
-            cout << "update from node "<< iPageNum <<" : " << slotIndex << "- pointer:" << pointerIndex << endl;
+            // cout << "update from node "<< iPageNum <<" : " << slotIndex << "- pointer:" << pointerIndex << endl;
 
             if(pointerIndex == 0)
             {
                 // on propage la nouvelle valeur minimum au père
-                cout << "propag" << endl;
+                // cout << "propag" << endl;
 
                 parentStatus = UPDATE_ONLY;
                 copyGeneric(updatedChildValue, updatedParentValue);
@@ -1003,7 +1003,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             else
             {
                 // on met à jour la valeur
-                cout << "ne fait rien" << endl;
+                // cout << "ne fait rien" << endl;
                 // parentStatus = UPDATE_ONLY;
                 copyGeneric(updatedChildValue, pBuffer->v[slotIndex]);
             }
@@ -1012,7 +1012,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         // le problème se règle ici, au niveau de son noeud père
         if(childStatus == TOO_EMPTY_NODE || childStatus == TOO_EMPTY_NODE_WITH_UPDATE)
         {
-            cout << "TOO EMPTY in " << iPageNum << endl;
+            // cout << "TOO EMPTY in " << iPageNum << endl;
             problemSolved = false;
 
 
@@ -1028,7 +1028,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
 
                 if(pSecondChildBuffer->nbFilledSlots > n/2)
                 {
-                    cout << "Redistribution à gauche" << endl;
+                    // cout << "Redistribution à gauche" << endl;
 
                     // start the redistribution at the following index
                     int index = (pChildBuffer->nbFilledSlots + pSecondChildBuffer->nbFilledSlots)/2;
@@ -1069,7 +1069,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
 
                 if(pSecondChildBuffer->nbFilledSlots > n/2)
                 {
-                    cout << "Redistribution à droite" << endl;
+                    // cout << "Redistribution à droite" << endl;
 
                     // start the redistribution at the following index
                     int index = pSecondChildBuffer->nbFilledSlots - (pChildBuffer->nbFilledSlots + pSecondChildBuffer->nbFilledSlots)/2;
@@ -1108,7 +1108,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex-1], pSecondChildBuffer))
                     goto err_return;
 
-                cout << "Fusion à gauche" << endl;
+                // cout << "Fusion à gauche" << endl;
 
                 // start the redistribution at the following index
                 int index = pSecondChildBuffer->nbFilledSlots-1;
@@ -1173,7 +1173,7 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
                 if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex+1], pSecondChildBuffer))
                     goto err_return;
 
-                cout << "Fusion à droite" << endl;
+                // cout << "Fusion à droite" << endl;
 
                 int startSlot = pChildBuffer->nbFilledSlots;
                 pChildBuffer->nbFilledSlots = startSlot + pSecondChildBuffer->nbFilledSlots+1;
@@ -1310,7 +1310,7 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
                     if(pNeighborBuffer->nbFilledSlots > n/2)
                     {
                         // on redistribue avec le voisin droit
-                        cout << "redistribution avec le voisin de droite" << endl;
+                        // cout << "redistribution avec le voisin de droite" << endl;
                         if(rc = RedistributeValuesAndBuckets<T,n>(pBuffer, pNeighborBuffer, iValue, updatedParentValue, bucketPageNum, pNeighborBuffer->nbFilledSlots+pBuffer->nbFilledSlots, true))
                             return rc;
                         parentStatus = REDISTRIBUTION_RIGHT;
@@ -1338,7 +1338,7 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
                     if(pNeighborBuffer->nbFilledSlots > n/2)
                     {
                         // on redistribue avec le voisin gauche
-                        cout << "redistribution avec le voisin de gauche" << endl;
+                        // cout << "redistribution avec le voisin de gauche" << endl;
                         if(rc = RedistributeValuesAndBuckets<T,n>(pNeighborBuffer,pBuffer, iValue, updatedParentValue, bucketPageNum, pNeighborBuffer->nbFilledSlots + pBuffer->nbFilledSlots, true))
                             goto err_return;
                         parentStatus = REDISTRIBUTION_LEFT;
@@ -1367,7 +1367,7 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
                     if(pNeighborBuffer->nbFilledSlots <= n/2)
                     {
                         // merge avec le voisin de droite
-                        cout << "merge avec le voisin de droite" << endl;
+                        // cout << "merge avec le voisin de droite" << endl;
                         if(rc = MergeValuesAndBuckets<T,n>(pNeighborBuffer, pBuffer, pBuffer->nbFilledSlots + pNeighborBuffer->nbFilledSlots))
                             goto err_return;
                         if(rc = ReleaseBuffer(pBuffer->next, true))
@@ -1399,7 +1399,7 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
                     if(pNeighborBuffer->nbFilledSlots <= n/2)
                     {
                         // merge à gauche
-                        cout << "merge avec le voisin de gauche" << endl;
+                        // cout << "merge avec le voisin de gauche" << endl;
                         if(rc = MergeValuesAndBuckets<T,n>(pBuffer, pNeighborBuffer, pBuffer->nbFilledSlots + pNeighborBuffer->nbFilledSlots))
                             goto err_return;
                         if(rc = ReleaseBuffer(pBuffer->previous, true))
@@ -1425,7 +1425,7 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
             // on met à jour l'index en remontant la valeur.
             if(slotIndex == 0)
             {
-                cout << "prepare to propag" << endl;
+                // cout << "prepare to propag" << endl;
                 copyGeneric(pBuffer->v[0], updatedParentValue);
                 // updateParentIndex = true;
                 parentStatus = UPDATE_ONLY;
@@ -1827,9 +1827,9 @@ RC IX_IndexHandle::DisplayTree_t()
     int currentEdgeId = 0;
     ofstream xmlFile;
 
-    cout << "-----------------------" << endl;
-    cout << "Display tree" << endl;
-    cout << "-----------------------" << endl;
+    // cout << "-----------------------" << endl;
+    // cout << "Display tree" << endl;
+    // cout << "-----------------------" << endl;
 
     xmlFile.open(XML_FILE);
     xmlFile << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
@@ -2109,7 +2109,7 @@ void setOffsetInNode(IX_PageNode<T,n> *pBuffer, const int offset)
 {
     if(n < pBuffer->nbFilledSlots + offset)
     {
-        cout << "Error: overflow" << endl;
+        // cout << "Error: overflow" << endl;
         return;
     }
 
