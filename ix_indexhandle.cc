@@ -60,7 +60,7 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
 
     IX_PageNode<T,n> *pBuffer, *pNewRootBuffer, *newPageBuffer;
     IX_PageLeaf<T,n> *pLeafBuffer;
-    // Pour la récursion descendante
+
     PageNum newChildPageNum = IX_EMPTY;
     T medianChildValue;
 
@@ -81,13 +81,11 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
     // let's call the recursion method, start with root
     if (fileHdr.height == 0)
     {
-        cout << "on insère dans la feuille racine" << endl;
         if(rc = InsertEntryInLeaf_t<T,n>(pageNum, iValue, rid, newChildPageNum, medianChildValue))
             goto err_return;
     }
     else
     {
-        cout << "on insère depuis le noeud racine" << endl;
         if(rc = InsertEntryInNode_t<T,n>(pageNum, iValue, rid, newChildPageNum, medianChildValue))
         goto err_return;
     }
@@ -99,7 +97,7 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
             // la racine était un noeud
             if(rc = GetNodePageBuffer(pageNum, pBuffer))
                 goto err_return;
-            cout << "le noeud racine doit être splittée" << endl;
+
             // nouvelle racine
             if(rc = AllocateNodePage_t<T,n>(ROOT,IX_EMPTY, newRootNum))
                 goto err_return;
@@ -116,8 +114,6 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
                 return rc;
 
             fileHdr.rootNum = newRootNum;
-
-            cout << "Root in root" << fileHdr.rootNum << endl;
 
             // on récupère le buffer du nouveau noeud
             if(rc = GetNodePageBuffer(newChildPageNum, newPageBuffer))
@@ -142,7 +138,7 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
                 return rc;
         } else {
             // la racine était une feuille
-            cout << "la feuille racine doit être splittée" << endl;
+            cout << "Root split" << endl;
             // nouvelle racine
             if(rc = AllocateNodePage_t<T,n>(ROOTANDLASTINODE,IX_EMPTY, newRootNum))
                 goto err_return;
@@ -169,14 +165,11 @@ RC IX_IndexHandle::InsertEntry_t(T iValue, const RID &rid)
             if(rc = ReleaseBuffer(newChildPageNum, true))
                 return rc;
             fileHdr.rootNum = newRootNum;
-
-            cout << "Root in root" << fileHdr.rootNum << endl;
         }
         fileHdr.height++;
         bHdrChanged = true;
     }
 
-    cout << "RootNum: " << fileHdr.rootNum << endl;
 
 
     return rc;
@@ -255,7 +248,6 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         cout << "split en dessous" << endl;
         if(pBuffer->nbFilledSlots<n)
         {
-            cout << "le noeud courant a de la place :" << endl;
             // on insère la valeur médiane liée à son fils droit
             copyGeneric(medianChildValue,pBuffer->v[pBuffer->nbFilledSlots]);
             // on incrémente le nombre de slots occupés
@@ -267,7 +259,6 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
         }
         else
         {
-            cout << "le noeud courant doit être splité" << endl;
             // le noeud courant est plein donc on va créer un nouveau noeud
             if(rc = AllocateNodePage_t<T,n>(pBuffer->nodeType,pBuffer->parent, newNodePageNum))
                 goto err_return;
@@ -278,7 +269,6 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             // redistribution entre le noeud courant et le nouveau noeud
             if(rc = RedistributeValuesAndChildren<T,n>(pBuffer, newPageBuffer, medianChildValue, medianParentValue, newChildPageNum))
                 goto err_return;
-            cout << "mise à jour du parent des enfants" << endl;
             // on met à jour le parent des enfants du nouveau noeuds
             for(int i=0;i<newPageBuffer->nbFilledSlots+1;i++)
             {
@@ -314,7 +304,6 @@ RC IX_IndexHandle::InsertEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             }
             // on met à jour le fils le plus à gauche
 
-            cout << endl;
             if(rc = ReleaseBuffer(newNodePageNum, true))
                 return rc;
         }
@@ -412,7 +401,7 @@ RC IX_IndexHandle::InsertEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
     if(bucketPageNum == IX_EMPTY)
     {
         cout << "Error: bucket page empty" << endl;
-        return 1;
+        return IX_INVALID_PAGE_NUMBER;
     }
 
     // insert the value in the bucket
@@ -473,14 +462,12 @@ RC IX_IndexHandle::RedistributeValuesAndChildren(IX_PageNode<T,n> *pBufferCurren
             {
                 copyGeneric(array[j], pBufferNewNode->v[j-slotOffset-1]);
                 pBufferNewNode->nbFilledSlots++;
-                cout << array[j] << "/";
             }
         // on met à jour les buckets pour être cohérent
             pBufferNewNode->child[j-slotOffset] = child[j];
         // on incrémente le nombre slots remplis
         }
     }
-    cout << endl;
     return OK_RC;
 }
 
@@ -492,8 +479,7 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T,n> *pBufferCurrent
 
     int slotOffset = nEntries/2;
 
-    cout << "--- redistribution --" << endl;
-    cout << "--- before :" << endl;
+    cout << "Redistribution" << endl;
 
     // on remplit le nouveau tableau avec les valeurs de la feuille gauche
     int i;
@@ -502,17 +488,13 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T,n> *pBufferCurrent
     {
         copyGeneric(pBufferCurrentLeaf->v[i], arr[i]);
         buck[i] = pBufferCurrentLeaf->bucket[i];
-        cout << i << ":(" << arr[i] << "," << buck[i] << ") " ;
     }
-    cout << "i:"<< i << " ";
     // on remplit le nouveau tableau avec les valeurs de la feuille droite
     for(int j=0;j<pBufferNewLeaf->nbFilledSlots;j++)
     {
         copyGeneric(pBufferNewLeaf->v[j], arr[j+i]);
         buck[i+j] = pBufferNewLeaf->bucket[j];
-        cout << i+j << ":(" << arr[i+j] << "," << buck[i+j] <<") " ;
     }
-    cout << endl;
     // mode pour la suppresion sans ajouter la valeur qui fait splitter
     if(!redistributionOnly)
     {
@@ -529,7 +511,6 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T,n> *pBufferCurrent
     pBufferCurrentLeaf->nbFilledSlots = 0;
     pBufferNewLeaf->nbFilledSlots = 0;
     // redistribution des valeurs
-    cout << "--- after :" << endl;
     for(int j=0;j<nEntries;j++)
     {
         if(j<slotOffset){
@@ -538,7 +519,6 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T,n> *pBufferCurrent
             pBufferCurrentLeaf->bucket[j] = buck[j];
             // on incrémente le nombre slots remplis
             pBufferCurrentLeaf->nbFilledSlots++;
-            cout << "(" << arr[j] << "," << buck[j] <<")" ;
         } else {
         // on copie la valeur dans la nouvelle feuille
             copyGeneric(arr[j], pBufferNewLeaf->v[j-slotOffset]);
@@ -546,10 +526,8 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T,n> *pBufferCurrent
             pBufferNewLeaf->bucket[j-slotOffset] = buck[j];
         // on incrémente le nombre slots remplis
             pBufferNewLeaf->nbFilledSlots++;
-            cout << "(" << arr[j] << "," << buck[j] <<")" ;
         }
     }
-    cout << endl;
     return OK_RC;
 }
 
@@ -557,7 +535,6 @@ RC IX_IndexHandle::RedistributeValuesAndBuckets(IX_PageLeaf<T,n> *pBufferCurrent
 RC IX_IndexHandle::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
 {
     RC rc = OK_RC;
-    cout << iPageNum << endl;
     char *pBuffer;
     // get the current bucket
     if(rc = GetPageBuffer(iPageNum, pBuffer))
@@ -639,7 +616,7 @@ RC IX_IndexHandle::DeleteEntry_t(T iValue, const RID &rid)
 
 
     pageNum = fileHdr.rootNum;
-    cout << " ###### start deleting #######" << iValue <<endl;
+    cout << "Deletion start - Value to remove: " << iValue <<endl;
     // no root, create one
     if(pageNum == IX_EMPTY)
     {
@@ -1019,12 +996,9 @@ RC IX_IndexHandle::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &ri
             {
                 // on propage la nouvelle valeur minimum au père
                 cout << "propag" << endl;
-//                if(rc = GetNodePageBuffer(pBuffer->child[pointerIndex], pRedistNodeBuffer))
-//                    goto err_return;
+
                 parentStatus = UPDATE_ONLY;
                 copyGeneric(updatedChildValue, updatedParentValue);
-//                if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
-//                    goto err_return;
             }
             else
             {
@@ -1398,7 +1372,6 @@ RC IX_IndexHandle::DeleteEntryInLeaf_t(PageNum iPageNum, T iValue, const RID &ri
                             goto err_return;
                         if(rc = ReleaseBuffer(pBuffer->next, true))
                             goto err_return;
-                        cout << "-- end merge right ---" << endl;
                         parentStatus = MERGE_RIGHT;
                         // en fait c'est un merge du voisin de droite vers lui même
                     }
@@ -1512,25 +1485,14 @@ RC IX_IndexHandle::MergeValuesAndBuckets(IX_PageLeaf<T,n> *pBufferCurrentLeaf, I
 template <typename T, int n>
 RC IX_IndexHandle::DeleteNodeValue(IX_PageNode<T,n> *pBuffer, const int & slotIndex, const int nEntries)
 {
-    T arr[nEntries-1];
-    PageNum child[nEntries];
-    int j=0;
-    cout << "---- Delete node value ----" << endl;
-    for(int i=0;i<pBuffer->nbFilledSlots;i++)
+    for(int i=slotIndex+1; i<pBuffer->nbFilledSlots; i++)
     {
-        if(i != slotIndex)
-        {
-            copyGeneric(pBuffer->v[i], arr[j]);
-            child[j] = pBuffer->child[i+1];
-            j++;
-        }
+        copyGeneric(pBuffer->v[i], pBuffer->v[i-1]);
+        pBuffer->child[i] = pBuffer->child[i+1];
     }
-    pBuffer->nbFilledSlots = nEntries-1;
-    for(int i=0;i<nEntries-1;i++)
-    {
-        copyGeneric(arr[i],pBuffer->v[i]);
-        pBuffer->child[i+1] = child[i];
-    }
+
+    pBuffer->nbFilledSlots--;
+
     return OK_RC;
 }
 
