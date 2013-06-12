@@ -1,8 +1,10 @@
 Design général
+______________
 
 Nous avons choisi d'implémenter un arbre B+ maintenant en permanence son équilibre et la condition de remplissage. Après avoir lu quelques articles sur la suppression dans les arbres B+ notamment l'article "Implementing Deletion in B+-Trees" par J. Jannink nous voulions implémenter la "lazy deletion" mais comme nous ne faisons pas face à des soucis de concurrence nous avons décidé d'implémenter la méthode complète de suppression sur l'arbre. Les fonctions utilisées pour le parcourir sont récursives. La recherche de valeurs dans les noeuds et les feuilles s'effectue par dichotomie. 
 
 Structures de données
+_____________________
 
 L'arbre B+ est gardé en mémoire de la façon suivante :
 - un noeud est stocké dans une page ;
@@ -13,6 +15,7 @@ Afin d'éviter d'utiliser des memcpy et de calculer à la main des décallages, ce 
 
 
 Procédures de test
+_________________
 
 Afin de tester notre programme, nous avons tout d'abord implémenté une exportation en .graphml pour visualiser l'arbre B+. A tout moment, nous pouvons consulter l'état de l'arbre, ce qui accélère la maintenance du code.
 Par ailleurs, nous avons ajouté plusieurs fonctions de test à ix_test.cc afin d'effectuer des vérifications spécifiques, notamment sur les divers cas possibles lors d'une suppression : redistribution à droite ou à gauche et fusion à droite ou à gauche au niveau des feuilles et des noeuds, remontée d'information, etc.
@@ -22,6 +25,7 @@ Aucune fuite mémoire n'a été découverte.
 
 
 Bugs connus
+___________
 
 Nous n'avons ce jour pas connaissance de bugs présents dans notre module IX.
 La limitation de l'ordre du million d'insertion provient de la taille du fichier géré par PF. Lors de nos tests de charge sur les machines en c133 nous avons constaté une limitation dûe à notre compte unix ou autre : "Disk quota exceeded" cela est arrivé lorsque le fichier d'index dépassait le Go. Une dernière limitation concerne le nombre d'entrées possédant la même clé, nous avons limité chaque bucket à une page de RIDs.
