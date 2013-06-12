@@ -208,6 +208,9 @@ private:
     template <typename T, int n>
     RC ComputeNextLeafSlot(PageNum &ioLeafNum, int &ioSlotIndex, void *oValue);
 
+    template <typename T, int n>
+    RC ReadFirstValue(PageNum &iLeafNum, int &iSlotIndex, void * oValue);
+
     IX_IndexHandle _indexHandle;
     CompOp _compOp;
     void * _value;
