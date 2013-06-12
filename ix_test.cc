@@ -664,7 +664,7 @@ RC Test4(void)
     IX_IndexHandle ih;
     int            index=0;
     int            i;
-    int            value=FEW_ENTRIES/2;
+    int            value=FEW_ENTRIES;
     RID            rid;
 
     printf("Test4: Inequality scans... \n");
@@ -676,21 +676,17 @@ RC Test4(void)
 
     printf("Test4: Scan test. Fist, insert entries. Second, delete some of them by scan-delete. Third, perform some scans.\n");
 
+
     if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
             (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
-            (rc = InsertSequelOfInt(ih, sequel, sequelLength)))
-        return rc;
-
-    //    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
-    //            (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
-    //            (rc = InsertIntEntries(ih, FEW_ENTRIES)))
-    //        return (rc);
+            (rc = InsertIntEntries(ih, FEW_ENTRIES)))
+        return (rc);
 
 
     //    // Scan-deletion with >= OP
     printf("Scan-deletion with >= OP for %d\n", value);
     IX_IndexScan scandel;
-    if ((rc = scandel.OpenScan(ih, NO_OP, NULL))) {
+    if ((rc = scandel.OpenScan(ih, GE_OP, &value))) {
         printf("Scan error: opening scan\n");
         return (rc);
     }

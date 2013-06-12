@@ -138,8 +138,38 @@ RC IX_IndexScan::OpenScan_t()
                 goto err_return;
         }
         break;
+    case GE_OP:
+        // to fix >= for a value > than all the values in the tree
+        if(!_isValueInTree)
+        {
+            if((rc = GreaterOnTheRight<T,n>(_nextLeafNum, _nextLeafSlot, _value)))
+            {
+                if(rc == IX_EOF)
+                {
+                    _nextLeafNum = IX_EMPTY;
+                    _nextLeafSlot = IX_EMPTY;
+                }
+                else
+                    goto err_return;
+            }
+        }
+        break;
     case GT_OP:
-        if(_isValueInTree)
+        // to fix > for a value > than all the values in the tree
+        if(!_isValueInTree)
+        {
+            if((rc = GreaterOnTheRight<T,n>(_nextLeafNum, _nextLeafSlot, _value)))
+            {
+                if(rc == IX_EOF)
+                {
+                    _nextLeafNum = IX_EMPTY;
+                    _nextLeafSlot = IX_EMPTY;
+                }
+                else
+                    goto err_return;
+            }
+        }
+        else if(_isValueInTree)
         {
             if((rc = ComputeNextLeafSlot<T,n>(_nextLeafNum, _nextLeafSlot, _nextValue)))
                 goto err_return;
@@ -168,7 +198,7 @@ RC IX_IndexScan::OpenScan_t()
         break;
     }
 
-    return rc;
+    return OK_RC;
 
 
 err_return:
@@ -311,6 +341,7 @@ RC IX_IndexScan::ScanLeaf_t(PageNum iPageNum, const void *iValue, PageNum &oLeaf
 
         if(_direction == LEFT)
         {
+
             if((rc = ComputePreviousLeafSlot<T,n>(oLeafNum, oSlotIndex, oValue)))
                 goto err_return;
         }
@@ -552,9 +583,7 @@ RC IX_IndexScan::ReadBucket(PageNum iPageNum, RID &rid)
     if(rc = _pIndexHandle->GetPageBuffer(iPageNum, pBuffer))
         goto err_return;
 
-    // set the rid
-    //    cout << "Nb Filled Slot: " << ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots << endl;
-
+    // get the rid
     memcpy((void*) &rid,
            pBuffer + sizeof(IX_PageBucketHdr) + _nextBucketSlot * sizeof(RID), sizeof(RID));
 
@@ -718,6 +747,38 @@ RC IX_IndexScan::ReadFirstValue(PageNum &iLeafNum, int &iSlotIndex, void * oValu
         goto err_return;
 
     copyGeneric(pBuffer->v[iSlotIndex], *((T*) oValue));
+
+    if(rc = _pIndexHandle->ReleaseBuffer(iLeafNum, false))
+        goto err_return;
+
+    return rc;
+
+err_return:
+    return rc;
+}
+
+template <typename T, int n>
+RC IX_IndexScan::GreaterOnTheRight(const PageNum iLeafNum, const int iSlotIndex, const void * oValue)
+{
+    RC rc = OK_RC;
+    IX_PageLeaf<T,n> *pBuffer;
+    int comparison;
+
+    if(iLeafNum == IX_EMPTY)
+        return IX_EOF;
+
+    if(rc = _pIndexHandle->GetLeafPageBuffer(iLeafNum, pBuffer))
+        goto err_return;
+
+    comparison = comparisonGeneric(pBuffer->v[iSlotIndex], *((T*) oValue));
+
+    if(comparison < 0 && pBuffer->next == IX_EMPTY)
+    {
+        if(rc = _pIndexHandle->ReleaseBuffer(iLeafNum, false))
+            goto err_return;
+
+        return IX_EOF;
+    }
 
     if(rc = _pIndexHandle->ReleaseBuffer(iLeafNum, false))
         goto err_return;

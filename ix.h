@@ -211,6 +211,9 @@ private:
     template <typename T, int n>
     RC ReadFirstValue(PageNum &iLeafNum, int &iSlotIndex, void * oValue);
 
+    template <typename T, int n>
+    RC GreaterOnTheRight(const PageNum iLeafNum, const int iSlotIndex, const void * oValue);
+
     const IX_IndexHandle *_pIndexHandle;
     CompOp _compOp;
     void * _value;
