@@ -690,7 +690,7 @@ RC Test4(void)
     //    // Scan-deletion with >= OP
     printf("Scan-deletion with >= OP for %d\n", value);
     IX_IndexScan scandel;
-    if ((rc = scandel.OpenScan(ih, LE_OP, &value))) {
+    if ((rc = scandel.OpenScan(ih, NO_OP, NULL))) {
         printf("Scan error: opening scan\n");
         return (rc);
     }

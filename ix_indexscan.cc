@@ -447,13 +447,12 @@ RC IX_IndexScan::GetNextEntry_t(RID &rid)
             if((rc = _pIndexHandle->GetLeafPageBuffer(leafNum, pBuffer)))
                 goto err_return;
 
-            // check if the slot exists
+            // check if the slot exists, otherwise the tree does not contain any more entry
             if(_nextLeafSlot >= pBuffer->nbFilledSlots)
             {
-                cout << "Scan: débordement mémoire" << endl;
                 if((rc = _pIndexHandle->ReleaseBuffer(leafNum, false)))
                     goto err_return;
-                return IX_ARRAY_OVERFLOW;
+                return IX_EOF;
             }
         }
     }
