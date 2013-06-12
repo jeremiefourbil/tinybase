@@ -1,27 +1,31 @@
-Design gÃ©nÃ©ral
+Design général
+______________
 
-Nous avons choisi d'implÃ©menter un arbre B+ maintenant en permanence son Ã©quilibre et la condition de remplissage.
-Les fonctions utilisÃ©es pour le parcourir sont rÃ©cursives.
+Nous avons choisi d'implémenter un arbre B+ maintenant en permanence son équilibre et la condition de remplissage. Après avoir lu quelques articles sur la suppression dans les arbres B+ notamment l'article "Implementing Deletion in B+-Trees" par J. Jannink nous voulions implémenter la "lazy deletion" mais comme nous ne faisons pas face à des soucis de concurrence nous avons décidé d'implémenter la méthode complète de suppression sur l'arbre. Les fonctions utilisées pour le parcourir sont récursives. La recherche de valeurs dans les noeuds et les feuilles s'effectue par dichotomie. 
 
-Structures de donnÃ©es
+Structures de données
+_____________________
 
-L'arbre B+ est gardÃ© en mÃ©moire de la faÃ§on suivante :
-- un noeud est stockÃ© dans une page ;
-- une feuille est stockÃ©e dans une page ;
-- les RIDs associÃ©s Ã  une valeur sont stockÃ©s dans une page.
+L'arbre B+ est gardé en mémoire de la façon suivante :
+- un noeud est stocké dans une page ;
+- une feuille est stockée dans une page ;
+- les RIDs associés à une valeur sont stockés dans une page.
 
-Afin d'Ã©viter d'utiliser des memcpy et de calculer Ã  la main des dÃ©callages, ce qui aurait Ã©tÃ© propice Ã  l'insertion d'erreurs, nous avons utilisÃ©, pour les noeuds et les feuilles, des structures C++ associÃ©es Ã  des templates. Nous avons ainsi pu lire et modifier simplement les valeurs enregistrÃ©es. Les templates servent Ã  garantir la gÃ©nÃ©ricitÃ© du type et Ã  utiliser des tableaux de taille fixe une fois l'ordre de l'arbre calculÃ©.
+Afin d'éviter d'utiliser des memcpy et de calculer à la main des décallages, ce qui aurait été propice à l'insertion d'erreurs, nous avons utilisé, pour les noeuds et les feuilles, des structures C++ associées à des templates. Nous avons ainsi pu lire et modifier simplement les valeurs enregistrées. Les templates servent à garantir la généricité du type et à utiliser des tableaux de taille fixe une fois l'ordre de l'arbre calculé.
 
 
-ProcÃ©dures de test
+Procédures de test
+_________________
 
-Afin de tester notre programme, nous avons tout d'abord implÃ©mentÃ© une exportation en .graphml pour visualiser l'arbre B+. A tout moment, nous pouvons consulter l'Ã©tat de l'arbre, ce qui accÃ©lÃ¨re la maintenance du code.
-Par ailleurs, nous avons ajoutÃ© plusieurs fonctions de test Ã  ix_test.cc afin d'effectuer des vÃ©rifications spÃ©cifiques, notamment sur les divers cas possibles lors d'une suppression : redistribution Ã  droite ou Ã  gauche et fusion Ã  droite ou Ã  gauche au niveau des feuilles et des noeuds, remontÃ©e d'information, etc.
-Avant d'arriver Ã  traiter tous les cas de suppression, nous nous sommes initiÃ©s Ã  gdb et valgrind.
-Aucune fuite mÃ©moire n'a Ã©tÃ© dÃ©couverte.
+Afin de tester notre programme, nous avons tout d'abord implémenté une exportation en .graphml pour visualiser l'arbre B+. A tout moment, nous pouvons consulter l'état de l'arbre, ce qui accélère la maintenance du code.
+Par ailleurs, nous avons ajouté plusieurs fonctions de test à ix_test.cc afin d'effectuer des vérifications spécifiques, notamment sur les divers cas possibles lors d'une suppression : redistribution à droite ou à gauche et fusion à droite ou à gauche au niveau des feuilles et des noeuds, remontée d'information, etc.
+Afin d'augmenter la probabilité de détection d'erreurs, nous avons fait tourné en boucle des tests aléatoires de remplissage, de suppression et de scans qui ont effectivement mis en lumière des cas pathologiques.
+Avant d'arriver à traiter tous les cas de suppression, nous nous sommes initiés à gdb et valgrind.
+Aucune fuite mémoire n'a été découverte.
 
 
 Bugs connus
+___________
 
-Nous n'avons ce jour pas connaissance de bugs prÃ©sents dans notre module IX.
-La limitation de l'ordre du million d'insertion provient de la taille du fichier gÃ©rÃ© par PF.
+Nous n'avons ce jour pas connaissance de bugs présents dans notre module IX.
+La limitation de l'ordre du million d'insertion provient de la taille du fichier géré par PF. Lors de nos tests de charge sur les machines en c133 nous avons constaté une limitation dûe à notre compte unix ou autre : "Disk quota exceeded" cela est arrivé lorsque le fichier d'index dépassait le Go. Une dernière limitation concerne le nombre d'entrées possédant la même clé, nous avons limité chaque bucket à une page de RIDs.
