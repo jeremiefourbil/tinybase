@@ -536,11 +536,35 @@ RC IX_IndexHandle::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
 {
     RC rc = OK_RC;
     char *pBuffer;
+    RID tempRID;
+
     // get the current bucket
     if(rc = GetPageBuffer(iPageNum, pBuffer))
         goto err_return;
 
-    // WARNING: DOES NOT SUPPORT OVERFLOW
+    // overflow detection
+    if((((IX_PageBucketHdr *)pBuffer)->nbFilledSlots + 1) * sizeof(RID) > PF_PAGE_SIZE - sizeof(IX_PageBucketHdr))
+    {
+        if(rc = ReleaseBuffer(iPageNum, false))
+            goto err_return;
+
+        return IX_BUCKET_OVERFLOW;
+    }
+
+    // check if the RID is already in there
+    for(int i=0; i<((IX_PageBucketHdr *)pBuffer)->nbFilledSlots; i++)
+    {
+        memcpy(pBuffer + sizeof(IX_PageBucketHdr) + i * sizeof(RID),
+         &tempRID, sizeof(RID));
+
+        if(rid == tempRID)
+        {
+            if(rc = ReleaseBuffer(iPageNum, false))
+                goto err_return;
+
+            return IX_RID_ALREADY_IN_BUCKET;
+        }
+    }
 
     memcpy(pBuffer + sizeof(IX_PageBucketHdr) + ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots * sizeof(RID),
      &rid, sizeof(RID));
@@ -566,7 +590,6 @@ RC IX_IndexHandle::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
 RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid)
 {
     RC rc;
-    IX_PageLeaf<int,order_INT> *pLeaf, *pLeaf2;
 
     if (pData == NULL)
         return (IX_NULLPOINTER);
@@ -574,19 +597,7 @@ RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid)
     switch(fileHdr.attrType)
     {
         case INT:
-        if(* ((int *) pData) == 47)
-        {
-//            GetLeafPageBuffer(39, pLeaf);
-//            GetLeafPageBuffer(39, pLeaf2);
-        }
-
         rc = DeleteEntry_t<int,order_INT>(* ((int *) pData), rid);
-
-        if(* ((int *) pData) == 47)
-        {
-//            ReleaseBuffer(39, false);
-//            ReleaseBuffer(39, false);
-        }
         break;
         case FLOAT:
         rc = DeleteEntry_t<float,order_FLOAT>(* ((float *) pData), rid);
