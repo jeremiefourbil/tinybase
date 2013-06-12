@@ -27,6 +27,10 @@ RC IX_Manager::CreateIndex(const char *fileName, int indexNo,
 
     const char *realFileName = GenerateFileName(fileName, indexNo);
 
+    // Verify that the index should be a positive number
+    if(indexNo < 0)
+        return IX_NON_POSITIVE_INDEX_NUMBER;
+
     // Sanity Check: recordSize should not be too large (or small)
     // Note that PF_Manager::CreateFile() will take care of fileName
     if (sizeof(IX_FileHdr) >= PF_PAGE_SIZE)

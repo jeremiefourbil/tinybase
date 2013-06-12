@@ -271,7 +271,8 @@ void IX_PrintError(RC rc);
 #define IX_DELETE_INVALID_CASE          (START_IX_ERR - 6)
 #define IX_BUCKET_OVERFLOW              (START_IX_ERR - 7)
 #define IX_RID_ALREADY_IN_BUCKET        (START_IX_ERR - 8)
-#define IX_LASTERROR          IX_DELETE_INVALID_CASE
+#define IX_NON_POSITIVE_INDEX_NUMBER    (START_IX_ERR - 9)
+#define IX_LASTERROR          IX_NON_POSITIVE_INDEX_NUMBER
 //#define RM_INVALIDRECSIZE  (START_RM_WARN + 2) // invalid record size
 //#define RM_INVALIDSLOTNUM  (START_RM_WARN + 3) // invalid slot number
 //#define RM_RECORDNOTFOUND  (START_RM_WARN + 4) // record not found

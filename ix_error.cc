@@ -35,7 +35,8 @@ static char *IX_ErrorMsg[] = {
     (char*)"invalid page number",
     (char*)"delete case invalid",
     (char*)"the bucket cannot store anymore RID",
-    (char*)"the bucket already contains this RID"
+    (char*)"the bucket already contains this RID",
+    (char*)"the index number should be a positive number"
     //  (char*)"invalid file name"
 };
 
