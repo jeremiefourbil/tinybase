@@ -16,6 +16,7 @@ IX_BTree::IX_BTree()
 
 IX_BTree::~IX_BTree()
 {
+    _pPfFileHandle = NULL;
 }
 
 
@@ -172,7 +173,7 @@ RC IX_BTree::InsertEntry_t(T iValue, const RID &rid)
     return rc;
 
     err_unpin:
-    pfFileHandle.UnpinPage(pageNum);
+    _pPfFileHandle->UnpinPage(pageNum);
     err_return:
     return (rc);
 }
@@ -692,7 +693,7 @@ RC IX_BTree::DeleteEntry_t(T iValue, const RID &rid)
                         goto err_return;
 
                     // delete the node
-                    if(rc = pfFileHandle.DisposePage(pageNum))
+                    if(rc = _pPfFileHandle->DisposePage(pageNum))
                         goto err_return;
 
                     if(fileHdr.height > 0)
@@ -872,7 +873,7 @@ RC IX_BTree::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, T &
             if(rc = ReleaseBuffer(pBuffer->child[pointerIndex], false))
                 goto err_return;
             // supprimer la page fils
-            if(rc = pfFileHandle.DisposePage(pBuffer->child[pointerIndex]))
+            if(rc = _pPfFileHandle->DisposePage(pBuffer->child[pointerIndex]))
                 goto err_return;
             pBuffer->child[pointerIndex] = IX_EMPTY;
 
@@ -930,7 +931,7 @@ RC IX_BTree::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, T &
 
 
 
-            if(rc = pfFileHandle.DisposePage(tempPageNum))
+            if(rc = _pPfFileHandle->DisposePage(tempPageNum))
                 goto err_return;
             pBuffer->child[pointerIndex+1] = IX_EMPTY;
             if(pointerIndex == 0)
@@ -1159,7 +1160,7 @@ RC IX_BTree::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, T &
                     goto err_return;
 
                 // delete the node
-                if(rc = pfFileHandle.DisposePage(pBuffer->child[pointerIndex-1]))
+                if(rc = _pPfFileHandle->DisposePage(pBuffer->child[pointerIndex-1]))
                     goto err_return;
 
                 pBuffer->child[pointerIndex-1] = IX_EMPTY;
@@ -1218,7 +1219,7 @@ RC IX_BTree::DeleteEntryInNode_t(PageNum iPageNum, T iValue, const RID &rid, T &
                     goto err_return;
 
                 // delete the node
-                if(rc = pfFileHandle.DisposePage(pBuffer->child[pointerIndex+1]))
+                if(rc = _pPfFileHandle->DisposePage(pBuffer->child[pointerIndex+1]))
                     goto err_return;
 
                 pBuffer->child[pointerIndex+1] = IX_EMPTY;
@@ -1559,7 +1560,7 @@ RC IX_BTree::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
     // if the bucket page is empty, delete it
     if(filledSlots == 0)
     {
-        if(rc = pfFileHandle.DisposePage(ioPageNum))
+        if(rc = _pPfFileHandle->DisposePage(ioPageNum))
             goto err_return;
 
         ioPageNum = IX_EMPTY;
@@ -1586,7 +1587,7 @@ RC IX_BTree::AllocateNodePage_t(const NodeType nodeType, const PageNum parent, P
     PF_PageHandle pageHandle;
     char *pReadData;
 
-    if (rc = pfFileHandle.AllocatePage(pageHandle))
+    if (rc = _pPfFileHandle->AllocatePage(pageHandle))
         goto err_return;
 
     if (rc = pageHandle.GetPageNum(oPageNum))
@@ -1609,18 +1610,18 @@ RC IX_BTree::AllocateNodePage_t(const NodeType nodeType, const PageNum parent, P
 
 
     // Mark the page dirty since we changed the next pointer
-    if (rc = pfFileHandle.MarkDirty(oPageNum))
+    if (rc = _pPfFileHandle->MarkDirty(oPageNum))
         goto err_unpin;
 
     // Unpin the page
-    if (rc = pfFileHandle.UnpinPage(oPageNum))
+    if (rc = _pPfFileHandle->UnpinPage(oPageNum))
         goto err_return;
 
     // Return ok
     return (0);
 
     err_unpin:
-    pfFileHandle.UnpinPage(oPageNum);
+    _pPfFileHandle->UnpinPage(oPageNum);
     err_return:
     return (rc);
 }
@@ -1633,7 +1634,7 @@ RC IX_BTree::AllocateLeafPage_t(const PageNum parent, PageNum &oPageNum)
     PF_PageHandle pageHandle;
     char *pReadData;
 
-    if (rc = pfFileHandle.AllocatePage(pageHandle))
+    if (rc = _pPfFileHandle->AllocatePage(pageHandle))
         goto err_return;
 
     if (rc = pageHandle.GetPageNum(oPageNum))
@@ -1655,18 +1656,18 @@ RC IX_BTree::AllocateLeafPage_t(const PageNum parent, PageNum &oPageNum)
     }
 
     // Mark the page dirty since we changed the next pointer
-    if (rc = pfFileHandle.MarkDirty(oPageNum))
+    if (rc = _pPfFileHandle->MarkDirty(oPageNum))
         goto err_unpin;
 
     // Unpin the page
-    if (rc = pfFileHandle.UnpinPage(oPageNum))
+    if (rc = _pPfFileHandle->UnpinPage(oPageNum))
         goto err_return;
 
     // Return ok
     return (0);
 
     err_unpin:
-    pfFileHandle.UnpinPage(oPageNum);
+    _pPfFileHandle->UnpinPage(oPageNum);
     err_return:
     return (rc);
 }
@@ -1678,7 +1679,7 @@ RC IX_BTree::AllocateBucketPage(const PageNum parent, PageNum &oPageNum)
     PF_PageHandle pageHandle;
     char *pReadData;
 
-    if (rc = pfFileHandle.AllocatePage(pageHandle))
+    if (rc = _pPfFileHandle->AllocatePage(pageHandle))
         goto err_return;
 
     if (rc = pageHandle.GetPageNum(oPageNum))
@@ -1693,18 +1694,18 @@ RC IX_BTree::AllocateBucketPage(const PageNum parent, PageNum &oPageNum)
     ((IX_PageBucketHdr *)pReadData)->nbFilledSlots = 0;
 
     // Mark the page dirty since we changed the next pointer
-    if (rc = pfFileHandle.MarkDirty(oPageNum))
+    if (rc = _pPfFileHandle->MarkDirty(oPageNum))
         goto err_unpin;
 
     // Unpin the page
-    if (rc = pfFileHandle.UnpinPage(oPageNum))
+    if (rc = _pPfFileHandle->UnpinPage(oPageNum))
         goto err_return;
 
     // Return ok
     return (0);
 
     err_unpin:
-    pfFileHandle.UnpinPage(oPageNum);
+    _pPfFileHandle->UnpinPage(oPageNum);
     err_return:
     return (rc);
 }
@@ -1720,7 +1721,7 @@ RC IX_BTree::GetPageBuffer(const PageNum &iPageNum, char * & pBuffer) const
     RC rc;
     PF_PageHandle pageHandle;
 
-    if(rc = pfFileHandle.GetThisPage(iPageNum, pageHandle))
+    if(rc = _pPfFileHandle->GetThisPage(iPageNum, pageHandle))
         goto err_return;
 
     if (rc = pageHandle.GetData(pBuffer))
@@ -1729,7 +1730,7 @@ RC IX_BTree::GetPageBuffer(const PageNum &iPageNum, char * & pBuffer) const
     return (0);
 
     err_unpin:
-    pfFileHandle.UnpinPage(iPageNum);
+    _pPfFileHandle->UnpinPage(iPageNum);
     err_return:
     return (rc);
 }
@@ -1768,18 +1769,18 @@ RC IX_BTree::ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const
     // Mark the page dirty since we changed the next pointer
     if(isDirty)
     {
-        if (rc = pfFileHandle.MarkDirty(iPageNum))
+        if (rc = _pPfFileHandle->MarkDirty(iPageNum))
             goto err_unpin;
     }
 
     // Unpin the page
-    if (rc = pfFileHandle.UnpinPage(iPageNum))
+    if (rc = _pPfFileHandle->UnpinPage(iPageNum))
         goto err_return;
 
     return (0);
 
     err_unpin:
-    pfFileHandle.UnpinPage(iPageNum);
+    _pPfFileHandle->UnpinPage(iPageNum);
     err_return:
     return (rc);
 

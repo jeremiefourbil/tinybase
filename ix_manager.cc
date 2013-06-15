@@ -152,7 +152,7 @@ RC IX_Manager::OpenIndex(const char *fileName, int indexNo,
     memcpy(&indexHandle.pBTree->fileHdr, pData, sizeof(indexHandle.pBTree->fileHdr));
 
     // Unpin the header page
-    if (rc = indexHandle.pfFileHandle.UnpinPage(IX_HEADER_PAGE_NUM))
+    if(rc = indexHandle.pfFileHandle.UnpinPage(IX_HEADER_PAGE_NUM))
        // Should not happen
        goto err_close;
 

@@ -71,7 +71,7 @@ public:
         PageNum bucket[n];
     };
 
-    void setFileHandle(PF_FileHandle & iPfFileHandle) { pfFileHandle = iPfFileHandle; }
+    void setFileHandle(PF_FileHandle & iPfFileHandle) { _pPfFileHandle = &iPfFileHandle; }
 
     // Insert a new index entry
     RC InsertEntry(void *pData, const RID &rid);
@@ -179,7 +179,7 @@ private:
 
 
 
-    PF_FileHandle pfFileHandle;
+    PF_FileHandle *_pPfFileHandle;
     IX_FileHdr fileHdr;
 };
 

@@ -36,7 +36,7 @@ RC IX_IndexHandle::InsertEntry(void *pData, const RID &rid)
     if (pData == NULL)
         return (IX_NULLPOINTER);
 
-    pBTree->InsertEntry(pData, rid);
+    rc = pBTree->InsertEntry(pData, rid);
 
     return rc;
 }
@@ -54,7 +54,7 @@ RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid)
     if (pData == NULL)
         return (IX_NULLPOINTER);
 
-    pBTree->DeleteEntry(pData, rid);
+    rc = pBTree->DeleteEntry(pData, rid);
 
     return rc;
 }
