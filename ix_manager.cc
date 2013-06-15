@@ -1,5 +1,7 @@
 #include "ix_internal.h"
 
+#include "ix_btree.h"
+
 #include <sstream>
 #include <iostream>
 
@@ -23,7 +25,7 @@ RC IX_Manager::CreateIndex(const char *fileName, int indexNo,
     PF_FileHandle pfFileHandle;
     PF_PageHandle pageHandle;
     char* pData;
-    IX_FileHdr *fileHdr;
+    IX_BTree::IX_FileHdr *fileHdr;
 
     const char *realFileName = GenerateFileName(fileName, indexNo);
 
@@ -33,7 +35,7 @@ RC IX_Manager::CreateIndex(const char *fileName, int indexNo,
 
     // Sanity Check: recordSize should not be too large (or small)
     // Note that PF_Manager::CreateFile() will take care of fileName
-    if (sizeof(IX_FileHdr) >= PF_PAGE_SIZE)
+    if (sizeof(IX_BTree::IX_FileHdr) >= PF_PAGE_SIZE)
        // Test: invalid creation
        return (IX_INSUFFISANT_PAGE_SIZE);
 
@@ -58,7 +60,7 @@ RC IX_Manager::CreateIndex(const char *fileName, int indexNo,
        goto err_unpin;
 
     // Write the file header (to the buffer pool)
-    fileHdr = (IX_FileHdr *) pData;
+    fileHdr = (IX_BTree::IX_FileHdr *) pData;
     fileHdr->rootNum = IX_EMPTY;
     fileHdr->attrLength=attrLength;
     fileHdr->attrType=attrType;
@@ -134,6 +136,8 @@ RC IX_Manager::OpenIndex(const char *fileName, int indexNo,
        // Test: non-existing realFileName, opened fileHandle
        goto err_return;
 
+    indexHandle.pBTree->setFileHandle(indexHandle.pfFileHandle);
+
     // Get the header page
     if (rc = indexHandle.pfFileHandle.GetFirstPage(pageHandle))
        // Test: invalid file
@@ -145,17 +149,12 @@ RC IX_Manager::OpenIndex(const char *fileName, int indexNo,
        goto err_unpin;
 
     // Read the file header (from the buffer pool to RM_FileHandle)
-    memcpy(&indexHandle.fileHdr, pData, sizeof(indexHandle.fileHdr));
+    memcpy(&indexHandle.pBTree->fileHdr, pData, sizeof(indexHandle.pBTree->fileHdr));
 
     // Unpin the header page
     if (rc = indexHandle.pfFileHandle.UnpinPage(IX_HEADER_PAGE_NUM))
        // Should not happen
        goto err_close;
-
-    // TODO: cannot guarantee the validity of file header at this time
-
-    // Set file header to be not changed
-    indexHandle.bHdrChanged = FALSE;
 
     // Return ok
     return (0);
@@ -189,7 +188,7 @@ RC IX_Manager::CloseIndex(IX_IndexHandle &indexHandle)
         goto err_unpin;
 
     // Write the file header (to the buffer pool)
-    memcpy(pData, &indexHandle.fileHdr, sizeof(indexHandle.fileHdr));
+    memcpy(pData, &indexHandle.pBTree->fileHdr, sizeof(IX_BTree::IX_FileHdr));
 
     // Mark the header page as dirty
     if (rc = indexHandle.pfFileHandle.MarkDirty(IX_HEADER_PAGE_NUM))
@@ -200,9 +199,6 @@ RC IX_Manager::CloseIndex(IX_IndexHandle &indexHandle)
     if (rc = indexHandle.pfFileHandle.UnpinPage(IX_HEADER_PAGE_NUM))
         // Should not happen
         goto err_return;
-
-    // Set file header to be not changed
-    indexHandle.bHdrChanged = FALSE;
 
     indexHandle.ForcePages();
 

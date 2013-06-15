@@ -1,5 +1,7 @@
 #include "ix_internal.h"
 
+#include "ix_btree.h"
+
 #include <iostream>
 
 using namespace std;
@@ -33,17 +35,17 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle,
     // Full scan operator
     if(_compOp == NO_OP && _value == NULL)
     {
-        _nextLeafNum = _pIndexHandle->fileHdr.firstLeafNum;
+        _nextLeafNum = _pIndexHandle->pBTree->fileHdr.firstLeafNum;
         _nextLeafSlot = 0;
         _nextBucketSlot = 0;
-        _direction = RIGHT;
+        _direction = IX_BTree::RIGHT;
 
         if(_nextLeafNum == IX_EMPTY)
         {
             return IX_INVALID_PAGE_NUMBER;
         }
 
-        switch(_pIndexHandle->fileHdr.attrType)
+        switch(_pIndexHandle->pBTree->fileHdr.attrType)
         {
         case INT:
             _nextValue = new int();
@@ -70,7 +72,7 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle,
         if (value == NULL)
             return (IX_NULLPOINTER);
 
-        switch(_pIndexHandle->fileHdr.attrType)
+        switch(_pIndexHandle->pBTree->fileHdr.attrType)
         {
         case INT:
             rc = OpenScan_t<int,order_INT>();
@@ -99,18 +101,18 @@ RC IX_IndexScan::OpenScan_t()
     switch(_compOp)
     {
     case EQ_OP:
-        _direction = DONTMOVE;
+        _direction = IX_BTree::DONTMOVE;
         break;
     case LE_OP:
     case LT_OP:
-        _direction = LEFT;
+        _direction = IX_BTree::LEFT;
         break;
     case GT_OP:
     case GE_OP:
-        _direction = RIGHT;
+        _direction = IX_BTree::RIGHT;
         break;
     case NE_OP:
-        _direction = RIGHT;
+        _direction = IX_BTree::RIGHT;
         break;
     default:
         break;
@@ -183,7 +185,7 @@ RC IX_IndexScan::OpenScan_t()
         }
         else if(_nextLeafNum == IX_EMPTY)
         {
-            _direction = LEFT;
+            _direction = IX_BTree::LEFT;
             if((rc = FindInTree_t<T,n>(_value, _nextLeafNum, _nextLeafSlot, _isValueInTree, _nextValue)))
                 goto err_return;
 
@@ -211,7 +213,7 @@ RC IX_IndexScan::FindInTree_t(const void *iValue, PageNum &oLeafNum, int &oSlotI
 {
     RC rc = OK_RC;
 
-    PageNum rootNum = _pIndexHandle->fileHdr.rootNum;
+    PageNum rootNum = _pIndexHandle->pBTree->fileHdr.rootNum;
 
     // no root
     if(rootNum == IX_EMPTY)
@@ -220,7 +222,7 @@ RC IX_IndexScan::FindInTree_t(const void *iValue, PageNum &oLeafNum, int &oSlotI
     }
 
     // root is a leaf
-    if(_pIndexHandle->fileHdr.height == 0)
+    if(_pIndexHandle->pBTree->fileHdr.height == 0)
     {
         if(rc = ScanLeaf_t<T,n>(rootNum, iValue, oLeafNum, oSlotIndex, inTree, oValue))
             goto err_return;
@@ -245,11 +247,11 @@ RC IX_IndexScan::ScanNode_t(PageNum iPageNum, const void *iValue, PageNum &oLeaf
 {
     RC rc = OK_RC;
 
-    IX_PageNode<T,n> *pBuffer;
+    IX_BTree::IX_PageNode<T,n> *pBuffer;
     int pointerIndex;
 
     // get the current node
-    if(rc = _pIndexHandle->GetNodePageBuffer(iPageNum, pBuffer))
+    if(rc = _pIndexHandle->pBTree->GetNodePageBuffer(iPageNum, pBuffer))
         goto err_return;
 
     // find the branch
@@ -257,14 +259,14 @@ RC IX_IndexScan::ScanNode_t(PageNum iPageNum, const void *iValue, PageNum &oLeaf
 
 
     // the child is a leaf
-    if(pBuffer->nodeType == LASTINODE || pBuffer->nodeType == ROOTANDLASTINODE)
+    if(pBuffer->nodeType == IX_BTree::LASTINODE || pBuffer->nodeType == IX_BTree::ROOTANDLASTINODE)
     {
         PageNum childPageNum = pBuffer->child[pointerIndex];
 
         // the leaf is empty
         if(pBuffer->child[pointerIndex] == IX_EMPTY)
         {
-            if(rc = _pIndexHandle->ReleaseBuffer(iPageNum, false))
+            if(rc = _pIndexHandle->pBTree->ReleaseBuffer(iPageNum, false))
                 goto err_return;
 
             return IX_EOF;
@@ -284,7 +286,7 @@ RC IX_IndexScan::ScanNode_t(PageNum iPageNum, const void *iValue, PageNum &oLeaf
         // the node is empty
         if(childPageNum == IX_EMPTY)
         {
-            if(rc = _pIndexHandle->ReleaseBuffer(iPageNum, false))
+            if(rc = _pIndexHandle->pBTree->ReleaseBuffer(iPageNum, false))
                 goto err_return;
 
             return IX_EOF;
@@ -296,7 +298,7 @@ RC IX_IndexScan::ScanNode_t(PageNum iPageNum, const void *iValue, PageNum &oLeaf
         }
     }
 
-    if(rc = _pIndexHandle->ReleaseBuffer(iPageNum, false))
+    if(rc = _pIndexHandle->pBTree->ReleaseBuffer(iPageNum, false))
         goto err_return;
 
     return rc;
@@ -311,12 +313,12 @@ RC IX_IndexScan::ScanLeaf_t(PageNum iPageNum, const void *iValue, PageNum &oLeaf
 {
     RC rc = OK_RC;
 
-    IX_PageLeaf<T,n> *pBuffer;
+    IX_BTree::IX_PageLeaf<T,n> *pBuffer;
     oSlotIndex = -1;
     int comparison;
 
     // get the current node
-    if(rc = _pIndexHandle->GetLeafPageBuffer(iPageNum, pBuffer))
+    if(rc = _pIndexHandle->pBTree->GetLeafPageBuffer(iPageNum, pBuffer))
         goto err_return;
 
     // find the location
@@ -339,7 +341,7 @@ RC IX_IndexScan::ScanLeaf_t(PageNum iPageNum, const void *iValue, PageNum &oLeaf
     {
         oLeafNum = iPageNum;
 
-        if(_direction == LEFT)
+        if(_direction == IX_BTree::LEFT)
         {
 
             if((rc = ComputePreviousLeafSlot<T,n>(oLeafNum, oSlotIndex, oValue)))
@@ -353,7 +355,7 @@ RC IX_IndexScan::ScanLeaf_t(PageNum iPageNum, const void *iValue, PageNum &oLeaf
     }
 
 
-    if(rc = _pIndexHandle->ReleaseBuffer(iPageNum, false))
+    if(rc = _pIndexHandle->pBTree->ReleaseBuffer(iPageNum, false))
         goto err_return;
 
 
@@ -372,7 +374,7 @@ RC IX_IndexScan::GetNextEntry(RID &rid)
 {
     RC rc = OK_RC;
 
-    switch(_pIndexHandle->fileHdr.attrType)
+    switch(_pIndexHandle->pBTree->fileHdr.attrType)
     {
     case INT:
         rc = GetNextEntry_t<int,order_INT>(rid);
@@ -397,7 +399,7 @@ RC IX_IndexScan::GetNextEntry_t(RID &rid)
     RC rc = OK_RC;
     RC rcBucket;
 
-    IX_PageLeaf<T,n> *pBuffer;
+    IX_BTree::IX_PageLeaf<T,n> *pBuffer;
     PageNum leafNum = _nextLeafNum;
 
     bool needToResetSearch = false;
@@ -408,7 +410,7 @@ RC IX_IndexScan::GetNextEntry_t(RID &rid)
     }
 
     // get the current node
-    if((rc = _pIndexHandle->GetLeafPageBuffer(leafNum, pBuffer)))
+    if((rc = _pIndexHandle->pBTree->GetLeafPageBuffer(leafNum, pBuffer)))
     {
         if(rc != PF_INVALIDPAGE)
             goto err_return;
@@ -432,7 +434,7 @@ RC IX_IndexScan::GetNextEntry_t(RID &rid)
 
         if(needToResetSearch)
         {
-            if(rc = _pIndexHandle->ReleaseBuffer(leafNum, false))
+            if(rc = _pIndexHandle->pBTree->ReleaseBuffer(leafNum, false))
                 goto err_return;
         }
     }
@@ -453,10 +455,10 @@ RC IX_IndexScan::GetNextEntry_t(RID &rid)
 
             _nextBucketSlot = 0;
 
-            if(_compOp == NE_OP && _direction == RIGHT && _nextLeafNum == IX_EMPTY)
+            if(_compOp == NE_OP && _direction == IX_BTree::RIGHT && _nextLeafNum == IX_EMPTY)
             {
 
-                _direction = LEFT;
+                _direction = IX_BTree::LEFT;
 
                 if((rc = FindInTree_t<T,n>(_value, _nextLeafNum, _nextLeafSlot, _isValueInTree, _nextValue)))
                     goto err_return;
@@ -475,13 +477,13 @@ RC IX_IndexScan::GetNextEntry_t(RID &rid)
 
             leafNum = _nextLeafNum;
 
-            if((rc = _pIndexHandle->GetLeafPageBuffer(leafNum, pBuffer)))
+            if((rc = _pIndexHandle->pBTree->GetLeafPageBuffer(leafNum, pBuffer)))
                 goto err_return;
 
             // check if the slot exists, otherwise the tree does not contain any more entry
             if(_nextLeafSlot >= pBuffer->nbFilledSlots)
             {
-                if((rc = _pIndexHandle->ReleaseBuffer(leafNum, false)))
+                if((rc = _pIndexHandle->pBTree->ReleaseBuffer(leafNum, false)))
                     goto err_return;
                 return IX_EOF;
             }
@@ -491,7 +493,7 @@ RC IX_IndexScan::GetNextEntry_t(RID &rid)
     // read the rid in the bucket
     rcBucket = ReadBucket(pBuffer->bucket[_nextLeafSlot], rid);
 
-    if(rc = _pIndexHandle->ReleaseBuffer(leafNum, false))
+    if(rc = _pIndexHandle->pBTree->ReleaseBuffer(leafNum, false))
         goto err_return;
 
     rc = rcBucket;
@@ -522,15 +524,15 @@ RC IX_IndexScan::GetNextEntry_t(RID &rid)
                 goto err_return;
             break;
         case NE_OP:
-            // the next is on the right
-            if(_direction == RIGHT)
+            // the next is on the IX_BTree::RIGHT
+            if(_direction == IX_BTree::RIGHT)
             {
                 if((rc = ComputeNextLeafSlot<T,n>(_nextLeafNum, _nextLeafSlot, _nextValue)))
                     goto err_return;
 
                 if(_nextLeafNum == IX_EMPTY)
                 {
-                    _direction = LEFT;
+                    _direction = IX_BTree::LEFT;
                     if((rc = FindInTree_t<T,n>(_value, _nextLeafNum, _nextLeafSlot, _isValueInTree, _nextValue)))
                         goto err_return;
 
@@ -541,7 +543,7 @@ RC IX_IndexScan::GetNextEntry_t(RID &rid)
                     }
                 }
             }
-            else if(_direction == LEFT)
+            else if(_direction == IX_BTree::LEFT)
             {
                 if((rc = ComputePreviousLeafSlot<T,n>(_nextLeafNum, _nextLeafSlot, _nextValue)))
                     goto err_return;
@@ -580,7 +582,7 @@ RC IX_IndexScan::ReadBucket(PageNum iPageNum, RID &rid)
 
 
     // get the current node
-    if(rc = _pIndexHandle->GetPageBuffer(iPageNum, pBuffer))
+    if(rc = _pIndexHandle->pBTree->GetPageBuffer(iPageNum, pBuffer))
         goto err_return;
 
     // get the rid
@@ -594,14 +596,14 @@ RC IX_IndexScan::ReadBucket(PageNum iPageNum, RID &rid)
     if(_nextBucketSlot >= ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots)
     {
         _nextBucketSlot = IX_EMPTY;
-        if(rc = _pIndexHandle->ReleaseBuffer(iPageNum, false))
+        if(rc = _pIndexHandle->pBTree->ReleaseBuffer(iPageNum, false))
             goto err_return;
         return IX_EOF;
     }
 
 
 
-    if(rc = _pIndexHandle->ReleaseBuffer(iPageNum, false))
+    if(rc = _pIndexHandle->pBTree->ReleaseBuffer(iPageNum, false))
         goto err_return;
 
     return rc;
@@ -632,11 +634,11 @@ template <typename T, int n>
 RC IX_IndexScan::ComputePreviousLeafSlot(PageNum &ioLeafNum, int &ioSlotIndex, void *oValue)
 {
     RC rc = OK_RC;
-    IX_PageLeaf<T,n> *pBuffer, *pSecondBuffer;
+    IX_BTree::IX_PageLeaf<T,n> *pBuffer, *pSecondBuffer;
 
     PageNum initialPageNum = ioLeafNum;
 
-    if(rc = _pIndexHandle->GetLeafPageBuffer(initialPageNum, pBuffer))
+    if(rc = _pIndexHandle->pBTree->GetLeafPageBuffer(initialPageNum, pBuffer))
         goto err_return;
 
     _nextBucketSlot = 0;
@@ -652,7 +654,7 @@ RC IX_IndexScan::ComputePreviousLeafSlot(PageNum &ioLeafNum, int &ioSlotIndex, v
 
         if(ioLeafNum != IX_EMPTY)
         {
-            if(rc = _pIndexHandle->GetLeafPageBuffer(ioLeafNum, pSecondBuffer))
+            if(rc = _pIndexHandle->pBTree->GetLeafPageBuffer(ioLeafNum, pSecondBuffer))
                 goto err_return;
 
             if(pSecondBuffer->nbFilledSlots > 0)
@@ -667,12 +669,12 @@ RC IX_IndexScan::ComputePreviousLeafSlot(PageNum &ioLeafNum, int &ioSlotIndex, v
                 ioSlotIndex = IX_EMPTY;
             }
 
-            if(rc = _pIndexHandle->ReleaseBuffer(ioLeafNum, false))
+            if(rc = _pIndexHandle->pBTree->ReleaseBuffer(ioLeafNum, false))
                 goto err_return;
         }
     }
 
-    if(rc = _pIndexHandle->ReleaseBuffer(initialPageNum, false))
+    if(rc = _pIndexHandle->pBTree->ReleaseBuffer(initialPageNum, false))
         goto err_return;
 
     return rc;
@@ -685,11 +687,11 @@ template <typename T, int n>
 RC IX_IndexScan::ComputeNextLeafSlot(PageNum &ioLeafNum, int &ioSlotIndex, void *oValue)
 {
     RC rc = OK_RC;
-    IX_PageLeaf<T,n> *pBuffer, *pSecondBuffer;
+    IX_BTree::IX_PageLeaf<T,n> *pBuffer, *pSecondBuffer;
 
     PageNum initialPageNum = ioLeafNum;
 
-    if(rc = _pIndexHandle->GetLeafPageBuffer(initialPageNum, pBuffer))
+    if(rc = _pIndexHandle->pBTree->GetLeafPageBuffer(initialPageNum, pBuffer))
         goto err_return;
 
     _nextBucketSlot = 0;
@@ -706,7 +708,7 @@ RC IX_IndexScan::ComputeNextLeafSlot(PageNum &ioLeafNum, int &ioSlotIndex, void 
 
         if(ioLeafNum != IX_EMPTY)
         {
-            if(rc = _pIndexHandle->GetLeafPageBuffer(ioLeafNum, pSecondBuffer))
+            if(rc = _pIndexHandle->pBTree->GetLeafPageBuffer(ioLeafNum, pSecondBuffer))
                 goto err_return;
 
             if(pSecondBuffer->nbFilledSlots > 0)
@@ -720,12 +722,12 @@ RC IX_IndexScan::ComputeNextLeafSlot(PageNum &ioLeafNum, int &ioSlotIndex, void 
                 ioSlotIndex = IX_EMPTY;
             }
 
-            if(rc = _pIndexHandle->ReleaseBuffer(ioLeafNum, false))
+            if(rc = _pIndexHandle->pBTree->ReleaseBuffer(ioLeafNum, false))
                 goto err_return;
         }
     }
 
-    if(rc = _pIndexHandle->ReleaseBuffer(initialPageNum, false))
+    if(rc = _pIndexHandle->pBTree->ReleaseBuffer(initialPageNum, false))
         goto err_return;
 
     return rc;
@@ -738,17 +740,17 @@ template <typename T, int n>
 RC IX_IndexScan::ReadFirstValue(PageNum &iLeafNum, int &iSlotIndex, void * oValue)
 {
     RC rc = OK_RC;
-    IX_PageLeaf<T,n> *pBuffer;
+    IX_BTree::IX_PageLeaf<T,n> *pBuffer;
 
     if(iLeafNum == IX_EMPTY)
         return IX_EOF;
 
-    if(rc = _pIndexHandle->GetLeafPageBuffer(iLeafNum, pBuffer))
+    if(rc = _pIndexHandle->pBTree->GetLeafPageBuffer(iLeafNum, pBuffer))
         goto err_return;
 
     copyGeneric(pBuffer->v[iSlotIndex], *((T*) oValue));
 
-    if(rc = _pIndexHandle->ReleaseBuffer(iLeafNum, false))
+    if(rc = _pIndexHandle->pBTree->ReleaseBuffer(iLeafNum, false))
         goto err_return;
 
     return rc;
@@ -761,26 +763,26 @@ template <typename T, int n>
 RC IX_IndexScan::GreaterOnTheRight(const PageNum iLeafNum, const int iSlotIndex, const void * oValue)
 {
     RC rc = OK_RC;
-    IX_PageLeaf<T,n> *pBuffer;
+    IX_BTree::IX_PageLeaf<T,n> *pBuffer;
     int comparison;
 
     if(iLeafNum == IX_EMPTY)
         return IX_EOF;
 
-    if(rc = _pIndexHandle->GetLeafPageBuffer(iLeafNum, pBuffer))
+    if(rc = _pIndexHandle->pBTree->GetLeafPageBuffer(iLeafNum, pBuffer))
         goto err_return;
 
     comparison = comparisonGeneric(pBuffer->v[iSlotIndex], *((T*) oValue));
 
     if(comparison < 0 && pBuffer->next == IX_EMPTY)
     {
-        if(rc = _pIndexHandle->ReleaseBuffer(iLeafNum, false))
+        if(rc = _pIndexHandle->pBTree->ReleaseBuffer(iLeafNum, false))
             goto err_return;
 
         return IX_EOF;
     }
 
-    if(rc = _pIndexHandle->ReleaseBuffer(iLeafNum, false))
+    if(rc = _pIndexHandle->pBTree->ReleaseBuffer(iLeafNum, false))
         goto err_return;
 
     return rc;

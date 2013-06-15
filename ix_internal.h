@@ -36,6 +36,7 @@ struct IX_PageBucketHdr {
     int nbFilledSlots;
 };
 
+
 // copy
 void copyGeneric(const int &v1, int &v2);
 void copyGeneric(const float &v1, float &v2);
@@ -74,11 +75,11 @@ void getPointerIndex(const float *array, const int arrayLength, const float iVal
 void getPointerIndex(const char array[][MAXSTRINGLEN], const int arrayLength, const char iValue[MAXSTRINGLEN], int &oIndex);
 
 // defined in IX_IndexHandle to fix compilation issue
-template <typename T, int n>
-void swapLeafEntries(int i, IX_PageLeaf<T,n> * pBuffer1, int j, IX_PageLeaf<T,n> *pBuffer2);
+//template <typename T, int n>
+//void swapLeafEntries(int i, IX_BTree::IX_PageLeaf<T,n> * pBuffer1, int j, IX_BTree::IX_PageLeaf<T,n> *pBuffer2);
 
-template <typename T, int n>
-void sortLeaf(IX_PageLeaf<T,n> * pBuffer);
+//template <typename T, int n>
+//void sortLeaf(IX_BTree::IX_PageLeaf<T,n> * pBuffer);
 
 //template <typename T, int n>
 //void setOffsetInNode(IX_PageNode<T,n> *pBuffer, const int startIndex, const int offset);
