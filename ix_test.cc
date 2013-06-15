@@ -35,7 +35,7 @@ using namespace std;
 #define STRLEN       39               // length of strings to index
 #define FEW_ENTRIES  20
 #define MANY_ENTRIES 3000
-#define NENTRIES     50          // Size of values array
+#define NENTRIES     5000          // Size of values array
 #define PROG_UNIT    200              // how frequently to give progress
 // reports when adding lots of entries
 
