@@ -10,7 +10,7 @@
 
 
 
-//#define IX_USE_HASH
+#define IX_USE_HASH
 
 
 

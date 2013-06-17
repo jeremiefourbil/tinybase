@@ -185,16 +185,18 @@ int pow2 (const int order)
     {
         out *= 2;
     }
+
+    return out;
 }
 
 int getHash(const int &v1)
 {
-    return v1 % 16;
+    return v1;
 }
 
 int getHash(const float &v1)
 {
-    return ((int) v1) % 16;
+    return ((int) v1);
 }
 
 int getHash(const char* v1)

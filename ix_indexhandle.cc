@@ -116,7 +116,16 @@ RC IX_IndexHandle::DisplayTree()
 {
     RC rc = OK_RC;
 
-    pBTree->DisplayTree();
+    if((rc = pBTree->DisplayTree()))
+        goto err_return;
 
+#ifdef IX_USE_HASH
+    if((rc = pHash->DisplayTree()))
+        goto err_return;
+#endif
+
+    return rc;
+
+err_return:
     return rc;
 }

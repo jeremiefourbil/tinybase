@@ -44,13 +44,18 @@ public:
     // Delete a new index entry
     RC DeleteEntry(void *pData, const RID &rid);
 
+    // Display
+    RC DisplayTree();
+
 private:
 
     // insertion
     template <typename T>
     RC InsertEntry_t(T iValue, const RID &rid);
 
-    RC InsertEntryInBucket(PageNum iPageNum, const RID &rid);
+    RC InsertEntryInBucket(PageNum iPageNum, const int iValue, const RID &rid);
+
+    RC InsertEntryInRidBucket(PageNum iPageNum, const RID &rid);
 
     RC DivideBucketInTwo(const PageNum iBucketNum, PageNum &oBucketNum);
 
@@ -62,11 +67,13 @@ private:
 
     RC DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid);
 
-
+    // print
+    RC DisplayBucket(const PageNum iPageNum);
 
 
     RC AllocateDirectoryPage(PageNum &oPageNum);
     RC AllocateBucketPage(const int depth, PageNum &oPageNum);
+    RC AllocateRidBucketPage(PageNum &oPageNum);
 
     // page management
     RC GetPageBuffer(const PageNum &iPageNum, char * &pBuffer) const;
