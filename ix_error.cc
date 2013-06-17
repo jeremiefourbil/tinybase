@@ -27,7 +27,7 @@ static char *IX_WarnMsg[] = {
 };
 
 static char *IX_ErrorMsg[] = {
-    (char*)"impossible to create index",
+    (char*)"insuffisant page size",
     (char*)"null pointer",
     (char*)"unknown type",
     (char*)"entry does not exist",

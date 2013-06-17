@@ -17,7 +17,6 @@ public:
 
     struct IX_DirectoryHdr {
         int depth;
-        int nbMaximumDepth;
     };
 
     struct IX_BucketHdr {
