@@ -11,6 +11,7 @@ class IX_BTree
     friend class IX_IndexHandle;
     friend class IX_Manager;
     friend class IX_IndexScan;
+    friend class IX_BTreeScan;
 public:
     IX_BTree();
     ~IX_BTree();

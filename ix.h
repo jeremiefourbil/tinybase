@@ -10,7 +10,7 @@
 
 
 
-#define IX_USE_HASH
+//#define IX_USE_HASH
 
 
 
@@ -23,6 +23,8 @@
 
 #include "ix_btree.h"
 #include "ix_hash.h"
+
+#include "ix_btreescan.h"
 
 
 // IX_IndexHandle: IX Index File interface
@@ -78,48 +80,7 @@ public:
     RC CloseScan();
 
 private:
-    template <typename T, int n>
-    RC OpenScan_t();
-
-    template <typename T, int n>
-    RC FindInTree_t(const void* iValue, PageNum &oLeafNum, int &oSlotIndex, bool &inTree, void *oValue);
-
-    template <typename T, int n>
-    RC ScanNode_t(PageNum iPageNum, const void *iValue, PageNum &oLeafNum, int &oSlotIndex, bool &inTree, void *oValue);
-
-    template <typename T, int n>
-    RC ScanLeaf_t(PageNum iPageNum, const void *iValue, PageNum &oLeafNum, int &oSlotIndex, bool &inTree, void *oValue);
-
-    template <typename T, int n>
-    RC GetNextEntry_t(RID &rid);
-
-    RC ReadBucket(PageNum iPageNum, RID &rid);
-
-    template <typename T, int n>
-    RC ComputePreviousLeafSlot(PageNum &ioLeafNum, int &ioSlotIndex, void *oValue);
-
-    template <typename T, int n>
-    RC ComputeNextLeafSlot(PageNum &ioLeafNum, int &ioSlotIndex, void *oValue);
-
-    template <typename T, int n>
-    RC ReadFirstValue(PageNum &iLeafNum, int &iSlotIndex, void * oValue);
-
-    template <typename T, int n>
-    RC GreaterOnTheRight(const PageNum iLeafNum, const int iSlotIndex, const void * oValue);
-
-    const IX_IndexHandle *_pIndexHandle;
-    CompOp _compOp;
-    void * _value;
-    ClientHint  _pinHint;
-
-    PageNum _nextLeafNum;
-    int _nextLeafSlot;
-    int _nextBucketSlot;
-    void * _nextValue;
-
-    bool _isValueInTree;
-
-    IX_BTree::Direction _direction;
+    IX_BTreeScan * pBTreeScan;
 };
 
 //
