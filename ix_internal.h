@@ -74,15 +74,15 @@ void getPointerIndex(const int *array, const int arrayLength, const int iValue, 
 void getPointerIndex(const float *array, const int arrayLength, const float iValue, int &oIndex);
 void getPointerIndex(const char array[][MAXSTRINGLEN], const int arrayLength, const char iValue[MAXSTRINGLEN], int &oIndex);
 
-// defined in IX_IndexHandle to fix compilation issue
-//template <typename T, int n>
-//void swapLeafEntries(int i, IX_BTree::IX_PageLeaf<T,n> * pBuffer1, int j, IX_BTree::IX_PageLeaf<T,n> *pBuffer2);
 
-//template <typename T, int n>
-//void sortLeaf(IX_BTree::IX_PageLeaf<T,n> * pBuffer);
+// binary decomposition
+void getEuclidianDivision(const int iNumber, int &oD, int &oR);
+int getBinaryDecomposition(const int iNumber, const int iDepth);
+int pow2(const int order);
 
-//template <typename T, int n>
-//void setOffsetInNode(IX_PageNode<T,n> *pBuffer, const int startIndex, const int offset);
-
+// hash computation
+int getHash(const int &v1);
+int getHash(const float &v1);
+int getHash(const char* v1);
 
 #endif // IX_INTERNAL_H

@@ -1,6 +1,7 @@
 #include "ix_internal.h"
 
 #include "ix_btree.h"
+#include "ix_hash.h"
 
 #include <cstdio>
 #include <iostream>
@@ -12,6 +13,10 @@ using namespace std;
 IX_IndexHandle::IX_IndexHandle()
 {
     pBTree = new IX_BTree();
+
+#ifdef IX_USE_HASH
+    pHash = new IX_Hash();
+#endif
 }
 
 IX_IndexHandle::~IX_IndexHandle()
@@ -21,6 +26,14 @@ IX_IndexHandle::~IX_IndexHandle()
         delete pBTree;
         pBTree = NULL;
     }
+
+#ifdef IX_USE_HASH
+    if(pHash)
+    {
+        delete pHash;
+        pHash = NULL;
+    }
+#endif
 }
 
 // ***********************
@@ -36,8 +49,17 @@ RC IX_IndexHandle::InsertEntry(void *pData, const RID &rid)
     if (pData == NULL)
         return (IX_NULLPOINTER);
 
-    rc = pBTree->InsertEntry(pData, rid);
+    if((rc = pBTree->InsertEntry(pData, rid)))
+        goto err_return;
 
+#ifdef IX_USE_HASH
+    if((rc = pHash->InsertEntry(pData, rid)))
+        goto err_return;
+#endif
+
+    return rc;
+
+err_return:
     return rc;
 }
 
@@ -54,9 +76,19 @@ RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid)
     if (pData == NULL)
         return (IX_NULLPOINTER);
 
-    rc = pBTree->DeleteEntry(pData, rid);
+    if((rc = pBTree->DeleteEntry(pData, rid)))
+        goto err_return;
+
+#ifdef IX_USE_HASH
+    if((rc = pHash->DeleteEntry(pData, rid)))
+        goto err_return;
+#endif
 
     return rc;
+
+err_return:
+    return rc;
+
 }
 
 

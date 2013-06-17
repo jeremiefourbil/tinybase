@@ -7,14 +7,23 @@
 #ifndef IX_H
 #define IX_H
 
+
+
+
+//#define IX_USE_HASH
+
+
+
+
 // Please do not include any other files than the ones below in this file.
 
 #include "redbase.h"  // Please don't change these lines
 #include "rm_rid.h"  // Please don't change these lines
 #include "pf.h"
 
-
 #include "ix_btree.h"
+#include "ix_hash.h"
+
 
 // IX_IndexHandle: IX Index File interface
 //
@@ -39,6 +48,11 @@ public:
 
 private:
     IX_BTree *pBTree;
+#ifdef IX_USE_HASH
+    IX_Hash *pHash;
+#endif
+
+    IX_FileHdr fileHdr;
     PF_FileHandle pfFileHandle;
 };
 

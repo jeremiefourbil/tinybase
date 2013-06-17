@@ -1,6 +1,7 @@
 #include "ix_internal.h"
 
 #include "ix_btree.h"
+#include "ix_hash.h"
 
 #include <sstream>
 #include <iostream>
@@ -25,7 +26,7 @@ RC IX_Manager::CreateIndex(const char *fileName, int indexNo,
     PF_FileHandle pfFileHandle;
     PF_PageHandle pageHandle;
     char* pData;
-    IX_BTree::IX_FileHdr *fileHdr;
+    IX_FileHdr *fileHdr;
 
     const char *realFileName = GenerateFileName(fileName, indexNo);
 
@@ -35,7 +36,7 @@ RC IX_Manager::CreateIndex(const char *fileName, int indexNo,
 
     // Sanity Check: recordSize should not be too large (or small)
     // Note that PF_Manager::CreateFile() will take care of fileName
-    if (sizeof(IX_BTree::IX_FileHdr) >= PF_PAGE_SIZE)
+    if (sizeof(IX_FileHdr) >= PF_PAGE_SIZE)
        // Test: invalid creation
        return (IX_INSUFFISANT_PAGE_SIZE);
 
@@ -60,12 +61,16 @@ RC IX_Manager::CreateIndex(const char *fileName, int indexNo,
        goto err_unpin;
 
     // Write the file header (to the buffer pool)
-    fileHdr = (IX_BTree::IX_FileHdr *) pData;
+    fileHdr = (IX_FileHdr *) pData;
     fileHdr->rootNum = IX_EMPTY;
     fileHdr->attrLength=attrLength;
     fileHdr->attrType=attrType;
     fileHdr->height = 0;
     fileHdr->firstLeafNum = IX_EMPTY;
+
+#ifdef IX_USE_HASH
+    fileHdr->directoryNum = IX_EMPTY;
+#endif
 
     // Mark the header page as dirty
     if (rc = pfFileHandle.MarkDirty(IX_HEADER_PAGE_NUM))
@@ -100,11 +105,6 @@ RC IX_Manager::CreateIndex(const char *fileName, int indexNo,
 // Destroy and Index
 RC IX_Manager::DestroyIndex(const char *fileName, int indexNo)
 {
-    // !!!!!!!!!!!!!!!!
-    // ToDo: check if needed to recursively destroy nodes...
-    // !!!!!!!!!!!!!!!!
-
-
     RC rc;
     const char *realFileName = GenerateFileName(fileName, indexNo);
 
@@ -136,7 +136,11 @@ RC IX_Manager::OpenIndex(const char *fileName, int indexNo,
        // Test: non-existing realFileName, opened fileHandle
        goto err_return;
 
+    // update the file handle in the index structures
     indexHandle.pBTree->setFileHandle(indexHandle.pfFileHandle);
+#ifdef IX_USE_HASH
+    indexHandle.pHash->setFileHandle(indexHandle.pfFileHandle);
+#endif
 
     // Get the header page
     if (rc = indexHandle.pfFileHandle.GetFirstPage(pageHandle))
@@ -149,7 +153,13 @@ RC IX_Manager::OpenIndex(const char *fileName, int indexNo,
        goto err_unpin;
 
     // Read the file header (from the buffer pool to RM_FileHandle)
-    memcpy(&indexHandle.pBTree->fileHdr, pData, sizeof(indexHandle.pBTree->fileHdr));
+    memcpy(&indexHandle.fileHdr, pData, sizeof(IX_FileHdr));
+
+    // update the file header in the index structures
+    indexHandle.pBTree->setFileHdr(indexHandle.fileHdr);
+#ifdef IX_USE_HASH
+    indexHandle.pHash->setFileHdr(indexHandle.fileHdr);
+#endif
 
     // Unpin the header page
     if(rc = indexHandle.pfFileHandle.UnpinPage(IX_HEADER_PAGE_NUM))
@@ -188,7 +198,7 @@ RC IX_Manager::CloseIndex(IX_IndexHandle &indexHandle)
         goto err_unpin;
 
     // Write the file header (to the buffer pool)
-    memcpy(pData, &indexHandle.pBTree->fileHdr, sizeof(IX_BTree::IX_FileHdr));
+    memcpy(pData, &indexHandle.fileHdr, sizeof(IX_FileHdr));
 
     // Mark the header page as dirty
     if (rc = indexHandle.pfFileHandle.MarkDirty(IX_HEADER_PAGE_NUM))

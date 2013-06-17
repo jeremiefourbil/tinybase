@@ -32,7 +32,7 @@ RC IX_BTree::InsertEntry(void *pData, const RID &rid)
     if (pData == NULL)
         return (IX_NULLPOINTER);
 
-    switch(fileHdr.attrType)
+    switch(_pFileHdr->attrType)
     {
         case INT:
         rc = InsertEntry_t<int,order_INT>(*((int*)pData), rid);
@@ -65,7 +65,7 @@ RC IX_BTree::InsertEntry_t(T iValue, const RID &rid)
 
     PageNum newRootNum = IX_EMPTY;
 
-    pageNum = fileHdr.rootNum;
+    pageNum = _pFileHdr->rootNum;
 
     // no root, create one
     if(pageNum == IX_EMPTY)
@@ -73,12 +73,12 @@ RC IX_BTree::InsertEntry_t(T iValue, const RID &rid)
         if(rc = AllocateLeafPage_t<T,n>(IX_EMPTY, pageNum))
                 goto err_return;
 
-        fileHdr.rootNum = pageNum;
-        fileHdr.firstLeafNum = pageNum;
+        _pFileHdr->rootNum = pageNum;
+        _pFileHdr->firstLeafNum = pageNum;
     }
 
     // let's call the recursion method, start with root
-    if (fileHdr.height == 0)
+    if (_pFileHdr->height == 0)
     {
         if(rc = InsertEntryInLeaf_t<T,n>(pageNum, iValue, rid, newChildPageNum, medianChildValue))
             goto err_return;
@@ -91,7 +91,7 @@ RC IX_BTree::InsertEntry_t(T iValue, const RID &rid)
     // il y a eu un split de noeuds
     if(newChildPageNum != IX_EMPTY)
     {
-        if(fileHdr.height >=1)
+        if(_pFileHdr->height >=1)
         {
             // la racine était un noeud
             if(rc = GetNodePageBuffer(pageNum, pBuffer))
@@ -112,7 +112,7 @@ RC IX_BTree::InsertEntry_t(T iValue, const RID &rid)
             if(rc = ReleaseBuffer(newRootNum, true))
                 return rc;
 
-            fileHdr.rootNum = newRootNum;
+            _pFileHdr->rootNum = newRootNum;
 
             // on récupère le buffer du nouveau noeud
             if(rc = GetNodePageBuffer(newChildPageNum, newPageBuffer))
@@ -163,9 +163,9 @@ RC IX_BTree::InsertEntry_t(T iValue, const RID &rid)
             pLeafBuffer->parent = newRootNum;
             if(rc = ReleaseBuffer(newChildPageNum, true))
                 return rc;
-            fileHdr.rootNum = newRootNum;
+            _pFileHdr->rootNum = newRootNum;
         }
-        fileHdr.height++;
+        _pFileHdr->height++;
     }
 
 
@@ -592,7 +592,7 @@ RC IX_BTree::DeleteEntry(void *pData, const RID &rid)
     if (pData == NULL)
         return (IX_NULLPOINTER);
 
-    switch(fileHdr.attrType)
+    switch(_pFileHdr->attrType)
     {
         case INT:
         rc = DeleteEntry_t<int,order_INT>(* ((int *) pData), rid);
@@ -624,7 +624,7 @@ RC IX_BTree::DeleteEntry_t(T iValue, const RID &rid)
     int pointerIndex = 0;
 
 
-    pageNum = fileHdr.rootNum;
+    pageNum = _pFileHdr->rootNum;
     // cout << "Deletion start - Value to remove: " << iValue <<endl;
     // no root, create one
     if(pageNum == IX_EMPTY)
@@ -632,7 +632,7 @@ RC IX_BTree::DeleteEntry_t(T iValue, const RID &rid)
         return(IX_ENTRY_DOES_NOT_EXIST);
     }
 
-    if(fileHdr.height == 0)
+    if(_pFileHdr->height == 0)
     {
         if(rc = DeleteEntryInLeaf_t<T,n>(pageNum, iValue, rid, updatedChildValue, childStatus))
             goto err_return;
@@ -686,8 +686,8 @@ RC IX_BTree::DeleteEntry_t(T iValue, const RID &rid)
 
                 if(nbChildren == 1)
                 {
-                    fileHdr.rootNum = pBuffer->child[index];
-                    fileHdr.height--;
+                    _pFileHdr->rootNum = pBuffer->child[index];
+                    _pFileHdr->height--;
 
                     if(rc = ReleaseBuffer(pageNum, false))
                         goto err_return;
@@ -696,18 +696,18 @@ RC IX_BTree::DeleteEntry_t(T iValue, const RID &rid)
                     if(rc = _pPfFileHandle->DisposePage(pageNum))
                         goto err_return;
 
-                    if(fileHdr.height > 0)
+                    if(_pFileHdr->height > 0)
                     {
-                        if(rc = GetNodePageBuffer(fileHdr.rootNum, pNodeBuffer)) goto err_return;
+                        if(rc = GetNodePageBuffer(_pFileHdr->rootNum, pNodeBuffer)) goto err_return;
                         pNodeBuffer->parent = IX_EMPTY;
-                        pNodeBuffer->nodeType = fileHdr.height == 1 ? ROOTANDLASTINODE : ROOT;
-                        if(rc = ReleaseBuffer(fileHdr.rootNum, true)) goto err_return;
+                        pNodeBuffer->nodeType = _pFileHdr->height == 1 ? ROOTANDLASTINODE : ROOT;
+                        if(rc = ReleaseBuffer(_pFileHdr->rootNum, true)) goto err_return;
                     }
                     else
                     {
-                        if(rc = GetLeafPageBuffer(fileHdr.rootNum, pLeafBuffer)) goto err_return;
+                        if(rc = GetLeafPageBuffer(_pFileHdr->rootNum, pLeafBuffer)) goto err_return;
                         pLeafBuffer->parent = IX_EMPTY;
-                        if(rc = ReleaseBuffer(fileHdr.rootNum, true)) goto err_return;
+                        if(rc = ReleaseBuffer(_pFileHdr->rootNum, true)) goto err_return;
                     }
                 }
                 else
@@ -1795,7 +1795,7 @@ RC IX_BTree::DisplayTree()
 {
     RC rc = OK_RC;
 
-    switch(fileHdr.attrType)
+    switch(_pFileHdr->attrType)
     {
         case INT:
         rc = DisplayTree_t<int,order_INT>();
@@ -1835,13 +1835,13 @@ RC IX_BTree::DisplayTree_t()
 
     currentNodeId++;
 
-    if (fileHdr.height == 0)
+    if (_pFileHdr->height == 0)
     {
-        DisplayLeaf_t<T,n>(fileHdr.rootNum, fatherNodeId, currentNodeId, currentEdgeId);
+        DisplayLeaf_t<T,n>(_pFileHdr->rootNum, fatherNodeId, currentNodeId, currentEdgeId);
     }
     else
     {
-        DisplayNode_t<T,n>(fileHdr.rootNum, fatherNodeId, currentNodeId, currentEdgeId);
+        DisplayNode_t<T,n>(_pFileHdr->rootNum, fatherNodeId, currentNodeId, currentEdgeId);
     }
     xmlFile.open(XML_FILE, ios::app);
     xmlFile << "</graph>" << endl;

@@ -3,7 +3,8 @@
 
 #include "pf.h"
 #include "rm_rid.h"
-//#include "ix_internal.h"
+#include "ix_common.h"
+
 
 class IX_BTree
 {
@@ -39,14 +40,6 @@ public:
         TOO_EMPTY_NODE_WITH_UPDATE
     };
 
-    struct IX_FileHdr {
-        PageNum rootNum;
-        AttrType attrType;
-        int attrLength;
-        int height;
-        PageNum firstLeafNum;
-    };
-
 
     template <typename T, int n>
     struct IX_PageNode {
@@ -72,6 +65,7 @@ public:
     };
 
     void setFileHandle(PF_FileHandle & iPfFileHandle) { _pPfFileHandle = &iPfFileHandle; }
+    void setFileHdr(IX_FileHdr & iFileHdr) { _pFileHdr = &iFileHdr; }
 
     // Insert a new index entry
     RC InsertEntry(void *pData, const RID &rid);
@@ -180,7 +174,7 @@ private:
 
 
     PF_FileHandle *_pPfFileHandle;
-    IX_FileHdr fileHdr;
+    IX_FileHdr * _pFileHdr;
 };
 
 #endif // IX_BTREE_H

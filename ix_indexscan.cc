@@ -35,7 +35,7 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle,
     // Full scan operator
     if(_compOp == NO_OP && _value == NULL)
     {
-        _nextLeafNum = _pIndexHandle->pBTree->fileHdr.firstLeafNum;
+        _nextLeafNum = _pIndexHandle->fileHdr.firstLeafNum;
         _nextLeafSlot = 0;
         _nextBucketSlot = 0;
         _direction = IX_BTree::RIGHT;
@@ -45,7 +45,7 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle,
             return IX_INVALID_PAGE_NUMBER;
         }
 
-        switch(_pIndexHandle->pBTree->fileHdr.attrType)
+        switch(_pIndexHandle->fileHdr.attrType)
         {
         case INT:
             _nextValue = new int();
@@ -72,7 +72,7 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle,
         if (value == NULL)
             return (IX_NULLPOINTER);
 
-        switch(_pIndexHandle->pBTree->fileHdr.attrType)
+        switch(_pIndexHandle->fileHdr.attrType)
         {
         case INT:
             rc = OpenScan_t<int,order_INT>();
@@ -213,7 +213,7 @@ RC IX_IndexScan::FindInTree_t(const void *iValue, PageNum &oLeafNum, int &oSlotI
 {
     RC rc = OK_RC;
 
-    PageNum rootNum = _pIndexHandle->pBTree->fileHdr.rootNum;
+    PageNum rootNum = _pIndexHandle->fileHdr.rootNum;
 
     // no root
     if(rootNum == IX_EMPTY)
@@ -222,7 +222,7 @@ RC IX_IndexScan::FindInTree_t(const void *iValue, PageNum &oLeafNum, int &oSlotI
     }
 
     // root is a leaf
-    if(_pIndexHandle->pBTree->fileHdr.height == 0)
+    if(_pIndexHandle->fileHdr.height == 0)
     {
         if(rc = ScanLeaf_t<T,n>(rootNum, iValue, oLeafNum, oSlotIndex, inTree, oValue))
             goto err_return;
@@ -374,7 +374,7 @@ RC IX_IndexScan::GetNextEntry(RID &rid)
 {
     RC rc = OK_RC;
 
-    switch(_pIndexHandle->pBTree->fileHdr.attrType)
+    switch(_pIndexHandle->fileHdr.attrType)
     {
     case INT:
         rc = GetNextEntry_t<int,order_INT>(rid);

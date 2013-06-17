@@ -150,3 +150,54 @@ void getPointerIndex(const char array[][MAXSTRINGLEN], const int arrayLength, co
     if(strcmp(iValue, array[oIndex]) >= 0)
         oIndex++;
 }
+
+void getEuclidianDivision(const int iNumber, int &oD, int &oR)
+{
+    oD = iNumber / 2;
+    oR = iNumber - 2 * oD;
+}
+
+int getBinaryDecomposition(const int iNumber, const int iDepth)
+{
+    int d,r,bitNb,out,pow2;
+
+    bitNb = 1;
+    d = iNumber;
+    out = 0;
+    pow2 = 1;
+
+    do
+    {
+        getEuclidianDivision(d,d,r);
+        out += pow2 * r;
+
+        pow2 *= 2;
+        bitNb++;
+    } while(d>0 && bitNb <= iDepth);
+
+    return out;
+}
+
+int pow2 (const int order)
+{
+    int out = 1;
+    for(int i=1; i<=order; i++)
+    {
+        out *= 2;
+    }
+}
+
+int getHash(const int &v1)
+{
+    return v1 % 16;
+}
+
+int getHash(const float &v1)
+{
+    return ((int) v1) % 16;
+}
+
+int getHash(const char* v1)
+{
+    return 5;
+}
