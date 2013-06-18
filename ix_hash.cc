@@ -36,13 +36,13 @@ RC IX_Hash::InsertEntry(void *pData, const RID &rid)
     switch(_pFileHdr->attrType)
     {
     case INT:
-        rc = InsertEntry_t<int>(*((int*)pData), rid);
+        rc = InsertEntry_t<int, order_hash_INT>(*((int*)pData), rid);
         break;
     case FLOAT:
-        rc = InsertEntry_t<float>(*((float*)pData), rid);
+        rc = InsertEntry_t<float, order_hash_FLOAT>(*((float*)pData), rid);
         break;
     case STRING:
-        rc = InsertEntry_t<char[MAXSTRINGLEN]>((char *) pData, rid);
+        rc = InsertEntry_t<char[MAXSTRINGLEN], order_hash_STRING>((char *) pData, rid);
         break;
     default:
         rc = IX_BADTYPE;
@@ -52,7 +52,7 @@ RC IX_Hash::InsertEntry(void *pData, const RID &rid)
 }
 
 // templated insertion
-template <typename T>
+template <typename T,int n>
 RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
 {
     RC rc = OK_RC;
@@ -66,7 +66,7 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
     if(_pFileHdr->directoryNum == IX_EMPTY)
     {
         // create the new page
-        if((rc = AllocateDirectoryPage(_pFileHdr->directoryNum)))
+        if((rc = AllocateDirectoryPage_t<T,n>(_pFileHdr->directoryNum)))
         {
             goto err_return;
         }
@@ -85,8 +85,6 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
         nbSlots *= 2;
     }
 
-    cout << "depth: " << depth << " | nb slots: " << nbSlots << endl;
-
 
     // compute hash
     hash = getHash(iValue);
@@ -103,7 +101,7 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
     if(bucketNum == IX_EMPTY)
     {
         // create the new page
-        if((rc = AllocateBucketPage(depth, bucketNum)))
+        if((rc = AllocateBucketPage_t<T,n>(depth, bucketNum)))
         {
             ReleaseBuffer(_pFileHdr->directoryNum, false);
             goto err_return;
@@ -119,7 +117,7 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
     do
     {
         // see if division is necessary
-        if((rc = IsPossibleToInsertInBucket(bucketNum, needToDivide, childDepth)))
+        if((rc = IsPossibleToInsertInBucket_t<T,n>(bucketNum, needToDivide, childDepth)))
         {
             ReleaseBuffer(_pFileHdr->directoryNum, false);
             goto err_return;
@@ -131,7 +129,7 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
             needToUpdate = true;
 
             // divide the existing bucket
-            if((rc = DivideBucketInTwo(bucketNum, newBucketNum)))
+            if((rc = DivideBucketInTwo_t<T,n>(bucketNum, newBucketNum)))
             {
                 ReleaseBuffer(_pFileHdr->directoryNum, true);
                 goto err_return;
@@ -210,7 +208,7 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
     } while(needToDivide);
 
     // insert in bucket
-    if((rc = InsertEntryInBucket(bucketNum, hash, rid)))
+    if((rc = InsertEntryInBucket_t<T,n>(bucketNum, iValue, rid)))
     {
         ReleaseBuffer(_pFileHdr->directoryNum, false);
         goto err_return;
@@ -227,16 +225,17 @@ err_return:
     return (rc);
 }
 
-RC IX_Hash::IsPossibleToInsertInBucket(const PageNum iPageNum, bool &needToDivide, int &childDepth)
+template <typename T, int n>
+RC IX_Hash::IsPossibleToInsertInBucket_t(const PageNum iPageNum, bool &needToDivide, int &childDepth)
 {
     RC rc = OK_RC;
-    char *pBuffer;
+    IX_Bucket<T,n> *pBuffer;
 
-    if((rc = GetPageBuffer(iPageNum, pBuffer)))
+    if((rc = GetBucketBuffer<T,n>(iPageNum, pBuffer)))
         goto err_return;
 
-    childDepth = ((IX_BucketHdr *)pBuffer)->depth;
-    needToDivide = (((IX_BucketHdr *)pBuffer)->nbFilledSlots >= ((IX_BucketHdr *)pBuffer)->nbMaxSlots);
+    childDepth = pBuffer->depth;
+    needToDivide = (pBuffer->nbFilledSlots >= n);
 
     if(rc = ReleaseBuffer(iPageNum, false))
         goto err_return;
@@ -248,29 +247,25 @@ err_return:
 }
 
 // bucket insertion
-RC IX_Hash::InsertEntryInBucket(PageNum iPageNum, const int iValue, const RID &rid)
+template <typename T, int n>
+RC IX_Hash::InsertEntryInBucket_t(PageNum iPageNum, T iValue, const RID &rid)
 {
     RC rc = OK_RC;
-    char *pBuffer;
-    IX_BucketValue tempValue;
+    IX_Bucket<T,n> *pBuffer;
     bool alreadyInBucket = false;
     PageNum ridBucketNum;
 
     // get the current bucket
-    if(rc = GetPageBuffer(iPageNum, pBuffer))
+    if(rc = GetBucketBuffer<T,n>(iPageNum, pBuffer))
         goto err_return;
 
     // check if the value is already in there
-    for(int i=0; i<((IX_BucketHdr *)pBuffer)->nbFilledSlots; i++)
+    for(int i=0; i<pBuffer->nbFilledSlots; i++)
     {
-        memcpy(&tempValue,
-               pBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
-               sizeof(IX_BucketValue));
-
-        if(iValue == tempValue.v)
+        if(comparisonGeneric(pBuffer->v[i], iValue) == 0)
         {
             alreadyInBucket = true;
-            ridBucketNum = tempValue.bucketNum;
+            ridBucketNum = pBuffer->child[i];
             break;
         }
     }
@@ -284,14 +279,10 @@ RC IX_Hash::InsertEntryInBucket(PageNum iPageNum, const int iValue, const RID &r
             return rc;
         }
 
-        tempValue.bucketNum = ridBucketNum;
-        tempValue.v = iValue;
+        copyGeneric(iValue, pBuffer->v[pBuffer->nbFilledSlots]);
+        pBuffer->child[pBuffer->nbFilledSlots] = ridBucketNum;
 
-        memcpy(pBuffer + sizeof(IX_BucketHdr) + ((IX_BucketHdr *)pBuffer)->nbFilledSlots * sizeof(IX_BucketValue),
-               &tempValue,
-               sizeof(IX_BucketValue));
-
-        ((IX_BucketHdr *)pBuffer)->nbFilledSlots++;
+        pBuffer->nbFilledSlots++;
     }
 
     // insert in the rid bucket
@@ -332,8 +323,9 @@ RC IX_Hash::InsertEntryInRidBucket(PageNum iPageNum, const RID &rid)
     // check if the RID is already in there
     for(int i=0; i<((IX_RidBucketHdr *)pBuffer)->nbFilledSlots; i++)
     {
-        memcpy(pBuffer + sizeof(IX_RidBucketHdr) + i * sizeof(RID),
-               &tempRID, sizeof(RID));
+        memcpy(&tempRID,
+               pBuffer + sizeof(IX_RidBucketHdr) + i * sizeof(RID),
+               sizeof(RID));
 
         if(rid == tempRID)
         {
@@ -360,21 +352,21 @@ err_return:
     return (rc);
 }
 
-RC IX_Hash::DivideBucketInTwo(const PageNum iBucketNum, PageNum &oBucketNum)
+template <typename T, int n>
+RC IX_Hash::DivideBucketInTwo_t(const PageNum iBucketNum, PageNum &oBucketNum)
 {
     RC rc = OK_RC;
 
 
-    char *ipBuffer, *opBuffer;
-    IX_BucketValue *tValues = NULL;
-    int nbFilledSlots;
+    IX_Bucket<T,n> *ipBuffer, *opBuffer;
+    IX_Bucket<T,n> tempBuffer;
 
     // read the existing page
-    if((rc = GetPageBuffer(iBucketNum, ipBuffer)))
+    if((rc = GetBucketBuffer<T,n>(iBucketNum, ipBuffer)))
         goto err_return;
 
     // create the new page
-    if((rc = AllocateBucketPage(((IX_BucketHdr *)ipBuffer)->depth+1, oBucketNum)))
+    if((rc = AllocateBucketPage_t<T,n>(ipBuffer->depth+1, oBucketNum)))
     {
         ReleaseBuffer(iBucketNum, false);
         goto err_return;
@@ -383,45 +375,42 @@ RC IX_Hash::DivideBucketInTwo(const PageNum iBucketNum, PageNum &oBucketNum)
 //    cout << "BEGIN Bucket division" << endl;
 
     // save the existing bucket data
-    nbFilledSlots = ((IX_BucketHdr *)ipBuffer)->nbFilledSlots;
-    tValues = new IX_BucketValue[nbFilledSlots];
-    for(int i=0; i<nbFilledSlots; i++)
+    tempBuffer.nbFilledSlots = ipBuffer->nbFilledSlots;
+
+    for(int i=0; i<tempBuffer.nbFilledSlots; i++)
     {
-        memcpy(&tValues[i],
-               ipBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
-               sizeof(IX_BucketValue));
-//        cout << tValues[i].v << endl;
+        copyGeneric(ipBuffer->v[i], tempBuffer.v[i]);
+        tempBuffer.child[i] = ipBuffer->child[i];
     }
 
     // reset the existing bucket counter
-    ((IX_BucketHdr *)ipBuffer)->nbFilledSlots = 0;
-    ((IX_BucketHdr *)ipBuffer)->depth++;
+    ipBuffer->nbFilledSlots = 0;
+    ipBuffer->depth++;
 
     // get the new page buffer
-    if((rc = GetPageBuffer(oBucketNum, opBuffer)))
+    if((rc = GetBucketBuffer<T,n>(oBucketNum, opBuffer)))
     {
         ReleaseBuffer(iBucketNum, true);
         goto err_return;
     }
 
     // set the saved data in the appropriate bucket
-    for(int i=0; i<nbFilledSlots; i++)
+    for(int i=0; i<tempBuffer.nbFilledSlots; i++)
     {
-        int r = getLastBit(tValues[i].v, ((IX_BucketHdr *)ipBuffer)->depth);
+        int hash = getHash(tempBuffer.v[i]);
+        int r = getLastBit(hash, ipBuffer->depth);
 
         if(r == 0)
         {
-            memcpy(ipBuffer + sizeof(IX_BucketHdr) + ((IX_BucketHdr *)ipBuffer)->nbFilledSlots * sizeof(IX_BucketValue),
-                   &tValues[i],
-                   sizeof(IX_BucketValue));
-            ((IX_BucketHdr *)ipBuffer)->nbFilledSlots++;
+            copyGeneric(tempBuffer.v[i], ipBuffer->v[ipBuffer->nbFilledSlots]);
+            ipBuffer->child[ipBuffer->nbFilledSlots] = tempBuffer.child[i];
+            ipBuffer->nbFilledSlots++;
         }
         else
         {
-            memcpy(opBuffer + sizeof(IX_BucketHdr) + ((IX_BucketHdr *)opBuffer)->nbFilledSlots * sizeof(IX_BucketValue),
-                   &tValues[i],
-                   sizeof(IX_BucketValue));
-            ((IX_BucketHdr *)opBuffer)->nbFilledSlots++;
+            copyGeneric(tempBuffer.v[i], opBuffer->v[opBuffer->nbFilledSlots]);
+            opBuffer->child[opBuffer->nbFilledSlots] = tempBuffer.child[i];
+            opBuffer->nbFilledSlots++;
         }
     }
 
@@ -446,13 +435,6 @@ RC IX_Hash::DivideBucketInTwo(const PageNum iBucketNum, PageNum &oBucketNum)
 
 
 //    cout << "END Bucket division" << endl;
-
-    // delete the temporary array
-    if(tValues != NULL)
-    {
-        delete[] tValues;
-        tValues = NULL;
-    }
 
     // release the pages
     if((rc = ReleaseBuffer(iBucketNum, true)))
@@ -483,13 +465,13 @@ RC IX_Hash::DeleteEntry(void *pData, const RID &rid)
     switch(_pFileHdr->attrType)
     {
     case INT:
-        rc = DeleteEntry_t<int>(* ((int *) pData), rid);
+        rc = DeleteEntry_t<int, order_hash_INT>(* ((int *) pData), rid);
         break;
     case FLOAT:
-        rc = DeleteEntry_t<float>(* ((float *) pData), rid);
+        rc = DeleteEntry_t<float, order_hash_FLOAT>(* ((float *) pData), rid);
         break;
     case STRING:
-        rc = DeleteEntry_t<char[MAXSTRINGLEN]>((char*) pData, rid);
+        rc = DeleteEntry_t<char[MAXSTRINGLEN], order_hash_STRING>((char*) pData, rid);
         break;
     default:
         rc = IX_BADTYPE;
@@ -499,7 +481,7 @@ RC IX_Hash::DeleteEntry(void *pData, const RID &rid)
 }
 
 // templated Deletion
-template <typename T>
+template <typename T, int n>
 RC IX_Hash::DeleteEntry_t(T iValue, const RID &rid)
 {
     RC rc = OK_RC;
@@ -512,7 +494,8 @@ err_return:
 
 
 // bucket Deletion
-RC IX_Hash::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
+template <typename T, int n>
+RC IX_Hash::DeleteEntryInBucket_t(PageNum &ioPageNum, const RID &rid)
 {
     RC rc = OK_RC;
 
@@ -527,10 +510,10 @@ RC IX_Hash::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
         goto err_return;
 
     i=0;
-    for(i=0; i<((IX_PageBucketHdr *)pBuffer)->nbFilledSlots; i++)
+    for(i=0; i<((IX_RidBucketHdr *)pBuffer)->nbFilledSlots; i++)
     {
         memcpy((void*) &tempRid,
-               pBuffer + sizeof(IX_PageBucketHdr) + i * sizeof(RID),
+               pBuffer + sizeof(IX_RidBucketHdr) + i * sizeof(RID),
                sizeof(RID));
 
         if(tempRid == rid)
@@ -541,15 +524,15 @@ RC IX_Hash::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
     }
 
     // the rid was found, move the last rid to it's place
-    if(foundRid && ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots>1)
+    if(foundRid && ((IX_RidBucketHdr *)pBuffer)->nbFilledSlots>1)
     {
-        memcpy(pBuffer + sizeof(IX_PageBucketHdr) + i * sizeof(RID),
-               pBuffer + sizeof(IX_PageBucketHdr) + (((IX_PageBucketHdr *)pBuffer)->nbFilledSlots-1)* sizeof(RID),
+        memcpy(pBuffer + sizeof(IX_RidBucketHdr) + i * sizeof(RID),
+               pBuffer + sizeof(IX_RidBucketHdr) + (((IX_RidBucketHdr *)pBuffer)->nbFilledSlots-1)* sizeof(RID),
                sizeof(RID));
     }
     if(foundRid)
     {
-        ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots--;
+        ((IX_RidBucketHdr *)pBuffer)->nbFilledSlots--;
     }
 
     if(!foundRid)
@@ -558,7 +541,7 @@ RC IX_Hash::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
         goto err_release;
     }
 
-    filledSlots = ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots;
+    filledSlots = ((IX_RidBucketHdr *)pBuffer)->nbFilledSlots;
 
     if(rc = ReleaseBuffer(ioPageNum, true))
         goto err_return;
@@ -586,7 +569,8 @@ err_return:
 // ***********************
 
 // directory page
-RC IX_Hash::AllocateDirectoryPage(PageNum &oPageNum)
+template <typename T, int n>
+RC IX_Hash::AllocateDirectoryPage_t(PageNum &oPageNum)
 {
     RC rc;
     PF_PageHandle pageHandle;
@@ -608,10 +592,10 @@ RC IX_Hash::AllocateDirectoryPage(PageNum &oPageNum)
 
 
     // create the new pages
-    if((rc = AllocateBucketPage(((IX_DirectoryHdr *)pReadData)->depth, firstNum)))
+    if((rc = AllocateBucketPage_t<T,n>(((IX_DirectoryHdr *)pReadData)->depth, firstNum)))
         goto err_return;
 
-    if((rc = AllocateBucketPage(((IX_DirectoryHdr *)pReadData)->depth, secondNum)))
+    if((rc = AllocateBucketPage_t<T,n>(((IX_DirectoryHdr *)pReadData)->depth, secondNum)))
         goto err_return;
 
     // update the directory
@@ -641,7 +625,8 @@ err_return:
 }
 
 // Bucket page
-RC IX_Hash::AllocateBucketPage(const int depth, PageNum &oPageNum)
+template <typename T, int n>
+RC IX_Hash::AllocateBucketPage_t(const int depth, PageNum &oPageNum)
 {
     RC rc;
     PF_PageHandle pageHandle;
@@ -658,9 +643,8 @@ RC IX_Hash::AllocateBucketPage(const int depth, PageNum &oPageNum)
 
     // Fill node
 
-    ((IX_BucketHdr *)pReadData)->depth = depth;
-    ((IX_BucketHdr *)pReadData)->nbFilledSlots = 0;
-    ((IX_BucketHdr *)pReadData)->nbMaxSlots = 6; // WARNING!!!!!! TO BE CHANGED
+    ((IX_Bucket<T,n> *)pReadData)->depth = depth;
+    ((IX_Bucket<T,n> *)pReadData)->nbFilledSlots = 0;
 
     // Mark the page dirty since we changed the next pointer
     if (rc = _pPfFileHandle->MarkDirty(oPageNum))
@@ -741,6 +725,19 @@ err_return:
     return (rc);
 }
 
+template <typename T, int n>
+RC IX_Hash::GetBucketBuffer(const PageNum &iPageNum, IX_Bucket<T,n> * & pBuffer) const
+{
+    RC rc;
+    char * pData;
+
+    rc = GetPageBuffer(iPageNum, pData);
+
+    pBuffer = (IX_Bucket<T,n> *) pData;
+
+    return rc;
+}
+
 // release the buffer
 RC IX_Hash::ReleaseBuffer(const PageNum &iPageNum, bool isDirty) const
 {
@@ -770,6 +767,30 @@ err_return:
 
 // Display
 RC IX_Hash::DisplayTree()
+{
+    RC rc;
+
+    switch(_pFileHdr->attrType)
+    {
+    case INT:
+        rc = DisplayTree_t<int, order_hash_INT>();
+        break;
+    case FLOAT:
+        rc = DisplayTree_t<float, order_hash_FLOAT>();
+        break;
+    case STRING:
+        rc = DisplayTree_t<char[MAXSTRINGLEN], order_hash_STRING>();
+        break;
+    default:
+        rc = IX_BADTYPE;
+    }
+
+    return rc;
+}
+
+
+template <typename T, int n>
+RC IX_Hash::DisplayTree_t()
 {
     RC rc = OK_RC;
     char *pDirBuffer;
@@ -810,7 +831,7 @@ RC IX_Hash::DisplayTree()
         printDecomposition(i);
         cout << "# page: " << currentNum << endl;
 
-        if(((rc = DisplayBucket(currentNum))))
+        if(((rc = DisplayBucket_t<T,n>(currentNum))))
         {
             ReleaseBuffer(_pFileHdr->directoryNum, false);
             goto err_return;
@@ -830,11 +851,11 @@ err_return:
     return rc;
 }
 
-RC IX_Hash::DisplayBucket(const PageNum iPageNum)
+template <typename T, int n>
+RC IX_Hash::DisplayBucket_t(const PageNum iPageNum)
 {
     RC rc = OK_RC;
-    char *pBucketBuffer;
-    IX_BucketValue value;
+    IX_Bucket<T,n> *pBucketBuffer;
 
     if(iPageNum == IX_EMPTY)
     {
@@ -842,21 +863,17 @@ RC IX_Hash::DisplayBucket(const PageNum iPageNum)
     }
 
     // get the bucket page
-    if(rc = GetPageBuffer(iPageNum, pBucketBuffer))
+    if(rc = GetBucketBuffer(iPageNum, pBucketBuffer))
         goto err_return;
 
-    cout << "# bucket depth: " << ((IX_BucketHdr *)pBucketBuffer)->depth << endl;
-    cout << "# nb filled slots: " << ((IX_BucketHdr *)pBucketBuffer)->nbFilledSlots << endl;
-    cout << "# max slots: " << ((IX_BucketHdr *)pBucketBuffer)->nbMaxSlots << endl;
+    cout << "# bucket depth: " << pBucketBuffer->depth << endl;
+    cout << "# nb filled slots: " << pBucketBuffer->nbFilledSlots << endl;
+    cout << "# max slots: " << n << endl;
 
-    for(int i=0; i<((IX_BucketHdr *)pBucketBuffer)->nbFilledSlots; i++)
+    for(int i=0; i<pBucketBuffer->nbFilledSlots; i++)
     {
-        memcpy(&value,
-               pBucketBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
-               sizeof(IX_BucketValue));
-
-        cout << value.v;
-        printDecomposition(value.v);
+        printGeneric(pBucketBuffer->v[i]);
+        printDecomposition(getHash(pBucketBuffer->v[i]));
     }
 
 

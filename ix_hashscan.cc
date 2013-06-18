@@ -42,13 +42,13 @@ RC IX_HashScan::OpenScan(IX_Hash * ipHash,
         switch(_pHash->_pFileHdr->attrType)
         {
         case INT:
-            rc = OpenScan_t<int>();
+            rc = OpenScan_t<int, order_hash_INT>();
             break;
         case FLOAT:
-            rc = OpenScan_t<float>();
+            rc = OpenScan_t<float, order_hash_FLOAT>();
             break;
         case STRING:
-            rc = OpenScan_t<char[MAXSTRINGLEN]>();
+            rc = OpenScan_t<char[MAXSTRINGLEN], order_hash_STRING>();
             break;
         default:
             rc = IX_BADTYPE;
@@ -58,7 +58,7 @@ RC IX_HashScan::OpenScan(IX_Hash * ipHash,
     return rc;
 }
 
-template <typename T>
+template <typename T, int n>
 RC IX_HashScan::OpenScan_t()
 {
     RC rc = OK_RC;
@@ -97,7 +97,7 @@ RC IX_HashScan::OpenScan_t()
            pDirBuffer + sizeof(IX_Hash::IX_DirectoryHdr) + binary * sizeof(PageNum),
            sizeof(PageNum));
 
-    if((rc = ScanBucket(bucketNum)))
+    if((rc = ScanBucket_t<T,n>(bucketNum)))
     {
         _pHash->ReleaseBuffer(_pHash->_pFileHdr->directoryNum, false);
         return rc;
@@ -115,28 +115,24 @@ err_return:
 }
 
 // bucket scan
-RC IX_HashScan::ScanBucket(const PageNum iPageNum)
+template <typename T, int n>
+RC IX_HashScan::ScanBucket_t(const PageNum iPageNum)
 {
     RC rc = OK_RC;
-    char *pBuffer;
-    IX_Hash::IX_BucketValue tempValue;
+    IX_Hash::IX_Bucket<T,n> *pBuffer;
     bool alreadyInBucket = false;
 
-    if((rc = _pHash->GetPageBuffer(iPageNum, pBuffer)))
+    if((rc = _pHash->GetBucketBuffer<T,n>(iPageNum, pBuffer)))
         goto err_return;
 
     // check if the value is already in there
-    for(int i=0; i<((IX_Hash::IX_BucketHdr *)pBuffer)->nbFilledSlots; i++)
+    for(int i=0; i<pBuffer->nbFilledSlots; i++)
     {
-        memcpy(&tempValue,
-               pBuffer + sizeof(IX_Hash::IX_BucketHdr) + i * sizeof(IX_Hash::IX_BucketValue),
-               sizeof(IX_Hash::IX_BucketValue));
-
-        if(_nextHash == tempValue.v)
+        if(comparisonGeneric(*((T*)_value), pBuffer->v[i]) == 0)
         {
             alreadyInBucket = true;
             _nextBucketNum = iPageNum;
-            _nextRidBucketNum = tempValue.bucketNum;
+            _nextRidBucketNum = pBuffer->child[i];
             _nextRidBucketSlot = 0;
             break;
         }
@@ -168,13 +164,13 @@ RC IX_HashScan::GetNextEntry(RID &rid)
     switch(_pHash->_pFileHdr->attrType)
     {
     case INT:
-        rc = GetNextEntry_t<int>(rid);
+        rc = GetNextEntry_t<int, order_hash_INT>(rid);
         break;
     case FLOAT:
-        rc = GetNextEntry_t<float>(rid);
+        rc = GetNextEntry_t<float, order_hash_FLOAT>(rid);
         break;
     case STRING:
-        rc = GetNextEntry_t<char[MAXSTRINGLEN]>(rid);
+        rc = GetNextEntry_t<char[MAXSTRINGLEN], order_hash_STRING>(rid);
         break;
     default:
         rc = IX_BADTYPE;
@@ -184,7 +180,7 @@ RC IX_HashScan::GetNextEntry(RID &rid)
 }
 
 
-template <typename T>
+template <typename T, int n>
 RC IX_HashScan::GetNextEntry_t(RID &rid)
 {
     RC rc = OK_RC;
@@ -195,7 +191,7 @@ RC IX_HashScan::GetNextEntry_t(RID &rid)
     }
 
     // read the rid in the bucket
-    if((rc = ReadBucket(_nextBucketNum, rid)))
+    if((rc = ReadBucket(_nextRidBucketNum, rid)))
         goto err_return;
 
     return rc;
@@ -216,14 +212,17 @@ RC IX_HashScan::ReadBucket(PageNum iPageNum, RID &rid)
         return IX_INVALID_PAGE_NUMBER;
     }
 
-
     // get the current node
     if(rc = _pHash->GetPageBuffer(iPageNum, pBuffer))
         goto err_return;
 
+
+    cout << "nb slots " << ((IX_Hash::IX_RidBucketHdr *)pBuffer)->nbFilledSlots << endl;
+
     // get the rid
-    memcpy((void*) &rid,
-           pBuffer + sizeof(IX_Hash::IX_RidBucketHdr) + _nextRidBucketSlot * sizeof(RID), sizeof(RID));
+    memcpy(&rid,
+           pBuffer + sizeof(IX_Hash::IX_RidBucketHdr) + _nextRidBucketSlot * sizeof(RID),
+           sizeof(RID));
 
 
     // set the next parameters
@@ -231,10 +230,9 @@ RC IX_HashScan::ReadBucket(PageNum iPageNum, RID &rid)
 
     if(_nextRidBucketSlot >= ((IX_Hash::IX_RidBucketHdr *)pBuffer)->nbFilledSlots)
     {
+        _nextBucketNum = IX_EMPTY;
+        _nextRidBucketNum = IX_EMPTY;
         _nextRidBucketSlot = IX_EMPTY;
-        if(rc = _pHash->ReleaseBuffer(iPageNum, false))
-            goto err_return;
-        return IX_EOF;
     }
 
 

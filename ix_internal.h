@@ -20,6 +20,10 @@ const int IX_HEADER_PAGE_NUM = 0;
 const int order_FLOAT = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(float) - 10) / (sizeof(int) + sizeof(float))));
 const int order_STRING = 2 * ((int)(0.5*(PF_PAGE_SIZE - 4 * sizeof(int) - 10) / (sizeof(int) + MAXSTRINGLEN * sizeof(char))));
 
+const int order_hash_INT = 5;
+const int order_hash_FLOAT = 5;
+const int order_hash_STRING = 5;
+
 
 
 #define IX_EMPTY  -1       // the next page does not exist

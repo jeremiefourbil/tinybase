@@ -27,12 +27,13 @@ public:
     RC CloseScan();
 
 private:
-    template <typename T>
+    template <typename T, int n>
     RC OpenScan_t();
 
-    RC ScanBucket(const PageNum iPageNum);
+    template <typename T, int n>
+    RC ScanBucket_t(const PageNum iPageNum);
 
-    template <typename T>
+    template <typename T, int n>
     RC GetNextEntry_t(RID &rid);
 
     RC ReadBucket(PageNum iPageNum, RID &rid);
