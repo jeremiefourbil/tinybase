@@ -90,7 +90,7 @@ RC IX_HashScan::OpenScan_t()
     // get binary decomposition
     binary = getBinaryDecomposition(_nextHash, depth);
 
-    cout << "Hash: " << _nextHash << " / " << binary << endl;
+//    cout << "Hash: " << _nextHash << " / " << binary << endl;
 
     // get the link
     memcpy(&bucketNum,
@@ -217,7 +217,7 @@ RC IX_HashScan::ReadBucket(PageNum iPageNum, RID &rid)
         goto err_return;
 
 
-    cout << "nb slots " << ((IX_Hash::IX_RidBucketHdr *)pBuffer)->nbFilledSlots << endl;
+//    cout << "nb slots " << ((IX_Hash::IX_RidBucketHdr *)pBuffer)->nbFilledSlots << endl;
 
     // get the rid
     memcpy(&rid,

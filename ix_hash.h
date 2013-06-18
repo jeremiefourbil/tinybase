@@ -18,6 +18,7 @@ public:
 
     struct IX_DirectoryHdr {
         int depth;
+        int nbSlotsAtMaxDepth;
     };
 
 //    struct IX_BucketHdr {
@@ -77,7 +78,9 @@ private:
     RC DeleteEntry_t(T iValue, const RID &rid);
 
     template <typename T, int n>
-    RC DeleteEntryInBucket_t(PageNum &ioPageNum, const RID &rid);
+    RC DeleteEntryInBucket_t(PageNum iPageNum, T iValue, const RID &rid);
+
+    RC DeleteEntryInRidBucket(PageNum &ioPageNum, const RID &rid);
 
     // print
     template <typename T, int n>

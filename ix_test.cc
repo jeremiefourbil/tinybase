@@ -34,8 +34,8 @@ using namespace std;
 #define BADFILE      "/abc/def/xyz"   // bad file name
 #define STRLEN       39               // length of strings to index
 #define FEW_ENTRIES  45
-#define MANY_ENTRIES 3000
-#define NENTRIES     5000          // Size of values array
+#define MANY_ENTRIES 300000
+#define NENTRIES     500000        // Size of values array
 #define PROG_UNIT    200              // how frequently to give progress
 // reports when adding lots of entries
 
@@ -239,15 +239,15 @@ RC InsertIntEntries(IX_IndexHandle &ih, int nEntries)
         value = values[i] + 1;
         RID rid(value, value*2);
 
-        printf("Value to insert: %d \n", value);
+//        printf("Value to insert: %d \n", value);
 
         if ((rc = ih.InsertEntry((void *)&value, rid)))
             return (rc);
 
-        if((rc = ih.DisplayTree()))
-            return rc;
+//        if((rc = ih.DisplayTree()))
+//            return rc;
 
-        printf("Value inserted: %d \n", value);
+//        printf("Value inserted: %d \n", value);
 
         if((i + 1) % PROG_UNIT == 0){
             // cast to long for PC's
@@ -1037,9 +1037,10 @@ RC Test8(void)
     if ((rc = ixm.CreateIndex(FILENAME, index, STRING, sizeof(char[STRLEN]))) ||
             (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
             (rc = InsertStringEntries(ih, FEW_ENTRIES)) ||
-            (rc = ih.DisplayTree()) ||
+            (rc = ih.DisplayTree())  ||
             (rc = ixm.CloseIndex(ih)) ||
-            (rc = ixm.OpenIndex(FILENAME, index, ih)));
+            (rc = ixm.OpenIndex(FILENAME, index, ih)))
+        return rc;
 
 
     // Scan =
@@ -1164,10 +1165,12 @@ RC Test8(void)
 
 
 
-
+    printf("close...\n");
 
     if(rc = ixm.CloseIndex(ih))
         return (rc);
+
+    printf("...closed\n");
 
     LsFiles(FILENAME);
 

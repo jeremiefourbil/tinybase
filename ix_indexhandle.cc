@@ -16,6 +16,8 @@ IX_IndexHandle::IX_IndexHandle()
 
 #ifdef IX_USE_HASH
     pHash = new IX_Hash();
+#else
+    pHash = NULL;
 #endif
 }
 

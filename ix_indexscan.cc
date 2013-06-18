@@ -43,37 +43,42 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle,
 
     _compOp = compOp;
 
-    if(pBTreeScan != NULL)
-    {
-        delete pBTreeScan;
-        pBTreeScan = NULL;
-    }
-
-    pBTreeScan = new IX_BTreeScan();
-
-#ifdef IX_USE_HASH
-    if(pHashScan)
-    {
-        delete pHashScan;
-        pHashScan = NULL;
-    }
-
-    pHashScan = new IX_HashScan();
-#endif
-
-
     if(_compOp == EQ_OP)
     {
 #ifdef IX_USE_HASH
+        if(pHashScan)
+        {
+            delete pHashScan;
+            pHashScan = NULL;
+        }
+
+        pHashScan = new IX_HashScan();
+
         if((rc = pHashScan->OpenScan(indexHandle.pHash, _compOp, value, pinHint)))
             goto err_return;
 #else
+        if(pBTreeScan != NULL)
+        {
+            delete pBTreeScan;
+            pBTreeScan = NULL;
+        }
+
+        pBTreeScan = new IX_BTreeScan();
+
         if((rc = pBTreeScan->OpenScan(indexHandle.pBTree, _compOp, value, pinHint)))
             goto err_return;
 #endif
     }
     else
     {
+        if(pBTreeScan != NULL)
+        {
+            delete pBTreeScan;
+            pBTreeScan = NULL;
+        }
+
+        pBTreeScan = new IX_BTreeScan();
+
         if((rc = pBTreeScan->OpenScan(indexHandle.pBTree, _compOp, value, pinHint)))
             goto err_return;
     }

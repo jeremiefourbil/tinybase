@@ -1,6 +1,7 @@
 #include "ix_internal.h"
 
 #include <iostream>
+#include <string>
 
 using namespace std;
 
@@ -15,7 +16,7 @@ int comparisonGeneric(const char* v1, const char* v2) { return strcmp(v1,v2); }
 
 void printGeneric(const int &v1) { cout << v1 << endl; }
 void printGeneric(const float &v1) { cout << v1 << endl; }
-void printGeneric(const char* v1) { return; }
+void printGeneric(const char* v1) { cout << v1 << endl; }
 
 void sortGeneric(int *array, PageNum bucket[], const int arrayLength)
 {
@@ -222,7 +223,16 @@ int getHash(const float &v1)
 
 int getHash(const char* v1)
 {
-    return 5;
+    int hash = 0;
+    int i = 0;
+
+    while(v1[i] != '\0' && i < MAXSTRINGLEN)
+    {
+        hash += (int) v1[i];
+        i++;
+    }
+
+    return hash;
 }
 
 void printDecomposition(const int iNumber)

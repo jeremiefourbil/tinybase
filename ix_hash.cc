@@ -137,13 +137,14 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
 
             if(depth == childDepth)
             {
-                cout << "Value to insert: " << iValue << endl;
-                cout << "Required page size: " << sizeof(IX_DirectoryHdr) + 2 * nbSlots * sizeof(PageNum) << " (" << PF_PAGE_SIZE << ")" << endl;
-                cout << "Hdr: " << sizeof(IX_DirectoryHdr) << " | pagenum: " << sizeof(PageNum) << " | slots: " << nbSlots << endl;
+//                cout << "Value to insert: " << iValue << endl;
+//                cout << "Required page size: " << sizeof(IX_DirectoryHdr) + 2 * nbSlots * sizeof(PageNum) << " (" << PF_PAGE_SIZE << ")" << endl;
+//                cout << "Hdr: " << sizeof(IX_DirectoryHdr) << " | pagenum: " << sizeof(PageNum) << " | slots: " << nbSlots << endl;
 
                 // check if page size is sufficient
                 if(sizeof(IX_DirectoryHdr) + 2 * nbSlots * sizeof(PageNum) >= PF_PAGE_SIZE)
                 {
+                    cout << "Slots: " << nbSlots << endl;
                     return IX_INSUFFISANT_PAGE_SIZE;
                 }
 
@@ -153,6 +154,7 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
                        nbSlots * sizeof(PageNum));
 
                 ((IX_DirectoryHdr *) pDirBuffer)->depth++;
+                ((IX_DirectoryHdr *) pDirBuffer)->nbSlotsAtMaxDepth = 2;
                 depth++;
                 nbSlots *= 2;
             }
@@ -160,7 +162,7 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
             // recompute the binary decomposition
             binary = getBinaryDecomposition(hash, depth);
 
-            cout << hash << ": " << getBinaryDecomposition(hash, depth) << endl;
+//            cout << hash << ": " << getBinaryDecomposition(hash, depth) << endl;
 
             // update the directory for every link to the new bucket page
             int offset = pow2(childDepth);
@@ -237,6 +239,12 @@ RC IX_Hash::IsPossibleToInsertInBucket_t(const PageNum iPageNum, bool &needToDiv
     childDepth = pBuffer->depth;
     needToDivide = (pBuffer->nbFilledSlots >= n);
 
+//    cout << "depth: " << childDepth << endl;
+//    cout << "ntd: " << needToDivide << endl;
+//    cout << "nb slots: " << pBuffer->nbFilledSlots << endl;
+//    cout << "max slots: " << n << endl;
+//    cout << "max string length: " << MAXSTRINGLEN << endl;
+
     if(rc = ReleaseBuffer(iPageNum, false))
         goto err_return;
 
@@ -253,19 +261,21 @@ RC IX_Hash::InsertEntryInBucket_t(PageNum iPageNum, T iValue, const RID &rid)
     RC rc = OK_RC;
     IX_Bucket<T,n> *pBuffer;
     bool alreadyInBucket = false;
+    bool needToUpdate = false;
     PageNum ridBucketNum;
+    int index=0;
 
     // get the current bucket
     if(rc = GetBucketBuffer<T,n>(iPageNum, pBuffer))
         goto err_return;
 
     // check if the value is already in there
-    for(int i=0; i<pBuffer->nbFilledSlots; i++)
+    for(index=0; index<pBuffer->nbFilledSlots; index++)
     {
-        if(comparisonGeneric(pBuffer->v[i], iValue) == 0)
+        if(comparisonGeneric(pBuffer->v[index], iValue) == 0)
         {
             alreadyInBucket = true;
-            ridBucketNum = pBuffer->child[i];
+            ridBucketNum = pBuffer->child[index];
             break;
         }
     }
@@ -283,6 +293,21 @@ RC IX_Hash::InsertEntryInBucket_t(PageNum iPageNum, T iValue, const RID &rid)
         pBuffer->child[pBuffer->nbFilledSlots] = ridBucketNum;
 
         pBuffer->nbFilledSlots++;
+
+        needToUpdate = true;
+    }
+
+    if(ridBucketNum == IX_EMPTY)
+    {
+        if((rc = AllocateRidBucketPage(ridBucketNum)))
+        {
+            ReleaseBuffer(iPageNum, false);
+            return rc;
+        }
+
+        pBuffer->child[index] = ridBucketNum;
+
+        needToUpdate = true;
     }
 
     // insert in the rid bucket
@@ -292,7 +317,7 @@ RC IX_Hash::InsertEntryInBucket_t(PageNum iPageNum, T iValue, const RID &rid)
         return rc;
     }
 
-    if(rc = ReleaseBuffer(iPageNum, !alreadyInBucket))
+    if(rc = ReleaseBuffer(iPageNum, needToUpdate))
         goto err_return;
 
     return rc;
@@ -372,7 +397,7 @@ RC IX_Hash::DivideBucketInTwo_t(const PageNum iBucketNum, PageNum &oBucketNum)
         goto err_return;
     }
 
-//    cout << "BEGIN Bucket division" << endl;
+    //    cout << "BEGIN Bucket division" << endl;
 
     // save the existing bucket data
     tempBuffer.nbFilledSlots = ipBuffer->nbFilledSlots;
@@ -415,26 +440,26 @@ RC IX_Hash::DivideBucketInTwo_t(const PageNum iBucketNum, PageNum &oBucketNum)
     }
 
 
-//    cout << "one: " << endl;
-//    for(int i=0; i<((IX_BucketHdr *)ipBuffer)->nbFilledSlots; i++)
-//    {
-//        memcpy(&tValues[i],
-//               ipBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
-//               sizeof(IX_BucketValue));
-//        cout << tValues[i].v << endl;
-//    }
+    //    cout << "one: " << endl;
+    //    for(int i=0; i<((IX_BucketHdr *)ipBuffer)->nbFilledSlots; i++)
+    //    {
+    //        memcpy(&tValues[i],
+    //               ipBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
+    //               sizeof(IX_BucketValue));
+    //        cout << tValues[i].v << endl;
+    //    }
 
-//    cout << "two: " << endl;
-//    for(int i=0; i<((IX_BucketHdr *)opBuffer)->nbFilledSlots; i++)
-//    {
-//        memcpy(&tValues[i],
-//               opBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
-//               sizeof(IX_BucketValue));
-//        cout << tValues[i].v << endl;
-//    }
+    //    cout << "two: " << endl;
+    //    for(int i=0; i<((IX_BucketHdr *)opBuffer)->nbFilledSlots; i++)
+    //    {
+    //        memcpy(&tValues[i],
+    //               opBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
+    //               sizeof(IX_BucketValue));
+    //        cout << tValues[i].v << endl;
+    //    }
 
 
-//    cout << "END Bucket division" << endl;
+    //    cout << "END Bucket division" << endl;
 
     // release the pages
     if((rc = ReleaseBuffer(iBucketNum, true)))
@@ -485,6 +510,60 @@ template <typename T, int n>
 RC IX_Hash::DeleteEntry_t(T iValue, const RID &rid)
 {
     RC rc = OK_RC;
+    int hash, binary;
+    char *pDirBuffer = NULL;
+    PageNum bucketNum;
+    bool needToUpdate = false;
+    int depth, nbSlots;
+
+    if(_pFileHdr->directoryNum == IX_EMPTY)
+    {
+        return IX_ENTRY_DOES_NOT_EXIST;
+    }
+
+
+    // get the directory page
+    if(rc = GetPageBuffer(_pFileHdr->directoryNum, pDirBuffer))
+        goto err_return;
+
+    // update depth and nbSlots
+    depth = ((IX_DirectoryHdr *) pDirBuffer)->depth;
+    nbSlots = 1;
+    for(int i=1; i<=depth; i++)
+    {
+        nbSlots *= 2;
+    }
+
+
+    // compute hash
+    hash = getHash(iValue);
+
+    // get binary decomposition
+    binary = getBinaryDecomposition(hash, depth);
+
+    // get the link
+    memcpy(&bucketNum,
+           pDirBuffer + sizeof(IX_DirectoryHdr) + binary * sizeof(PageNum),
+           sizeof(PageNum));
+
+    // the page does not exist
+    if(bucketNum == IX_EMPTY)
+    {
+        ReleaseBuffer(_pFileHdr->directoryNum, false);
+        return IX_ENTRY_DOES_NOT_EXIST;
+    }
+
+    // delete in bucket
+    if((rc = DeleteEntryInBucket_t<T,n>(bucketNum, iValue, rid)))
+    {
+        ReleaseBuffer(_pFileHdr->directoryNum, false);
+        goto err_return;
+    }
+
+    // release the directory page
+    if(rc = ReleaseBuffer(_pFileHdr->directoryNum, needToUpdate))
+        goto err_return;
+
 
     return rc;
 
@@ -493,9 +572,67 @@ err_return:
 }
 
 
-// bucket Deletion
+// Rid bucket Deletion
 template <typename T, int n>
-RC IX_Hash::DeleteEntryInBucket_t(PageNum &ioPageNum, const RID &rid)
+RC IX_Hash::DeleteEntryInBucket_t(PageNum iPageNum, T iValue, const RID &rid)
+{
+    RC rc = OK_RC;
+    IX_Bucket<T,n> *pBuffer;
+    bool alreadyInBucket = false;
+    PageNum ridBucketNum;
+    int index = 0;
+
+    // get the current bucket
+    if(rc = GetBucketBuffer<T,n>(iPageNum, pBuffer))
+        goto err_return;
+
+    // check if the value is already in there
+    for(index=0; index<pBuffer->nbFilledSlots; index++)
+    {
+        if(comparisonGeneric(pBuffer->v[index], iValue) == 0)
+        {
+            alreadyInBucket = true;
+            ridBucketNum = pBuffer->child[index];
+            break;
+        }
+    }
+
+    // the value does not exist
+    if(!alreadyInBucket)
+    {
+        ReleaseBuffer(iPageNum, false);
+        return IX_ENTRY_DOES_NOT_EXIST;
+    }
+
+    // delete in the rid bucket
+    if((rc = DeleteEntryInRidBucket(ridBucketNum, rid)))
+    {
+        ReleaseBuffer(iPageNum, false);
+        return rc;
+    }
+
+    // the rid bucket is now empty
+    if(ridBucketNum == IX_EMPTY)
+    {
+        pBuffer->child[index] = IX_EMPTY;
+
+        if(rc = ReleaseBuffer(iPageNum, true))
+            goto err_return;
+    }
+    else
+    {
+        if(rc = ReleaseBuffer(iPageNum, false))
+            goto err_return;
+    }
+
+    return rc;
+
+err_return:
+    return (rc);
+}
+
+// Rid bucket Deletion
+RC IX_Hash::DeleteEntryInRidBucket(PageNum &ioPageNum, const RID &rid)
 {
     RC rc = OK_RC;
 
