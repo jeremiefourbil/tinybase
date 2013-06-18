@@ -142,11 +142,14 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
                 cout << "Value to insert: " << iValue << endl;
                 cout << "Required page size: " << sizeof(IX_DirectoryHdr) + 2 * nbSlots * sizeof(PageNum) << " (" << PF_PAGE_SIZE << ")" << endl;
                 cout << "Hdr: " << sizeof(IX_DirectoryHdr) << " | pagenum: " << sizeof(PageNum) << " | slots: " << nbSlots << endl;
+
+                // check if page size is sufficient
                 if(sizeof(IX_DirectoryHdr) + 2 * nbSlots * sizeof(PageNum) >= PF_PAGE_SIZE)
                 {
                     return IX_INSUFFISANT_PAGE_SIZE;
                 }
-                // NEED TO CHECK IF PAGE SIZE IS REACHED
+
+                // double the directory size
                 memcpy(pDirBuffer + sizeof(IX_DirectoryHdr) + nbSlots * sizeof(PageNum),
                        pDirBuffer + sizeof(IX_DirectoryHdr),
                        nbSlots * sizeof(PageNum));
@@ -156,20 +159,48 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
                 nbSlots *= 2;
             }
 
+            // recompute the binary decomposition
+            binary = getBinaryDecomposition(hash, depth);
+
+            cout << hash << ": " << getBinaryDecomposition(hash, depth) << endl;
+
             // update the directory for every link to the new bucket page
             int offset = pow2(childDepth);
-            for(int indexSlot=binary+offset; indexSlot<nbSlots; indexSlot+=2*offset)
+            if(getLastBit(hash, childDepth+1) == 0)
             {
-                memcpy(pDirBuffer + sizeof(IX_DirectoryHdr) + indexSlot * sizeof(PageNum),
-                       &newBucketNum,
-                       sizeof(PageNum));
+                for(int indexSlot=binary+offset; indexSlot<nbSlots; indexSlot+=2*offset)
+                {
+                    memcpy(pDirBuffer + sizeof(IX_DirectoryHdr) + indexSlot * sizeof(PageNum),
+                           &newBucketNum,
+                           sizeof(PageNum));
+                }
+
+                for(int indexSlot=binary-offset; indexSlot>=0; indexSlot-=2*offset)
+                {
+                    memcpy(pDirBuffer + sizeof(IX_DirectoryHdr) + indexSlot * sizeof(PageNum),
+                           &newBucketNum,
+                           sizeof(PageNum));
+                }
+            }
+            else
+            {
+                for(int indexSlot=binary; indexSlot<nbSlots; indexSlot+=2*offset)
+                {
+                    memcpy(pDirBuffer + sizeof(IX_DirectoryHdr) + indexSlot * sizeof(PageNum),
+                           &newBucketNum,
+                           sizeof(PageNum));
+                }
+
+                for(int indexSlot=binary-2*offset; indexSlot>=0; indexSlot-=2*offset)
+                {
+                    memcpy(pDirBuffer + sizeof(IX_DirectoryHdr) + indexSlot * sizeof(PageNum),
+                           &newBucketNum,
+                           sizeof(PageNum));
+                }
             }
 
             // update child depth
             childDepth++;
-
-            // recompute the binary decomposition
-            binary = getBinaryDecomposition(hash, childDepth);
 
             // get the link
             memcpy(&bucketNum,
@@ -205,7 +236,7 @@ RC IX_Hash::IsPossibleToInsertInBucket(const PageNum iPageNum, bool &needToDivid
         goto err_return;
 
     childDepth = ((IX_BucketHdr *)pBuffer)->depth;
-    needToDivide = ((IX_BucketHdr *)pBuffer)->nbFilledSlots >= ((IX_BucketHdr *)pBuffer)->nbMaxSlots;
+    needToDivide = (((IX_BucketHdr *)pBuffer)->nbFilledSlots >= ((IX_BucketHdr *)pBuffer)->nbMaxSlots);
 
     if(rc = ReleaseBuffer(iPageNum, false))
         goto err_return;
@@ -290,7 +321,7 @@ RC IX_Hash::InsertEntryInRidBucket(PageNum iPageNum, const RID &rid)
         goto err_return;
 
     // overflow detection
-    if((((IX_RidBucketHdr *)pBuffer)->nbFilledSlots + 1) * sizeof(RID) > PF_PAGE_SIZE - sizeof(IX_PageBucketHdr))
+    if((((IX_RidBucketHdr *)pBuffer)->nbFilledSlots + 1) * sizeof(RID) > PF_PAGE_SIZE - sizeof(IX_RidBucketHdr))
     {
         if(rc = ReleaseBuffer(iPageNum, false))
             goto err_return;
@@ -313,10 +344,10 @@ RC IX_Hash::InsertEntryInRidBucket(PageNum iPageNum, const RID &rid)
         }
     }
 
-    memcpy(pBuffer + sizeof(IX_PageBucketHdr) + ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots * sizeof(RID),
+    memcpy(pBuffer + sizeof(IX_RidBucketHdr) + ((IX_RidBucketHdr *)pBuffer)->nbFilledSlots * sizeof(RID),
            &rid, sizeof(RID));
 
-    ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots++;
+    ((IX_RidBucketHdr *)pBuffer)->nbFilledSlots++;
 
     if(rc = ReleaseBuffer(iPageNum, true))
         goto err_return;
@@ -349,7 +380,7 @@ RC IX_Hash::DivideBucketInTwo(const PageNum iBucketNum, PageNum &oBucketNum)
         goto err_return;
     }
 
-    cout << "BEGIN Bucket division" << endl;
+//    cout << "BEGIN Bucket division" << endl;
 
     // save the existing bucket data
     nbFilledSlots = ((IX_BucketHdr *)ipBuffer)->nbFilledSlots;
@@ -359,7 +390,7 @@ RC IX_Hash::DivideBucketInTwo(const PageNum iBucketNum, PageNum &oBucketNum)
         memcpy(&tValues[i],
                ipBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
                sizeof(IX_BucketValue));
-        cout << tValues[i].v << endl;
+//        cout << tValues[i].v << endl;
     }
 
     // reset the existing bucket counter
@@ -376,29 +407,7 @@ RC IX_Hash::DivideBucketInTwo(const PageNum iBucketNum, PageNum &oBucketNum)
     // set the saved data in the appropriate bucket
     for(int i=0; i<nbFilledSlots; i++)
     {
-        int d,r,bitNb,maxValue;
-
-        maxValue = pow2(((IX_BucketHdr *)ipBuffer)->depth);
-
-//        if(tValues[i].v < maxValue)
-//        {
-//            r = 0;
-//        }
-//        else
-//        {
-            bitNb = 1;
-            d = tValues[i].v;
-
-            do
-            {
-                getEuclidianDivision(d,d,r);
-                if(d == 0 && bitNb < ((IX_BucketHdr *)ipBuffer)->depth)
-                    r = 0;
-
-                bitNb++;
-
-            } while(d>0 && bitNb <= ((IX_BucketHdr *)ipBuffer)->depth);
-//        }
+        int r = getLastBit(tValues[i].v, ((IX_BucketHdr *)ipBuffer)->depth);
 
         if(r == 0)
         {
@@ -417,26 +426,26 @@ RC IX_Hash::DivideBucketInTwo(const PageNum iBucketNum, PageNum &oBucketNum)
     }
 
 
-    cout << "one: " << endl;
-    for(int i=0; i<((IX_BucketHdr *)ipBuffer)->nbFilledSlots; i++)
-    {
-        memcpy(&tValues[i],
-               ipBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
-               sizeof(IX_BucketValue));
-        cout << tValues[i].v << endl;
-    }
+//    cout << "one: " << endl;
+//    for(int i=0; i<((IX_BucketHdr *)ipBuffer)->nbFilledSlots; i++)
+//    {
+//        memcpy(&tValues[i],
+//               ipBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
+//               sizeof(IX_BucketValue));
+//        cout << tValues[i].v << endl;
+//    }
 
-    cout << "two: " << endl;
-    for(int i=0; i<((IX_BucketHdr *)opBuffer)->nbFilledSlots; i++)
-    {
-        memcpy(&tValues[i],
-               opBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
-               sizeof(IX_BucketValue));
-        cout << tValues[i].v << endl;
-    }
+//    cout << "two: " << endl;
+//    for(int i=0; i<((IX_BucketHdr *)opBuffer)->nbFilledSlots; i++)
+//    {
+//        memcpy(&tValues[i],
+//               opBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
+//               sizeof(IX_BucketValue));
+//        cout << tValues[i].v << endl;
+//    }
 
 
-    cout << "END Bucket division" << endl;
+//    cout << "END Bucket division" << endl;
 
     // delete the temporary array
     if(tValues != NULL)
@@ -451,6 +460,8 @@ RC IX_Hash::DivideBucketInTwo(const PageNum iBucketNum, PageNum &oBucketNum)
 
     if((rc = ReleaseBuffer(oBucketNum, true)))
         goto err_return;
+
+    return rc;
 
 
 err_return:
@@ -580,7 +591,7 @@ RC IX_Hash::AllocateDirectoryPage(PageNum &oPageNum)
     RC rc;
     PF_PageHandle pageHandle;
     char *pReadData;
-    PageNum emptyNum = IX_EMPTY;
+    PageNum firstNum, secondNum;
 
     if (rc = _pPfFileHandle->AllocatePage(pageHandle))
         goto err_return;
@@ -595,12 +606,21 @@ RC IX_Hash::AllocateDirectoryPage(PageNum &oPageNum)
 
     ((IX_DirectoryHdr *)pReadData)->depth = 1;
 
+
+    // create the new pages
+    if((rc = AllocateBucketPage(((IX_DirectoryHdr *)pReadData)->depth, firstNum)))
+        goto err_return;
+
+    if((rc = AllocateBucketPage(((IX_DirectoryHdr *)pReadData)->depth, secondNum)))
+        goto err_return;
+
+    // update the directory
     memcpy(pReadData + sizeof(IX_DirectoryHdr),
-           &emptyNum,
+           &firstNum,
            sizeof(PageNum));
 
     memcpy(pReadData + sizeof(IX_DirectoryHdr) + sizeof(PageNum),
-           &emptyNum,
+           &secondNum,
            sizeof(PageNum));
 
     // Mark the page dirty since we changed the next pointer
@@ -690,9 +710,9 @@ RC IX_Hash::AllocateRidBucketPage(PageNum &oPageNum)
     // Return ok
     return (0);
 
-    err_unpin:
+err_unpin:
     _pPfFileHandle->UnpinPage(oPageNum);
-    err_return:
+err_return:
     return (rc);
 }
 
@@ -774,6 +794,7 @@ RC IX_Hash::DisplayTree()
         nbSlots *= 2;
     }
 
+    cout << "#####################################" << endl;
     cout << "Depth: " << depth << endl;
     cout << "Nb Slots: " << nbSlots << endl;
 
@@ -785,7 +806,8 @@ RC IX_Hash::DisplayTree()
                sizeof(PageNum));
 
         cout << "------------------------------" << endl;
-        cout << "# slot: " << i << endl;
+        cout << "# slot: " << i;
+        printDecomposition(i);
         cout << "# page: " << currentNum << endl;
 
         if(((rc = DisplayBucket(currentNum))))
@@ -794,6 +816,8 @@ RC IX_Hash::DisplayTree()
             goto err_return;
         }
     }
+
+    cout << "#####################################" << endl;
 
 
     if(rc = ReleaseBuffer(_pFileHdr->directoryNum, false))
@@ -831,7 +855,8 @@ RC IX_Hash::DisplayBucket(const PageNum iPageNum)
                pBucketBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
                sizeof(IX_BucketValue));
 
-        cout << value.v << endl;
+        cout << value.v;
+        printDecomposition(value.v);
     }
 
 

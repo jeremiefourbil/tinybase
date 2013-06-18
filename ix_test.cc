@@ -33,7 +33,7 @@ using namespace std;
 #define FILENAME     "testrel"        // test file name
 #define BADFILE      "/abc/def/xyz"   // bad file name
 #define STRLEN       39               // length of strings to index
-#define FEW_ENTRIES  30
+#define FEW_ENTRIES  45
 #define MANY_ENTRIES 3000
 #define NENTRIES     5000          // Size of values array
 #define PROG_UNIT    200              // how frequently to give progress
@@ -238,8 +238,14 @@ RC InsertIntEntries(IX_IndexHandle &ih, int nEntries)
     for(i = 0; i < nEntries; i++) {
         value = values[i] + 1;
         RID rid(value, value*2);
+
+        printf("Value to insert: %d \n", value);
+
         if ((rc = ih.InsertEntry((void *)&value, rid)))
             return (rc);
+
+        if((rc = ih.DisplayTree()))
+            return rc;
 
         printf("Value inserted: %d \n", value);
 

@@ -78,7 +78,9 @@ void getPointerIndex(const char array[][MAXSTRINGLEN], const int arrayLength, co
 // binary decomposition
 void getEuclidianDivision(const int iNumber, int &oD, int &oR);
 int getBinaryDecomposition(const int iNumber, const int iDepth);
+int getLastBit(const int iNumber, const int iDepth);
 int pow2(const int order);
+void printDecomposition(const int iNumber);
 
 // hash computation
 int getHash(const int &v1);

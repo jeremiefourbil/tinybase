@@ -9,12 +9,12 @@ using namespace std;
 
 IX_BTreeScan::IX_BTreeScan()
 {
-
+    _pBTree = NULL;
 }
 
 IX_BTreeScan::~IX_BTreeScan()
 {
-
+    _pBTree = NULL;
 }
 
 // Open index scan
@@ -625,6 +625,8 @@ RC IX_BTreeScan::CloseScan()
         delete _nextValue;
         _nextValue = NULL;
     }
+
+    _pBTree = NULL;
 
 
     return OK_RC;

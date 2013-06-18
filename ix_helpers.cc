@@ -178,6 +178,27 @@ int getBinaryDecomposition(const int iNumber, const int iDepth)
     return out;
 }
 
+int getLastBit(const int iNumber, const int iDepth)
+{
+    int d,r,bitNb;
+
+    d = iNumber;
+    r = 0;
+    bitNb = 1;
+
+    while(d>0 && bitNb <= iDepth)
+    {
+        getEuclidianDivision(d,d,r);
+
+        if(d == 0 && bitNb < iDepth)
+            r = 0;
+
+        bitNb++;
+    }
+
+    return r;
+}
+
 int pow2 (const int order)
 {
     int out = 1;
@@ -202,4 +223,22 @@ int getHash(const float &v1)
 int getHash(const char* v1)
 {
     return 5;
+}
+
+void printDecomposition(const int iNumber)
+{
+    int d,r;
+
+    d = iNumber;
+    r = 0;
+
+
+    cout << " (";
+    while(d>0)
+    {
+        getEuclidianDivision(d,d,r);
+
+        cout << r;
+    }
+    cout << ") " << endl;
 }

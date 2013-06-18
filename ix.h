@@ -10,7 +10,7 @@
 
 
 
-//#define IX_USE_HASH
+#define IX_USE_HASH
 
 
 
@@ -25,6 +25,7 @@
 #include "ix_hash.h"
 
 #include "ix_btreescan.h"
+#include "ix_hashscan.h"
 
 
 // IX_IndexHandle: IX Index File interface
@@ -80,7 +81,12 @@ public:
     RC CloseScan();
 
 private:
+    CompOp _compOp;
+
     IX_BTreeScan * pBTreeScan;
+#ifdef IX_USE_HASH
+    IX_HashScan *pHashScan;
+#endif
 };
 
 //
@@ -126,7 +132,8 @@ void IX_PrintError(RC rc);
 #define IX_BUCKET_OVERFLOW              (START_IX_ERR - 7)
 #define IX_RID_ALREADY_IN_BUCKET        (START_IX_ERR - 8)
 #define IX_NON_POSITIVE_INDEX_NUMBER    (START_IX_ERR - 9)
-#define IX_LASTERROR          IX_NON_POSITIVE_INDEX_NUMBER
+#define IX_BADOPERATOR                  (START_IX_ERR - 10)
+#define IX_LASTERROR          IX_BADOPERATOR
 //#define RM_INVALIDRECSIZE  (START_RM_WARN + 2) // invalid record size
 //#define RM_INVALIDSLOTNUM  (START_RM_WARN + 3) // invalid slot number
 //#define RM_RECORDNOTFOUND  (START_RM_WARN + 4) // record not found

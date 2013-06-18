@@ -8,9 +8,6 @@
 
 class IX_BTreeScan
 {
-    friend class IX_IndexHandle;
-    friend class IX_Manager;
-    friend class IX_IndexScan;
 public:
     IX_BTreeScan();
     ~IX_BTreeScan();

@@ -11,6 +11,7 @@ class IX_Hash
     friend class IX_IndexHandle;
     friend class IX_Manager;
     friend class IX_IndexScan;
+    friend class IX_HashScan;
 public:
     IX_Hash();
     ~IX_Hash();
@@ -24,6 +25,14 @@ public:
         int nbFilledSlots;
         int nbMaxSlots;
     };
+
+//    template <typename T, int n>
+//    struct IX_BucketValue {
+//        int depth;
+//        int nbFilledSlots;
+//        T v[n];
+//        PageNum child[n];
+//    };
 
     struct IX_BucketValue {
         int v;
