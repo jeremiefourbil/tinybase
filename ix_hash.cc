@@ -61,7 +61,7 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
     PageNum bucketNum, newBucketNum;
     bool needToDivide = false;
     bool needToUpdate = false;
-    int depth, nbSlots, childDepth;
+    int depth, childDepth;
 
     if(_pFileHdr->directoryNum == IX_EMPTY)
     {
@@ -79,12 +79,10 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
 
     // update depth and nbSlots
     depth = ((IX_DirectoryHdr *) pDirBuffer)->depth;
-    nbSlots = 1;
-    for(int i=1; i<=depth; i++)
-    {
-        nbSlots *= 2;
-    }
 
+    // release the directory page
+    if(rc = ReleaseBuffer(_pFileHdr->directoryNum, false))
+        goto err_return;
 
     // compute hash
     hash = getHash(iValue);
@@ -93,9 +91,9 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
     binary = getBinaryDecomposition(hash, depth);
 
     // get the link
-    memcpy(&bucketNum,
-           pDirBuffer + sizeof(IX_DirectoryHdr) + binary * sizeof(PageNum),
-           sizeof(PageNum));
+    if(rc = GetBucketNum(binary, bucketNum))
+        goto err_return;
+
 
     // if the page does not exist, create it
     if(bucketNum == IX_EMPTY)
@@ -103,7 +101,6 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
         // create the new page
         if((rc = AllocateBucketPage_t<T,n>(depth, bucketNum)))
         {
-            ReleaseBuffer(_pFileHdr->directoryNum, false);
             goto err_return;
         }
 
@@ -119,7 +116,6 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
         // see if division is necessary
         if((rc = IsPossibleToInsertInBucket_t<T,n>(bucketNum, needToDivide, childDepth)))
         {
-            ReleaseBuffer(_pFileHdr->directoryNum, false);
             goto err_return;
         }
 
@@ -131,100 +127,304 @@ RC IX_Hash::InsertEntry_t(T iValue, const RID &rid)
             // divide the existing bucket
             if((rc = DivideBucketInTwo_t<T,n>(bucketNum, newBucketNum)))
             {
-                ReleaseBuffer(_pFileHdr->directoryNum, true);
                 goto err_return;
             }
 
             if(depth == childDepth)
             {
-//                cout << "Value to insert: " << iValue << endl;
-//                cout << "Required page size: " << sizeof(IX_DirectoryHdr) + 2 * nbSlots * sizeof(PageNum) << " (" << PF_PAGE_SIZE << ")" << endl;
-//                cout << "Hdr: " << sizeof(IX_DirectoryHdr) << " | pagenum: " << sizeof(PageNum) << " | slots: " << nbSlots << endl;
+                if((rc = DoubleDirectorySize_t<T,n>()))
+                    goto err_return;
 
-                // check if page size is sufficient
-                if(sizeof(IX_DirectoryHdr) + 2 * nbSlots * sizeof(PageNum) >= PF_PAGE_SIZE)
-                {
-                    cout << "Slots: " << nbSlots << endl;
-                    return IX_INSUFFISANT_PAGE_SIZE;
-                }
-
-                // double the directory size
-                memcpy(pDirBuffer + sizeof(IX_DirectoryHdr) + nbSlots * sizeof(PageNum),
-                       pDirBuffer + sizeof(IX_DirectoryHdr),
-                       nbSlots * sizeof(PageNum));
-
-                ((IX_DirectoryHdr *) pDirBuffer)->depth++;
-                ((IX_DirectoryHdr *) pDirBuffer)->nbSlotsAtMaxDepth = 2;
                 depth++;
-                nbSlots *= 2;
             }
 
             // recompute the binary decomposition
             binary = getBinaryDecomposition(hash, depth);
 
-//            cout << hash << ": " << getBinaryDecomposition(hash, depth) << endl;
-
             // update the directory for every link to the new bucket page
             int offset = pow2(childDepth);
-            if(getLastBit(hash, childDepth+1) == 0)
-            {
-                for(int indexSlot=binary+offset; indexSlot<nbSlots; indexSlot+=2*offset)
-                {
-                    memcpy(pDirBuffer + sizeof(IX_DirectoryHdr) + indexSlot * sizeof(PageNum),
-                           &newBucketNum,
-                           sizeof(PageNum));
-                }
+//            cout << "offset: " << offset << endl;
 
-                for(int indexSlot=binary-offset; indexSlot>=0; indexSlot-=2*offset)
-                {
-                    memcpy(pDirBuffer + sizeof(IX_DirectoryHdr) + indexSlot * sizeof(PageNum),
-                           &newBucketNum,
-                           sizeof(PageNum));
-                }
-            }
-            else
-            {
-                for(int indexSlot=binary; indexSlot<nbSlots; indexSlot+=2*offset)
-                {
-                    memcpy(pDirBuffer + sizeof(IX_DirectoryHdr) + indexSlot * sizeof(PageNum),
-                           &newBucketNum,
-                           sizeof(PageNum));
-                }
-
-                for(int indexSlot=binary-2*offset; indexSlot>=0; indexSlot-=2*offset)
-                {
-                    memcpy(pDirBuffer + sizeof(IX_DirectoryHdr) + indexSlot * sizeof(PageNum),
-                           &newBucketNum,
-                           sizeof(PageNum));
-                }
-            }
 
             // update child depth
             childDepth++;
 
+            if(getLastBit(hash, childDepth) == 0)
+            {
+                if((rc = UpdateDirectoryEntries(binary, offset, newBucketNum, true)))
+                    return rc;
+            }
+            else
+            {
+                if((rc = UpdateDirectoryEntries(binary, offset, newBucketNum, false)))
+                    return rc;
+            }
+
+
             // get the link
-            memcpy(&bucketNum,
-                   pDirBuffer + sizeof(IX_DirectoryHdr) + binary * sizeof(PageNum),
-                   sizeof(PageNum));
+            if(rc = GetBucketNum(binary, bucketNum))
+                goto err_return;
         }
     } while(needToDivide);
 
     // insert in bucket
     if((rc = InsertEntryInBucket_t<T,n>(bucketNum, iValue, rid)))
     {
-        ReleaseBuffer(_pFileHdr->directoryNum, false);
         goto err_return;
     }
-
-    // release the directory page
-    if(rc = ReleaseBuffer(_pFileHdr->directoryNum, needToUpdate))
-        goto err_return;
-
 
     return rc;
 
 err_return:
     return (rc);
+}
+
+
+
+RC IX_Hash::GetBucketNum(const int binary, PageNum &oBucketNum)
+{
+    RC rc = OK_RC;
+    char *pDirBuffer = NULL;
+    PageNum dirNum, nextDirNum;
+    int stillToDo = binary;
+    bool keepOn = true;
+
+    dirNum = _pFileHdr->directoryNum;
+
+    while(keepOn)
+    {
+
+        if(dirNum == IX_EMPTY)
+        {
+            return IX_ENTRY_DOES_NOT_EXIST;
+        }
+
+        // get the directory page
+        if(rc = GetPageBuffer(dirNum, pDirBuffer))
+            goto err_return;
+
+        if(stillToDo > ((IX_DirectoryHdr *)pDirBuffer)->nbFilledSlots)
+        {
+            stillToDo = stillToDo - ((IX_DirectoryHdr *)pDirBuffer)->nbFilledSlots;
+            nextDirNum = ((IX_DirectoryHdr *)pDirBuffer)->next;
+        }
+        else
+        {
+            memcpy(&oBucketNum,
+                   pDirBuffer + sizeof(IX_DirectoryHdr) + stillToDo * sizeof(PageNum),
+                   sizeof(PageNum));
+
+            keepOn = false;
+        }
+
+        if(rc = ReleaseBuffer(dirNum, false))
+            goto err_return;
+
+        dirNum = nextDirNum;
+    }
+
+    return rc;
+
+err_return:
+    return (rc);
+}
+
+template <typename T,int n>
+RC IX_Hash::DoubleDirectorySize_t()
+{
+    RC rc = OK_RC;
+    char *pReadBuffer = NULL, *pWriteBuffer = NULL, *pPreviousBuffer = NULL;
+    PageNum readNum;
+    PageNum nextNum, previousNum;
+    PageNum writeNum;
+    PageNum lastReadNum, firstWriteNum;
+
+    cout << "Double directory size" << endl;
+
+    readNum = _pFileHdr->directoryNum;
+
+    if(readNum == IX_EMPTY)
+    {
+        return OK_RC;
+    }
+
+    // open the directory
+    if(rc = GetPageBuffer(readNum, pReadBuffer))
+        goto err_return;
+
+    // the directory's page is sufficient
+    if(2 * ((IX_DirectoryHdr *) pReadBuffer)->nbFilledSlots < nbSlotsInDirectory)
+    {
+        cout << "Sufficient space in directory page" << endl;
+        // double the directory size
+        memcpy(pReadBuffer + sizeof(IX_DirectoryHdr) + ((IX_DirectoryHdr *) pReadBuffer)->nbFilledSlots * sizeof(PageNum),
+               pReadBuffer + sizeof(IX_DirectoryHdr),
+               ((IX_DirectoryHdr *) pReadBuffer)->nbFilledSlots * sizeof(PageNum));
+
+        ((IX_DirectoryHdr *) pReadBuffer)->nbFilledSlots *= 2;
+        ((IX_DirectoryHdr *) pReadBuffer)->depth++;
+
+
+        if(rc = ReleaseBuffer(readNum, true))
+            goto err_return;
+    }
+    // impossible to double the size inside the same page
+    else
+    {
+        if(rc = ReleaseBuffer(readNum, false))
+            goto err_return;
+
+        cout << "Space in directory page not sufficient, need use new pages" << endl;
+
+        // get the last existing page
+        previousNum = readNum;
+        nextNum = readNum;
+        while(nextNum != IX_EMPTY)
+        {
+            previousNum = nextNum;
+            if(rc = GetPageBuffer(previousNum, pPreviousBuffer))
+                goto err_return;
+
+            ((IX_DirectoryHdr *) pPreviousBuffer)->depth++;
+            nextNum = ((IX_DirectoryHdr *) pPreviousBuffer)->next;
+
+            if(rc = ReleaseBuffer(previousNum, true))
+                goto err_return;
+        }
+
+        lastReadNum = previousNum;
+        previousNum = IX_EMPTY;
+
+
+        while(readNum != IX_EMPTY)
+        {
+            if(rc = GetPageBuffer(readNum, pReadBuffer))
+                goto err_return;
+
+            // create the new page
+            if((rc = AllocateDirectoryPage_t<T,n>(writeNum)))
+            {
+                goto err_return;
+            }
+
+            if(previousNum == IX_EMPTY)
+            {
+                firstWriteNum = writeNum;
+            }
+            else
+            {
+                if(rc = GetPageBuffer(previousNum, pPreviousBuffer))
+                    goto err_return;
+
+                ((IX_DirectoryHdr *) pPreviousBuffer)->next = writeNum;
+
+                if(rc = ReleaseBuffer(previousNum, true))
+                    goto err_return;
+            }
+
+            if(rc = GetPageBuffer(writeNum, pWriteBuffer))
+                goto err_return;
+
+            memcpy(pWriteBuffer,
+                   pReadBuffer,
+                   sizeof(IX_DirectoryHdr) + (((IX_DirectoryHdr *) pReadBuffer)->nbFilledSlots * sizeof(PageNum)));
+
+            ((IX_DirectoryHdr *) pWriteBuffer)->next = IX_EMPTY;
+
+            nextNum = ((IX_DirectoryHdr *) pReadBuffer)->next;
+
+            if(rc = ReleaseBuffer(writeNum, true))
+                goto err_return;
+
+            if(rc = ReleaseBuffer(readNum, false))
+                goto err_return;
+
+
+            previousNum = writeNum;
+            readNum = nextNum;
+
+//            cout << "hello" << endl;
+        }
+
+
+        if(rc = GetPageBuffer(lastReadNum, pReadBuffer))
+            goto err_return;
+
+        ((IX_DirectoryHdr *) pReadBuffer)->next = firstWriteNum;
+
+        if(rc = ReleaseBuffer(lastReadNum, true))
+            goto err_return;
+
+    }
+
+
+
+    return rc;
+
+err_return:
+    return rc;
+}
+
+RC IX_Hash::UpdateDirectoryEntries(const int iBinary, const int iOffset, const PageNum &newPage, bool updateThisSlot)
+{
+    RC rc = OK_RC;
+    char *pReadBuffer = NULL;
+    PageNum readNum, nextNum;
+    int p = iBinary / (2 * iOffset);
+    int start = iBinary - p * 2 * iOffset;
+    int slotCounter = 0;
+    int m;
+
+    if(updateThisSlot)
+    {
+        p = (iBinary - iOffset) / (2 * iOffset);
+        start = iBinary - iOffset - p * 2 * iOffset;
+        if(start < 0)
+        {
+            start = iBinary + iOffset;
+        }
+    }
+    else
+    {
+        p = iBinary / (2 * iOffset);
+        start = iBinary - p * 2 * iOffset;
+    }
+
+    readNum = _pFileHdr->directoryNum;
+
+    if(readNum == IX_EMPTY)
+    {
+        return OK_RC;
+    }
+
+    while(readNum != IX_EMPTY)
+    {
+
+        if(rc = GetPageBuffer(readNum, pReadBuffer))
+            goto err_return;
+
+        while(start - slotCounter < ((IX_DirectoryHdr *) pReadBuffer)->nbFilledSlots)
+        {
+            memcpy(pReadBuffer + sizeof(IX_DirectoryHdr) + (start - slotCounter) * sizeof(PageNum),
+                   &newPage,
+                   sizeof(PageNum));
+
+            start += 2 * iOffset;
+        }
+
+        nextNum = ((IX_DirectoryHdr *) pReadBuffer)->next;
+
+        if(rc = ReleaseBuffer(readNum, true))
+            goto err_return;
+
+        readNum = nextNum;
+    }
+
+
+    return rc;
+
+err_return:
+    return rc;
 }
 
 template <typename T, int n>
@@ -239,11 +439,11 @@ RC IX_Hash::IsPossibleToInsertInBucket_t(const PageNum iPageNum, bool &needToDiv
     childDepth = pBuffer->depth;
     needToDivide = (pBuffer->nbFilledSlots >= n);
 
-//    cout << "depth: " << childDepth << endl;
-//    cout << "ntd: " << needToDivide << endl;
-//    cout << "nb slots: " << pBuffer->nbFilledSlots << endl;
-//    cout << "max slots: " << n << endl;
-//    cout << "max string length: " << MAXSTRINGLEN << endl;
+    //    cout << "depth: " << childDepth << endl;
+    //    cout << "ntd: " << needToDivide << endl;
+    //    cout << "nb slots: " << pBuffer->nbFilledSlots << endl;
+    //    cout << "max slots: " << n << endl;
+    //    cout << "max string length: " << MAXSTRINGLEN << endl;
 
     if(rc = ReleaseBuffer(iPageNum, false))
         goto err_return;
@@ -724,9 +924,9 @@ RC IX_Hash::AllocateDirectoryPage_t(PageNum &oPageNum)
         goto err_unpin;
 
     // Fill node
-
     ((IX_DirectoryHdr *)pReadData)->depth = 1;
-
+    ((IX_DirectoryHdr *)pReadData)->nbFilledSlots = 2;
+    ((IX_DirectoryHdr *)pReadData)->next = IX_EMPTY;
 
     // create the new pages
     if((rc = AllocateBucketPage_t<T,n>(((IX_DirectoryHdr *)pReadData)->depth, firstNum)))

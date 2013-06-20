@@ -18,14 +18,9 @@ public:
 
     struct IX_DirectoryHdr {
         int depth;
-        int nbSlotsAtMaxDepth;
+        int nbFilledSlots;
+        PageNum next;
     };
-
-//    struct IX_BucketHdr {
-//        int depth;
-//        int nbFilledSlots;
-//        int nbMaxSlots;
-//    };
 
     template <typename T, int n>
     struct IX_Bucket {
@@ -34,11 +29,6 @@ public:
         T v[n];
         PageNum child[n];
     };
-
-//    struct IX_BucketValue {
-//        int v;
-//        PageNum bucketNum;
-//    };
 
     struct IX_RidBucketHdr {
         int nbFilledSlots;
@@ -103,6 +93,13 @@ private:
 
     template <typename T, int n>
     RC GetBucketBuffer(const PageNum &iPageNum, IX_Bucket<T,n> * & pBuffer) const;
+
+    // directory management
+    RC GetBucketNum(const int binary, PageNum &oBucketNum);
+    template <typename T,int n>
+    RC DoubleDirectorySize_t();
+
+    RC UpdateDirectoryEntries(const int iBinary, const int iOffset, const PageNum &newPage, bool updateThisSlot);
 
     PF_FileHandle *_pPfFileHandle;
     IX_FileHdr * _pFileHdr;
