@@ -47,7 +47,8 @@ RC QL_TreePlan::BuildFromQuery(int nSelAttrs, const RelAttr selAttrs[],
     return rc;
 }
 
-RC QL_TreePlan::PerformNodeOperation()
+RC QL_TreePlan::PerformNodeOperation(int nAttributes, DataAttrInfo *tNodeAttributes,
+                      void * pData)
 {
     RC rc = OK_RC;
 
@@ -102,4 +103,20 @@ RC QL_TreePlan::PerformJoin()
 
 
     return rc;
+}
+
+void QL_TreePlan::Padding (char ch, int n){
+  int i;
+  for(i=0;i<n;i++){
+    putchar(ch);
+  }
+}
+
+void QL_TreePlan::Print (QL_TreePlan * x, char prefix ,int level)
+{
+    if (!x) return;
+    Print (_pLc, '/',level + 1);
+    Padding('\t', level);
+    printf ( "%c %s\n", prefix, nodeOperationAsString[_nodeOperation] );
+    Print (_pRc, '\\',level + 1);
 }
