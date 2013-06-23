@@ -1,5 +1,7 @@
 #include "ql_treeplan.h"
 
+#include "ql_internal.h"
+
 QL_TreePlan::QL_TreePlan()
 {
     _pLc = NULL;
@@ -19,4 +21,13 @@ QL_TreePlan::~QL_TreePlan()
         delete _pRc;
         _pRc = NULL;
     }
+}
+
+
+RC QL_TreePlan::PerformNodeOperation()
+{
+    RC rc = OK_RC;
+
+
+    return rc;
 }
