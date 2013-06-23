@@ -49,7 +49,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
 {
     int i;
 
-    cout << "Select\n";
+    cout << "QL Select\n";
 
     cout << "   nSelAttrs = " << nSelAttrs << "\n";
     for (i = 0; i < nSelAttrs; i++)
@@ -74,7 +74,7 @@ RC QL_Manager::Insert(const char *relName,
 {
     int i;
 
-    cout << "Insert\n";
+    cout << "QL Insert\n";
 
     cout << "   relName = " << relName << "\n";
     cout << "   nValues = " << nValues << "\n";
@@ -92,7 +92,7 @@ RC QL_Manager::Delete(const char *relName,
 {
     int i;
 
-    cout << "Delete\n";
+    cout << "QL Delete\n";
 
     cout << "   relName = " << relName << "\n";
     cout << "   nCondtions = " << nConditions << "\n";
@@ -115,7 +115,7 @@ RC QL_Manager::Update(const char *relName,
 {
     int i;
 
-    cout << "Update\n";
+    cout << "QL Update\n";
 
     cout << "   relName = " << relName << "\n";
     cout << "   updAttr:" << updAttr << "\n";
