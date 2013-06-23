@@ -20,11 +20,10 @@ public:
 
     RC BuildFromQuery(int nSelAttrs, const RelAttr selAttrs[],
                       int nRelations, const char * const relations[],
-                      int nConditions, const Condition conditions[],
-                      int nAttributes, DataAttrInfo *tNodeAttributes,
-                      void * pData);
+                      int nConditions, const Condition conditions[]);
 
-    RC PerformNodeOperation();
+    RC PerformNodeOperation(int nAttributes, DataAttrInfo *tNodeAttributes,
+                            void * pData);
 
     RC PerformUnion();
     RC PerformComparison();
