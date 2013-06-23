@@ -2,6 +2,8 @@
 #define QL_TREEPLAN_H
 
 #include "redbase.h"
+#include "parser.h"
+#include "printer.h"
 
 class QL_TreePlan
 {
@@ -16,13 +18,23 @@ public:
     QL_TreePlan();
     ~QL_TreePlan();
 
+    RC BuildFromQuery(int nSelAttrs, const RelAttr selAttrs[],
+                      int nRelations, const char * const relations[],
+                      int nConditions, const Condition conditions[]);
+
     RC PerformNodeOperation();
+
+    RC PerformUnion();
+    RC PerformComparison();
+    RC PerformProjection();
+    RC PerformJoin();
 
 private:
     QL_TreePlan *_pLc;
     QL_TreePlan *_pRc;
     NodeOperation _nodeOperation;
-
+    DataAttrInfo *_nodeAttributes;
+    DataAttrInfo *_operationAttributes;
 };
 
 #endif // QL_TREEPLAN_H

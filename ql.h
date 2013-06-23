@@ -55,4 +55,11 @@ private:
 //
 void QL_PrintError(RC rc);
 
+#define QL_UNKNOWN_TYPE        (START_QL_ERR - 0)
+#define QL_LASTERROR          QL_UNKNOWN_TYPE
+#define QL_LASTWARN        START_QL_WARN
+
+#define QL_EOF             PF_EOF
+
+
 #endif
