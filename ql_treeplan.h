@@ -1,7 +1,6 @@
 #ifndef QL_TREEPLAN_H
 #define QL_TREEPLAN_H
 
-#include <vector>
 #include "redbase.h"
 #include "parser.h"
 #include "printer.h"
