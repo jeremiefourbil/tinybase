@@ -13,16 +13,16 @@ public:
         UNION,
         COMPARISON,
         PROJECTION,
-        JOIN
+        JOIN,
+        SELECT
     };
 
     QL_TreePlan();
     ~QL_TreePlan();
 
-    RC BuildFromQuery(int nSelAttrs, const RelAttr selAttrs[],
-                      int nRelations, const char * const relations[],
-                      int nConditions, const Condition conditions[]
-                      );
+    RC BuildFromQuery(const std::vector<RelAttr> &selAttrs,
+                      const std::vector<const char*> &relations,
+                      const std::vector<Condition> &conditions);
 
     RC PerformNodeOperation(int nAttributes, DataAttrInfo *tNodeAttributes,
                       void * pData);
@@ -31,7 +31,7 @@ public:
     RC PerformComparison();
     RC PerformProjection();
     RC PerformJoin();
-    void Print(QL_TreePlan * x, char prefix ,int level);
+    void Print(char prefix ,int level);
 
 private:
     QL_TreePlan *_pLc;

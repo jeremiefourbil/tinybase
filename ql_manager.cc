@@ -40,6 +40,11 @@ QL_Manager::QL_Manager(SM_Manager &smm, IX_Manager &ixm, RM_Manager &rmm)
 //
 QL_Manager::~QL_Manager()
 {
+    if(_pTreePlan != NULL)
+    {
+        delete _pTreePlan;
+        _pTreePlan = NULL;
+    }
 }
 
 //
@@ -66,11 +71,38 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     for (i = 0; i < nConditions; i++)
         cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
 
-    _pTreePlan = new QL_TreePlan();
-    rc = _pTreePlan->BuildFromQuery(nSelAttrs, selAttrs,
-                               nRelations, relations,
-                               nConditions, conditions);
+    std::vector<RelAttr> vSelAttrs;
+    std::vector<const char*> vRelations;
+    std::vector<Condition> vConditions;
+    for(int i=0; i<nSelAttrs; i++)
+    {
+        vSelAttrs.push_back(selAttrs[i]);
+    }
+    for(int i=0; i<nRelations; i++)
+    {
+        vRelations.push_back(relations[i]);
+    }
+    for(int i=0; i<nConditions; i++)
+    {
+        vConditions.push_back(conditions[i]);
+    }
 
+
+    _pTreePlan = new QL_TreePlan();
+    if((rc = _pTreePlan->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
+        goto err_return;
+
+    _pTreePlan->Print(' ',0);
+
+    if(_pTreePlan != NULL)
+    {
+        delete _pTreePlan;
+        _pTreePlan = NULL;
+    }
+
+    return rc;
+
+err_return:
     return rc;
 }
 
