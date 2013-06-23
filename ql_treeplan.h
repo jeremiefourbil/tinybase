@@ -20,7 +20,9 @@ public:
 
     RC BuildFromQuery(int nSelAttrs, const RelAttr selAttrs[],
                       int nRelations, const char * const relations[],
-                      int nConditions, const Condition conditions[]);
+                      int nConditions, const Condition conditions[],
+                      int nAttributes, DataAttrInfo *tNodeAttributes,
+                      void * pData);
 
     RC PerformNodeOperation();
 
@@ -33,7 +35,9 @@ private:
     QL_TreePlan *_pLc;
     QL_TreePlan *_pRc;
     NodeOperation _nodeOperation;
+    int _nNodeAtributes;
     DataAttrInfo *_nodeAttributes;
+    int _nOperationAttributes;
     DataAttrInfo *_operationAttributes;
 };
 
