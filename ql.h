@@ -16,6 +16,8 @@
 #include "ix.h"
 #include "sm.h"
 
+#include "ql_treeplan.h"
+
 //
 // QL_Manager: query language (DML)
 //
@@ -48,6 +50,10 @@ public:
         const Condition conditions[]);   // conditions in where clause
 
 private:
+    SM_Manager *_pSmm;
+    IX_Manager *_pIxm;
+    RM_Manager *_pRmm;
+    QL_TreePlan *_pTreePlan;
 };
 
 //

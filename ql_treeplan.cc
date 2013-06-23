@@ -47,8 +47,7 @@ RC QL_TreePlan::BuildFromQuery(int nSelAttrs, const RelAttr selAttrs[],
     return rc;
 }
 
-RC QL_TreePlan::PerformNodeOperation(int nAttributes, DataAttrInfo *tNodeAttributes,
-                      void * pData)
+RC QL_TreePlan::PerformNodeOperation(int nAttributes, DataAttrInfo *tNodeAttributes,void * pData)
 {
     RC rc = OK_RC;
 

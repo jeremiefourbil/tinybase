@@ -27,8 +27,10 @@ using namespace std;
 //
 QL_Manager::QL_Manager(SM_Manager &smm, IX_Manager &ixm, RM_Manager &rmm)
 {
-    // Can't stand unused variable warnings!
-    assert (&smm && &ixm && &rmm);
+    _pSmm = &smm;
+    _pIxm = &ixm;
+    _pRmm = &rmm;
+    _pTreePlan = NULL;
 }
 
 //
@@ -47,6 +49,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
                       int nRelations, const char * const relations[],
                       int nConditions, const Condition conditions[])
 {
+    RC rc = OK_RC;
     int i;
 
     cout << "QL Select\n";
@@ -63,7 +66,12 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     for (i = 0; i < nConditions; i++)
         cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
 
-    return 0;
+    _pTreePlan = new QL_TreePlan();
+    rc = _pTreePlan->BuildFromQuery(nSelAttrs, selAttrs,
+                               nRelations, relations,
+                               nConditions, conditions);
+
+    return rc;
 }
 
 //
