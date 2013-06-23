@@ -2,6 +2,8 @@
 
 #include "ql_internal.h"
 
+#include <stdio.h>
+
 QL_TreePlan::QL_TreePlan()
 {
     _pLc = NULL;

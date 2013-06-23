@@ -6,8 +6,6 @@
 #include "parser.h"
 #include "printer.h"
 
-const char* nodeOperationAsString[] = {"Union","Comp","Proj","Join"};
-
 class QL_TreePlan
 {
 public:
