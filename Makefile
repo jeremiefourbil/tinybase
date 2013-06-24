@@ -39,7 +39,8 @@ PF_SOURCES     = pf_buffermgr.cc pf_error.cc pf_filehandle.cc \
 RM_SOURCES     = rm_rid.cc rm_record.cc rm_manager.cc rm_filescan.cc rm_filehandle.cc rm_error.cc
 IX_SOURCES     = ix_manager.cc ix_indexscan.cc ix_indexhandle.cc ix_error.cc ix_helpers.cc ix_btree.cc ix_hash.cc ix_btreescan.cc ix_hashscan.cc
 SM_SOURCES     = sm_manager.cc printer.cc sm_error.cc
-QL_SOURCES     = ql_manager.cc ql_treeplan.cc ql_error.cc
+QL_SOURCES     = ql_manager.cc ql_treeplan.cc ql_error.cc \
+		 						 it_indexscan.cc it_filescan.cc
 UTILS_SOURCES  = dbcreate.cc dbdestroy.cc redbase.cc
 PARSER_SOURCES = scan.c parse.c nodes.c interp.c
 TESTER_SOURCES = pf_test1.cc pf_test2.cc pf_test3.cc rm_test.cc ix_test.cc parser_test.cc

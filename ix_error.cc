@@ -37,7 +37,8 @@ static char *IX_ErrorMsg[] = {
     (char*)"the bucket cannot store anymore RID",
     (char*)"the bucket already contains this RID",
     (char*)"the index number should be a positive number",
-    (char*)"incorrect operator"
+    (char*)"incorrect operator",
+    (char*)"index already opened"
     //  (char*)"invalid file name"
 };
 

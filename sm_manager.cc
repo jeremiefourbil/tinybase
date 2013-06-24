@@ -49,33 +49,33 @@ RC SM_Manager::OpenDb(const char *dbName)
    // Sanity Check: Length of the argument should be less than MAXDBNAME
    //               DBname cannot contain ' ' or '/' 
    if (strlen(dbName) > MAXDBNAME
-       || strchr(dbName, ' ') || strchr(dbName, '/')) {
+     || strchr(dbName, ' ') || strchr(dbName, '/')) {
       rc = SM_INVALIDDBNAME;
-      goto err_return;
-   }
-   
+   goto err_return;
+}
+
    // Change the working directory
-   if (chdir(dbName) < 0) {
-      rc = SM_CHDIRFAILED;
-      goto err_return;
-   }
+if (chdir(dbName) < 0) {
+   rc = SM_CHDIRFAILED;
+   goto err_return;
+}
 
    // Open a file scan for RELCAT
-   if (rc = pRmm->OpenFile(RELCAT, fhRelcat))
-      goto err_return;
+if (rc = pRmm->OpenFile(RELCAT, fhRelcat))
+   goto err_return;
 
    // Open a file scan for ATTRCAT
-   if (rc = pRmm->OpenFile(ATTRCAT, fhAttrcat))
-      goto err_close;
+if (rc = pRmm->OpenFile(ATTRCAT, fhAttrcat))
+   goto err_close;
 
    // Return ok
-   return (0);
+return (0);
 
    // Return error
 err_close:
-   pRmm->CloseFile(fhRelcat);
+pRmm->CloseFile(fhRelcat);
 err_return:
-   return (rc);
+return (rc);
 }
 
 //
@@ -100,9 +100,9 @@ RC SM_Manager::CloseDb()
    return (0);
 
    // Return error
-err_close:
+   err_close:
    pRmm->CloseFile(fhRelcat);
-err_return:
+   err_return:
    return (rc);
 }
 
@@ -116,7 +116,7 @@ err_return:
 // Ret:  SM_INVALIDRELNAME, SM_DUPLICATEDATTR, SM_RELEXISTS, RM return code
 //
 RC SM_Manager::CreateTable(const char *relName,
-                           int attrCount, AttrInfo *attributes)
+   int attrCount, AttrInfo *attributes)
 {
    RC rc;
    RM_Record tmpRec;
@@ -161,8 +161,8 @@ RC SM_Manager::CreateTable(const char *relName,
    // Update ATTRCAT
    for (int i = 0; i < attrCount; i++) {
       SM_SetAttrcatRec(attrcatRec, 
-                       relName, attributes[i].attrName, offset,
-                       attributes[i].attrType, attributes[i].attrLength, -1);
+       relName, attributes[i].attrName, offset,
+       attributes[i].attrType, attributes[i].attrLength, -1);
       offset += attributes[i].attrLength;
       if (rc = fhAttrcat.InsertRec((char *)&attrcatRec, rid))
          goto err_return;
@@ -178,7 +178,7 @@ RC SM_Manager::CreateTable(const char *relName,
    return (0);
 
    // Return error
-err_return:
+   err_return:
    return (rc);
 }
 
@@ -219,7 +219,7 @@ RC SM_Manager::DropTable(const char *relName)
    memset(_relName, '\0', sizeof(_relName));
    strncpy(_relName, relName, MAXNAME);
    if (rc = fs.OpenScan(fhAttrcat, STRING, MAXNAME,
-                        OFFSET(SM_AttrcatRec, relName), EQ_OP, _relName))
+      OFFSET(SM_AttrcatRec, relName), EQ_OP, _relName))
       goto err_return;
 
    while ((rc = fs.GetNextRec(_rec)) != RM_EOF) {
@@ -257,9 +257,9 @@ RC SM_Manager::DropTable(const char *relName)
    return (0);
 
    // Return error
-err_closescan:
+   err_closescan:
    fs.CloseScan();
-err_return:
+   err_return:
    return (rc);
 }
 
@@ -294,8 +294,8 @@ RC SM_Manager::CreateIndex(const char *relName, const char *attrName)
 
    // Build index
    if (rc = pIxm->CreateIndex(relName, indexNo, 
-                              ((SM_AttrcatRec *)attrcatData)->attrType,
-                              ((SM_AttrcatRec *)attrcatData)->attrLength))
+      ((SM_AttrcatRec *)attrcatData)->attrType,
+      ((SM_AttrcatRec *)attrcatData)->attrLength))
       goto err_return;
    if (rc = pIxm->OpenIndex(relName, indexNo, ih))
       goto err_destroyindex;
@@ -344,15 +344,15 @@ RC SM_Manager::CreateIndex(const char *relName, const char *attrName)
    return (0);
 
    // Return error
-err_closescan:
+   err_closescan:
    fs.CloseScan();
-err_closefile:
+   err_closefile:
    pRmm->CloseFile(fh);
-err_closeindex:
+   err_closeindex:
    pIxm->CloseIndex(ih);
-err_destroyindex:
+   err_destroyindex:
    pIxm->DestroyIndex(relName, indexNo);
-err_return:
+   err_return:
    return (rc);
 }
 
@@ -398,7 +398,7 @@ RC SM_Manager::DropIndex(const char *relName, const char *attrName)
    return (0);
 
    // Return error
-err_return:
+   err_return:
    return (rc);
 }
 
@@ -468,7 +468,7 @@ RC SM_Manager::Load(const char *relName, const char *fileName)
    memset(_relName, '\0', sizeof(_relName));
    strncpy(_relName, relName, MAXNAME);
    if (rc = fs.OpenScan(fhAttrcat, STRING, MAXNAME,
-                        OFFSET(SM_AttrcatRec, relName), EQ_OP, _relName))
+      OFFSET(SM_AttrcatRec, relName), EQ_OP, _relName))
       goto err_deletedata;
 
    // Fill out attributes array
@@ -499,7 +499,7 @@ RC SM_Manager::Load(const char *relName, const char *fileName)
       rc = SM_FILEIOFAILED;
       goto err_deletedata;
    }
-  
+
    // Open relation file
    if (rc = pRmm->OpenFile(relName, fh))
       goto err_fclose;
@@ -531,92 +531,92 @@ RC SM_Manager::Load(const char *relName, const char *fileName)
          continue;
 
       if (buf[i] != '\n' || buf[i+1] != '\0'
-          || numDelim + 1 != ((SM_RelcatRec *)relcatData)->attrCount) {
+        || numDelim + 1 != ((SM_RelcatRec *)relcatData)->attrCount) {
          rc = SM_INVALIDFORMAT;
-         goto err_closeindexes;
-      }
-
-      // Make record data
-      for (i = 0; i < ((SM_RelcatRec *)relcatData)->attrCount; i++) {
-         int _i;
-         float _f;
-         char *delim = strpbrk(attr, ",\n");
-         *delim = '\0';
-
-         switch (attributes[i].attrType) {
-         case INT:
-            _i = atoi(attr);
-            memcpy(data + attributes[i].offset, &_i, sizeof(int));
-            break;
-         case FLOAT:
-            _f = atof(attr);
-            memcpy(data + attributes[i].offset, &_f, sizeof(float));
-            break;
-         case STRING:
-            memset(data + attributes[i].offset, '\0', 
-                   attributes[i].attrLength);
-            strncpy(data + attributes[i].offset, attr, 
-                    attributes[i].attrLength);
-            break;
-         }
-         attr = delim + 1;
-      }
-
-      // Insert the record
-      if (rc = fh.InsertRec(data, rid))
-         goto err_closeindexes;
-
-      // Update indexes
-      for (i = 0; i < ((SM_RelcatRec *)relcatData)->attrCount; i++) {
-         if (attributes[i].indexNo == -1)
-            continue;
-         if (rc = ihs[i].InsertEntry(data + attributes[i].offset, rid))
-            goto err_closeindexes;
-      }
+      goto err_closeindexes;
    }
 
-   // Close indexes
+      // Make record data
+   for (i = 0; i < ((SM_RelcatRec *)relcatData)->attrCount; i++) {
+      int _i;
+      float _f;
+      char *delim = strpbrk(attr, ",\n");
+      *delim = '\0';
+
+      switch (attributes[i].attrType) {
+         case INT:
+         _i = atoi(attr);
+         memcpy(data + attributes[i].offset, &_i, sizeof(int));
+         break;
+         case FLOAT:
+         _f = atof(attr);
+         memcpy(data + attributes[i].offset, &_f, sizeof(float));
+         break;
+         case STRING:
+         memset(data + attributes[i].offset, '\0', 
+           attributes[i].attrLength);
+         strncpy(data + attributes[i].offset, attr, 
+          attributes[i].attrLength);
+         break;
+      }
+      attr = delim + 1;
+   }
+
+      // Insert the record
+   if (rc = fh.InsertRec(data, rid))
+      goto err_closeindexes;
+
+      // Update indexes
    for (i = 0; i < ((SM_RelcatRec *)relcatData)->attrCount; i++) {
       if (attributes[i].indexNo == -1)
          continue;
-      if (rc = pIxm->CloseIndex(ihs[i]))
+      if (rc = ihs[i].InsertEntry(data + attributes[i].offset, rid))
          goto err_closeindexes;
    }
-   
+}
+
+   // Close indexes
+for (i = 0; i < ((SM_RelcatRec *)relcatData)->attrCount; i++) {
+   if (attributes[i].indexNo == -1)
+      continue;
+   if (rc = pIxm->CloseIndex(ihs[i]))
+      goto err_closeindexes;
+}
+
    // Close relation file
-   if (rc = pRmm->CloseFile(fh))
-      goto err_fclose;
+if (rc = pRmm->CloseFile(fh))
+   goto err_fclose;
 
    // Close data file
-   fclose(fp);
+fclose(fp);
 
    // Deallocate 
-   delete [] data;
-   delete [] buf;
-   delete [] attributes;
-   delete [] ihs;
+delete [] data;
+delete [] buf;
+delete [] attributes;
+delete [] ihs;
 
    // Return ok
-   return (0);
+return (0);
 
    // Return error
 err_closeindexes:
-   for (i = 0; i < ((SM_RelcatRec *)relcatData)->attrCount; i++)
-      if (attributes[i].indexNo != -1)
-         pIxm->CloseIndex(ihs[i]);
+for (i = 0; i < ((SM_RelcatRec *)relcatData)->attrCount; i++)
+   if (attributes[i].indexNo != -1)
+      pIxm->CloseIndex(ihs[i]);
 //err_closefile:
    pRmm->CloseFile(fh);
-err_fclose:
+   err_fclose:
    fclose(fp);
-err_deletedata:
+   err_deletedata:
    delete [] data;
-err_deletebuf:
+   err_deletebuf:
    delete [] buf;
-err_deleteattributes:
+   err_deleteattributes:
    delete [] attributes;
-err_deleteihs:
+   err_deleteihs:
    delete [] ihs;
-err_return:
+   err_return:
    return (rc);
 }
 
@@ -665,139 +665,139 @@ RC SM_Manager::Print(const char *relName)
    memset(_relName, '\0', sizeof(_relName));
    strncpy(_relName, relName, MAXNAME);
    if (rc = fs.OpenScan(fhAttrcat, STRING, MAXNAME,
-                        OFFSET(SM_AttrcatRec, relName), EQ_OP, _relName)) {
+      OFFSET(SM_AttrcatRec, relName), EQ_OP, _relName)) {
+      delete [] attributes;
+   return (rc);
+}
+
+   // Fill out attributes array
+while ((rc = fs.GetNextRec(rec)) != RM_EOF) {
+   char *data;
+
+   if (rc != 0) {
+      fs.CloseScan();
       delete [] attributes;
       return (rc);
    }
 
-   // Fill out attributes array
+   if (rc = rec.GetData(data)) {
+      fs.CloseScan();
+      delete [] attributes;
+      return (rc);
+   }
+
+   SM_SetAttrcatRec(attributes[i],
+    ((SM_AttrcatRec *)data)->relName,
+    ((SM_AttrcatRec *)data)->attrName,
+    ((SM_AttrcatRec *)data)->offset,
+    ((SM_AttrcatRec *)data)->attrType,
+    ((SM_AttrcatRec *)data)->attrLength,
+    ((SM_AttrcatRec *)data)->indexNo);
+   if (++i == ((SM_RelcatRec *)relcatData)->attrCount)
+      break;
+}
+
+   // Close a file scan for ATTRCAT
+if (rc = fs.CloseScan()) {
+   delete [] attributes;
+   return (rc);
+}
+
+   // Instantiate a Printer object
+qsort(attributes, ((SM_RelcatRec *)relcatData)->attrCount,
+   sizeof(DataAttrInfo), compareDataAttrInfo);
+Printer p(attributes, ((SM_RelcatRec *)relcatData)->attrCount);
+
+   // Open relation file
+if (rc = pRmm->OpenFile(relName, fh))
+   goto err_delete;
+   // Print the header information
+p.PrintHeader(cout);
+
+   // Normal Print
+if (useIndexNo < 0) {
+   if (rc = fs.OpenScan(fh, INT, sizeof(int), 0, NO_OP, NULL))
+      goto err_closefile;
+
    while ((rc = fs.GetNextRec(rec)) != RM_EOF) {
       char *data;
 
-      if (rc != 0) {
-         fs.CloseScan();
-         delete [] attributes;
-         return (rc);
-      }
+      if (rc != 0)
+         goto err_closescan;
 
-      if (rc = rec.GetData(data)) {
-         fs.CloseScan();
-         delete [] attributes;
-         return (rc);
-      }
+      if (rc = rec.GetData(data))
+         goto err_closescan;
 
-      SM_SetAttrcatRec(attributes[i],
-                       ((SM_AttrcatRec *)data)->relName,
-                       ((SM_AttrcatRec *)data)->attrName,
-                       ((SM_AttrcatRec *)data)->offset,
-                       ((SM_AttrcatRec *)data)->attrType,
-                       ((SM_AttrcatRec *)data)->attrLength,
-                       ((SM_AttrcatRec *)data)->indexNo);
-      if (++i == ((SM_RelcatRec *)relcatData)->attrCount)
-         break;
+      p.Print(cout, data);
    }
 
-   // Close a file scan for ATTRCAT
-   if (rc = fs.CloseScan()) {
-      delete [] attributes;
-      return (rc);
-   }
-
-   // Instantiate a Printer object
-   qsort(attributes, ((SM_RelcatRec *)relcatData)->attrCount,
-         sizeof(DataAttrInfo), compareDataAttrInfo);
-   Printer p(attributes, ((SM_RelcatRec *)relcatData)->attrCount);
-
-   // Open relation file
-   if (rc = pRmm->OpenFile(relName, fh))
-      goto err_delete;
-   // Print the header information
-   p.PrintHeader(cout);
-
-   // Normal Print
-   if (useIndexNo < 0) {
-      if (rc = fs.OpenScan(fh, INT, sizeof(int), 0, NO_OP, NULL))
-         goto err_closefile;
-
-      while ((rc = fs.GetNextRec(rec)) != RM_EOF) {
-         char *data;
-
-         if (rc != 0)
-            goto err_closescan;
-
-         if (rc = rec.GetData(data))
-            goto err_closescan;
-
-         p.Print(cout, data);
-      }
-
-      if (rc = fs.CloseScan())
-         goto err_closefile;
-   }
+   if (rc = fs.CloseScan())
+      goto err_closefile;
+}
    // Sorted Print
-   else {
-      IX_IndexHandle ih;
-      IX_IndexScan is;
-      RID rid;
+else {
+   IX_IndexHandle ih;
+   IX_IndexScan is;
+   RID rid;
 
-      if (rc = pIxm->OpenIndex(relName, useIndexNo, ih))
-         goto err_closefile;
+   if (rc = pIxm->OpenIndex(relName, useIndexNo, ih))
+      goto err_closefile;
 
-      if (rc = is.OpenScan(ih, NO_OP, NULL)) {
-         pIxm->CloseIndex(ih);
-         goto err_closefile;
-      }
-
-      while ((rc = is.GetNextEntry(rid)) != IX_EOF) {
-         char *data;
-
-         if (rc != 0) {
-            is.CloseScan();
-            pIxm->CloseIndex(ih);
-            goto err_closefile;
-         }
-          
-         if (rc = fh.GetRec(rid, rec)) {
-            is.CloseScan();
-            pIxm->CloseIndex(ih);
-            goto err_closefile;
-         }
-
-         if (rc = rec.GetData(data))
-            goto err_closescan;
-
-         p.Print(cout, data);
-      }
-
-      if (rc = is.CloseScan()) {
-         pIxm->CloseIndex(ih);
-         goto err_closefile;
-      }
-      if (rc = pIxm->CloseIndex(ih))
-         goto err_closefile;
+   if (rc = is.OpenScan(ih, NO_OP, NULL)) {
+      pIxm->CloseIndex(ih);
+      goto err_closefile;
    }
+
+   while ((rc = is.GetNextEntry(rid)) != IX_EOF) {
+      char *data;
+
+      if (rc != 0) {
+         is.CloseScan();
+         pIxm->CloseIndex(ih);
+         goto err_closefile;
+      }
+
+      if (rc = fh.GetRec(rid, rec)) {
+         is.CloseScan();
+         pIxm->CloseIndex(ih);
+         goto err_closefile;
+      }
+
+      if (rc = rec.GetData(data))
+         goto err_closescan;
+
+      p.Print(cout, data);
+   }
+
+   if (rc = is.CloseScan()) {
+      pIxm->CloseIndex(ih);
+      goto err_closefile;
+   }
+   if (rc = pIxm->CloseIndex(ih))
+      goto err_closefile;
+}
 
    // Print the footer information
-   p.PrintFooter(cout);
+p.PrintFooter(cout);
    // Close relation file
-   if (rc = pRmm->CloseFile(fh))
-      goto err_delete;
+if (rc = pRmm->CloseFile(fh))
+   goto err_delete;
 
    // Deallocate attributes
-   delete [] attributes;
+delete [] attributes;
 
    // Return ok
-   return (0);
+return (0);
 
    // Return error
 err_closescan:
-   fs.CloseScan();
+fs.CloseScan();
 err_closefile:
-   pRmm->CloseFile(fh);
+pRmm->CloseFile(fh);
 err_delete:
-   delete [] attributes;
+delete [] attributes;
 //err_return:
-   return (rc);
+return (rc);
 }
 
 //
@@ -834,17 +834,17 @@ RC SM_Manager::Help()
 
    // Instantiate a Printer object
    SM_SetAttrcatRec(attributes[0],
-                    RELCAT, "relName", OFFSET(SM_RelcatRec, relName),
-                    STRING, MAXNAME, -1);
+    RELCAT, "relName", OFFSET(SM_RelcatRec, relName),
+    STRING, MAXNAME, -1);
    SM_SetAttrcatRec(attributes[1],
-                    RELCAT, "tupleLength", OFFSET(SM_RelcatRec, tupleLength),
-                    INT, sizeof(int), -1);
+    RELCAT, "tupleLength", OFFSET(SM_RelcatRec, tupleLength),
+    INT, sizeof(int), -1);
    SM_SetAttrcatRec(attributes[2],
-                    RELCAT, "attrCount", OFFSET(SM_RelcatRec, attrCount),
-                    INT, sizeof(int), -1);
+    RELCAT, "attrCount", OFFSET(SM_RelcatRec, attrCount),
+    INT, sizeof(int), -1);
    SM_SetAttrcatRec(attributes[3],
-                    RELCAT, "indexCount", OFFSET(SM_RelcatRec, indexCount),
-                    INT, sizeof(int), -1);
+    RELCAT, "indexCount", OFFSET(SM_RelcatRec, indexCount),
+    INT, sizeof(int), -1);
    Printer p(attributes, 4);
 
    // Open a file scan for RELCAT
@@ -878,9 +878,9 @@ RC SM_Manager::Help()
    return (0);
 
    // Return error
-err_closescan:
+   err_closescan:
    fs.CloseScan();
-err_return:
+   err_return:
    return (rc);
 }
 
@@ -908,30 +908,30 @@ RC SM_Manager::Help(const char *relName)
 
    // Instantiate a Printer object
    SM_SetAttrcatRec(attributes[0],
-                    ATTRCAT, "relName", OFFSET(SM_AttrcatRec, relName),
-                    STRING, MAXNAME, -1);
+    ATTRCAT, "relName", OFFSET(SM_AttrcatRec, relName),
+    STRING, MAXNAME, -1);
    SM_SetAttrcatRec(attributes[1],
-                    ATTRCAT, "attrName", OFFSET(SM_AttrcatRec, attrName),
-                    STRING, MAXNAME, -1);
+    ATTRCAT, "attrName", OFFSET(SM_AttrcatRec, attrName),
+    STRING, MAXNAME, -1);
    SM_SetAttrcatRec(attributes[2],
-                    ATTRCAT, "offset", OFFSET(SM_AttrcatRec, offset),
-                    INT, sizeof(int), -1);
+    ATTRCAT, "offset", OFFSET(SM_AttrcatRec, offset),
+    INT, sizeof(int), -1);
    SM_SetAttrcatRec(attributes[3],
-                    ATTRCAT, "attrType", OFFSET(SM_AttrcatRec, attrType),
-                    INT, sizeof(int), -1);
+    ATTRCAT, "attrType", OFFSET(SM_AttrcatRec, attrType),
+    INT, sizeof(int), -1);
    SM_SetAttrcatRec(attributes[4],
-                    ATTRCAT, "attrLength", OFFSET(SM_AttrcatRec, attrLength),
-                    INT, sizeof(int), -1);
+    ATTRCAT, "attrLength", OFFSET(SM_AttrcatRec, attrLength),
+    INT, sizeof(int), -1);
    SM_SetAttrcatRec(attributes[5],
-                    ATTRCAT, "indexNo", OFFSET(SM_AttrcatRec, indexNo),
-                    INT, sizeof(int), -1);
+    ATTRCAT, "indexNo", OFFSET(SM_AttrcatRec, indexNo),
+    INT, sizeof(int), -1);
    Printer p(attributes, 6);
 
    // Open a file scan for ATTRCAT
    memset(_relName, '\0', sizeof(_relName));
    strncpy(_relName, relName, MAXNAME);
    if (rc = fs.OpenScan(fhAttrcat, STRING, MAXNAME,
-                        OFFSET(SM_AttrcatRec, relName), EQ_OP, _relName))
+      OFFSET(SM_AttrcatRec, relName), EQ_OP, _relName))
       goto err_return;
 
    // Print the header information
@@ -963,9 +963,9 @@ RC SM_Manager::Help(const char *relName)
    return (0);
 
    // Return error
-err_closescan:
+   err_closescan:
    fs.CloseScan();
-err_return:
+   err_return:
    return (rc);
 }
 
@@ -979,7 +979,7 @@ err_return:
 // Ret:  SM_RELNOTFOUND, RM return code
 //
 RC SM_Manager::GetRelationInfo(const char *relName, 
-                               RM_Record &rec, char *&data)
+  RM_Record &rec, char *&data)
 {
    RC rc;
    char _relName[MAXNAME];
@@ -989,7 +989,7 @@ RC SM_Manager::GetRelationInfo(const char *relName,
    memset(_relName, '\0', sizeof(_relName));
    strncpy(_relName, relName, MAXNAME);
    if (rc = fs.OpenScan(fhRelcat, STRING, MAXNAME,
-                        OFFSET(SM_RelcatRec, relName), EQ_OP, _relName))
+      OFFSET(SM_RelcatRec, relName), EQ_OP, _relName))
       goto err_return;
 
    // Find the matching record
@@ -1009,9 +1009,9 @@ RC SM_Manager::GetRelationInfo(const char *relName,
    return (0);
 
    // Return error
-err_closescan:
+   err_closescan:
    fs.CloseScan();
-err_return:
+   err_return:
    return (rc);
 }
 
@@ -1032,7 +1032,7 @@ RC SM_Manager::SetRelationIndexCount(const char *relName, int value)
 
    if (rc = GetRelationInfo(relName, rec, relcatData))
       goto err_return;
-      
+
    // Update indexCount
    ((SM_RelcatRec *)relcatData)->indexCount += value;
    if (rc = fhRelcat.UpdateRec(rec))
@@ -1044,7 +1044,7 @@ RC SM_Manager::SetRelationIndexCount(const char *relName, int value)
    return (0);
 
    // Return error
-err_return:
+   err_return:
    return (rc);
 }
 
@@ -1059,7 +1059,7 @@ err_return:
 // Ret:  SM_ATTRNOTFOUND, RM return code
 //
 RC SM_Manager::GetAttributeInfo(const char *relName, const char *attrName,
-                                RM_Record &rec, char *&data)
+ RM_Record &rec, char *&data)
 {
    RC rc;
    char _relattrName[MAXNAME*2];
@@ -1070,7 +1070,7 @@ RC SM_Manager::GetAttributeInfo(const char *relName, const char *attrName,
    strncpy(_relattrName, relName, MAXNAME);
    strncpy(_relattrName + MAXNAME, attrName, MAXNAME);
    if (rc = fs.OpenScan(fhAttrcat, STRING, MAXNAME*2,
-                        OFFSET(SM_AttrcatRec, relName), EQ_OP, _relattrName))
+      OFFSET(SM_AttrcatRec, relName), EQ_OP, _relattrName))
       goto err_return;
 
    // Find the matching record
@@ -1090,21 +1090,106 @@ RC SM_Manager::GetAttributeInfo(const char *relName, const char *attrName,
    return (0);
 
    // Return error
-err_closescan:
+   err_closescan:
    fs.CloseScan();
-err_return:
+   err_return:
    return (rc);
 }
 
 void SM_Manager::ConvertAttr(void* pSM, void *pAttrInfo)
 {
 
-    strcpy(((DataAttrInfo*)pAttrInfo)->relName, ((SM_AttrcatRec *)pSM)->relName);
-    strcpy(((DataAttrInfo*)pAttrInfo)->attrName, ((SM_AttrcatRec *)pSM)->attrName);
+  strcpy(((DataAttrInfo*)pAttrInfo)->relName, ((SM_AttrcatRec *)pSM)->relName);
+  strcpy(((DataAttrInfo*)pAttrInfo)->attrName, ((SM_AttrcatRec *)pSM)->attrName);
 
 
-    ((DataAttrInfo*)pAttrInfo)->attrType = ((SM_AttrcatRec *)pSM)->attrType;
-    ((DataAttrInfo*)pAttrInfo)->attrLength = ((SM_AttrcatRec *)pSM)->attrLength;
-    ((DataAttrInfo*)pAttrInfo)->offset = ((SM_AttrcatRec *)pSM)->offset;
-    ((DataAttrInfo*)pAttrInfo)->indexNo = ((SM_AttrcatRec *)pSM)->indexNo;
+  ((DataAttrInfo*)pAttrInfo)->attrType = ((SM_AttrcatRec *)pSM)->attrType;
+  ((DataAttrInfo*)pAttrInfo)->attrLength = ((SM_AttrcatRec *)pSM)->attrLength;
+  ((DataAttrInfo*)pAttrInfo)->offset = ((SM_AttrcatRec *)pSM)->offset;
+  ((DataAttrInfo*)pAttrInfo)->indexNo = ((SM_AttrcatRec *)pSM)->indexNo;
+}
+
+RC SM_Manager::GetRelationStructure(const char* relName, DataAttrInfo *&attr, int &nAttr)
+{
+   RC rc;
+   RM_Record tmpRec;
+   char *relcatData;
+   DataAttrInfo *attributes;
+   char _relName[MAXNAME];
+   RM_FileScan fs;
+   RM_Record rec;
+   RM_FileHandle fh;
+   int i = 0;
+
+   // Get the attribute count
+   if (rc = GetRelationInfo(relName, tmpRec, relcatData))
+      return (rc);
+
+   // count the number of attributes
+   nAttr = ((SM_RelcatRec *)relcatData)->attrCount;
+
+   // Allocate attributes array
+   attributes = new DataAttrInfo[((SM_RelcatRec *)relcatData)->attrCount];
+   if (attributes == NULL)
+      return (SM_NOMEM);
+
+   // Open a file scan for ATTRCAT
+   memset(_relName, '\0', sizeof(_relName));
+   strncpy(_relName, relName, MAXNAME);
+   if (rc = fs.OpenScan(fhAttrcat, STRING, MAXNAME,
+      OFFSET(SM_AttrcatRec, relName), EQ_OP, _relName)) {
+      delete [] attributes;
+      return (rc);
+   }
+
+   // Fill out attributes array
+   while ((rc = fs.GetNextRec(rec)) != RM_EOF) {
+      char *data;
+
+      if (rc != 0) {
+         fs.CloseScan();
+         delete [] attributes;
+         return (rc);
+      }
+
+      if (rc = rec.GetData(data)) {
+         fs.CloseScan();
+         delete [] attributes;
+         return (rc);
+      }
+
+      SM_SetAttrcatRec(attributes[i],
+       ((SM_AttrcatRec *)data)->relName,
+       ((SM_AttrcatRec *)data)->attrName,
+       ((SM_AttrcatRec *)data)->offset,
+       ((SM_AttrcatRec *)data)->attrType,
+       ((SM_AttrcatRec *)data)->attrLength,
+       ((SM_AttrcatRec *)data)->indexNo);
+      if (++i == ((SM_RelcatRec *)relcatData)->attrCount)
+         break;
+   }
+
+   // Close a file scan for ATTRCAT
+   if (rc = fs.CloseScan()) {
+      delete [] attributes;
+      return (rc);
+   }
+
+
+   // Close relation file
+   if (rc = pRmm->CloseFile(fh))
+      goto err_delete;
+
+   // Return ok
+   return (0);
+
+   // Return error
+   err_closescan:
+   fs.CloseScan();
+   err_closefile:
+   pRmm->CloseFile(fh);
+   err_delete:
+   delete [] attributes;
+   //err_return:
+   return (rc);  
 }

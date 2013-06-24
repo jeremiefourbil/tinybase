@@ -133,7 +133,8 @@ void IX_PrintError(RC rc);
 #define IX_RID_ALREADY_IN_BUCKET        (START_IX_ERR - 8)
 #define IX_NON_POSITIVE_INDEX_NUMBER    (START_IX_ERR - 9)
 #define IX_BADOPERATOR                  (START_IX_ERR - 10)
-#define IX_LASTERROR          IX_BADOPERATOR
+#define IX_ALREADY_OPEN                 (START_IX_ERR - 11)
+#define IX_LASTERROR                    IX_ALREADY_OPEN
 //#define RM_INVALIDRECSIZE  (START_RM_WARN + 2) // invalid record size
 //#define RM_INVALIDSLOTNUM  (START_RM_WARN + 3) // invalid slot number
 //#define RM_RECORDNOTFOUND  (START_RM_WARN + 4) // record not found
