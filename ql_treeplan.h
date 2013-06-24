@@ -32,9 +32,9 @@ public:
                       const std::vector<const char*> &relations,
                       const std::vector<Condition> &conditions);
 
-    RC BuildFromSelect(const std::vector<RelAttr> &selAttrs,
-                      const std::vector<const char*> &relations,
-                      const std::vector<Condition> &conditions);
+    RC BuildFromSingleRelation(const std::vector<RelAttr> &selAttrs,
+                                   const std::vector<const char*> &relations,
+                                   const std::vector<Condition> &conditions);
 
     RC BuildFromComparison(const std::vector<RelAttr> &selAttrs,
                       const std::vector<const char*> &relations,
@@ -45,6 +45,10 @@ public:
                       const std::vector<Condition> &conditions);
 
     RC BuildFromJoin(const std::vector<RelAttr> &selAttrs,
+                      const std::vector<const char*> &relations,
+                      const std::vector<Condition> &conditions);
+
+    RC BuildFromSelect(const std::vector<RelAttr> &selAttrs,
                       const std::vector<const char*> &relations,
                       const std::vector<Condition> &conditions);
 

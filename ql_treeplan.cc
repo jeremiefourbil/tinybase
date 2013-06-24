@@ -97,8 +97,8 @@ RC QL_TreePlan::BuildFromQuery(const std::vector<RelAttr> &selAttrs,
     }
     else
     {
-        cout << "SELECT detected" << endl;
-        if((rc = BuildFromSelect(selAttrs, relations, conditions)))
+        cout << "SINGLE RELATION detected" << endl;
+        if((rc = BuildFromSingleRelation(selAttrs, relations, conditions)))
             goto err_return;
     }
 
@@ -108,28 +108,49 @@ err_return:
     return rc;
 }
 
-RC QL_TreePlan::BuildFromSelect(const std::vector<RelAttr> &selAttrs,
+RC QL_TreePlan::BuildFromSingleRelation(const std::vector<RelAttr> &selAttrs,
                                const std::vector<const char*> &relations,
                                const std::vector<Condition> &conditions)
 {
     RC rc = OK_RC;
 
-
-
     // more than one condition, have to split them
     if(conditions.size() > 1)
     {
+        // create the new nodes
         QL_TreePlan *pProjector = new QL_TreePlan();
         QL_TreePlan *pSelect = new QL_TreePlan();
+        QL_TreePlan *pComparison = NULL;
 
-        this->SetNodeOperation(COMPARISON);
-        pProjector->SetNodeOperation(PROJECTION);
-        pSelect->SetNodeOperation(SELECT);
+        // build the comparisons, the first comparison node is this
+        std::vector<Condition> vConditions(conditions);
+        pComparison = this;
+        pComparison->BuildFromComparison(selAttrs, relations, vConditions);
+        vConditions.pop_back();
 
-        this->SetLeftChild(pProjector);
+        QL_TreePlan *pFather = this;
+        while(vConditions.size()>1)
+        {
+            // create the new comparison node
+            pComparison = new QL_TreePlan();
+            pComparison->BuildFromComparison(selAttrs, relations, vConditions);
+
+            // update the father
+            pFather->SetLeftChild(pComparison);
+            pFather = pComparison;
+            vConditions.pop_back();
+        }
+
+        // update the last comparison node
+        pComparison->SetLeftChild(pProjector);
         pProjector->SetLeftChild(pSelect);
 
+        // build the projection
         if((rc = pProjector->BuildFromProjection(selAttrs, relations, conditions)))
+            goto err_return;
+
+        // build the selection node
+        if((rc = pSelect->BuildFromSelect(selAttrs, relations, vConditions)))
             goto err_return;
     }
     else
@@ -156,7 +177,7 @@ RC QL_TreePlan::BuildFromComparison(const std::vector<RelAttr> &selAttrs,
 {
     RC rc = OK_RC;
 
-
+    _nodeOperation = COMPARISON;
 
     return rc;
 
@@ -170,6 +191,7 @@ RC QL_TreePlan::BuildFromProjection(const std::vector<RelAttr> &selAttrs,
 {
     RC rc = OK_RC;
 
+    _nodeOperation = PROJECTION;
 
 
     return rc;
@@ -224,7 +246,6 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
     // show content:
     for (it=relationsNb.begin(); it!=relationsNb.end(); ++it)
     {
-        cout << it->first << ": " <<  it->second << endl;
         if(it->second == 1)
         {
             break;
@@ -286,8 +307,6 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
     // copy attributes in left & right children
     for(unsigned int i=0;i<selAttrs.size();i++)
     {
-        cout << i << ": " << it->first.c_str() << endl;
-        cout << i << ": " << selAttrs[i].relName << endl;
         if(strcmp(it->first.c_str(),selAttrs[i].relName)==0)
         {
             right_selAttrs.push_back(selAttrs[i]);
@@ -303,6 +322,20 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
 
     if((_pRc->BuildFromQuery(right_selAttrs, right_relations, right_conditions)))
         goto err_return;
+
+    return rc;
+
+err_return:
+    return rc;
+}
+
+RC QL_TreePlan::BuildFromSelect(const std::vector<RelAttr> &selAttrs,
+                               const std::vector<const char*> &relations,
+                               const std::vector<Condition> &conditions)
+{
+    RC rc = OK_RC;
+
+    _nodeOperation = SELECT;
 
     return rc;
 
