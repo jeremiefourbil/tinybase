@@ -15,6 +15,8 @@
 #include "rm.h"
 #include "ix.h"
 
+struct DataAttrInfo;
+
 //
 // SM_Manager: provides data management
 //

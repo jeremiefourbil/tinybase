@@ -1169,6 +1169,8 @@ RC SM_Manager::GetRelationStructure(const char* relName, DataAttrInfo *&attr, in
          break;
    }
 
+   attr = attributes;
+
    // Close a file scan for ATTRCAT
    if (rc = fs.CloseScan()) {
       delete [] attributes;

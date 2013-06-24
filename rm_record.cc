@@ -70,3 +70,13 @@ RC RM_Record::GetRid(RID &_rid) const
    return (0);
 }
 
+RC RM_Record::GetRecordSize(int &oRecordSize) const
+{
+    if (pData == NULL)
+       return (RM_UNREADRECORD);
+
+    oRecordSize = recordSize;
+
+    return OK_RC;
+}
+

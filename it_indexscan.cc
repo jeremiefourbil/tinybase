@@ -10,12 +10,12 @@ IT_IndexScan::IT_IndexScan(
   ,DataAttrInfo &dAttr
   ,void *value
   ,RC &rc):
-    rmm(rmm)
-    ,ixm(ixm)
-    ,smm(smm)
+    pRmm(rmm)
+    ,pIxm(ixm)
+    ,pSmm(smm)
     ,relName(relName)
     ,scanOp(scanOp)
-    ,dAttr(dAttr)
+    ,iAttr(&dAttr)
     ,value(value){
 }
 
@@ -30,10 +30,10 @@ RC IT_IndexScan::Open(){
 
   RC rc = OK_RC;
 
-  if((rc = rmm->OpenFile(relName, rmfh)))
+  if((rc = pRmm->OpenFile(relName, rmfh)))
     return rc;
 
-  if((rc = ixm->OpenIndex(relName, dAttr.indexNo, ixih)))
+  if((rc = pIxm->OpenIndex(relName, iAttr->indexNo, ixih)))
     return rc;
 
   if((rc = ixis.OpenScan(ixih, scanOp, value)))
@@ -72,7 +72,7 @@ RC IT_IndexScan::Close(){
     return QL_ITERATOR_NOT_OPENED;
   }
 
-  if((rc = rmfs.CloseScan()))
+  if((rc = ixis.CloseScan()))
     return rc;
 
   if((rc = pRmm->CloseFile(rmfh)))

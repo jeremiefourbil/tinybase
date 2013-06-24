@@ -39,6 +39,8 @@ public:
     // Return the RID associated with the record
     RC GetRid (RID &rid) const;
 
+    RC GetRecordSize(int &oRecordSize) const;
+
 private:
     // Copy constructor
     RM_Record  (const RM_Record &record);

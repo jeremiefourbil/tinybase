@@ -3,6 +3,7 @@
 
 #include "ql.h"
 #include "ql_iterator.h"
+#include "printer.h"
 
 class IT_IndexScan : public virtual QL_Iterator {
   public:
@@ -22,18 +23,20 @@ class IT_IndexScan : public virtual QL_Iterator {
     RC GetNext(RM_Record &record);
     RC Close();
   private:
-    RM_Manager *rmm;
-    IX_Manager *ixm;
-    SM_Manager *smm;
+    RM_Manager *pRmm;
+    IX_Manager *pIxm;
+    SM_Manager *pSmm;
 
     RM_FileHandle rmfh;
 
     IX_IndexHandle ixih;
     IX_IndexScan ixis;
 
+    int nAttr;
     DataAttrInfo *dAttr;
 
     CompOp scanOp;
+    DataAttrInfo *iAttr;
     void *value;
     const char* relName;
 };
