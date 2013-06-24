@@ -22,12 +22,17 @@ public:
     QL_TreePlan();
     ~QL_TreePlan();
 
+    // setters
+    void SetNodeOperation(NodeOperation iNodeOperation);
+    void SetLeftChild(QL_TreePlan *ipTreePlan);
+    void SetRightChild(QL_TreePlan *ipTreePlan);
+
     // builder
     RC BuildFromQuery(const std::vector<RelAttr> &selAttrs,
                       const std::vector<const char*> &relations,
                       const std::vector<Condition> &conditions);
 
-    RC BuildFromUnion(const std::vector<RelAttr> &selAttrs,
+    RC BuildFromSelect(const std::vector<RelAttr> &selAttrs,
                       const std::vector<const char*> &relations,
                       const std::vector<Condition> &conditions);
 

@@ -10,6 +10,10 @@
 
 using namespace std;
 
+// *************************
+// Constructor & destructor
+// *************************
+
 QL_TreePlan::QL_TreePlan()
 {
     _pLc = NULL;
@@ -45,6 +49,38 @@ QL_TreePlan::~QL_TreePlan()
     }
 }
 
+
+// *************************
+// Setters
+// *************************
+void QL_TreePlan::SetNodeOperation(NodeOperation iNodeOperation)
+{
+    _nodeOperation = iNodeOperation;
+}
+void QL_TreePlan::SetLeftChild(QL_TreePlan *ipTreePlan)
+{
+    if(_pLc != NULL)
+    {
+        delete _pLc;
+    }
+
+    _pLc = ipTreePlan;
+}
+
+void QL_TreePlan::SetRightChild(QL_TreePlan *ipTreePlan)
+{
+    if(_pRc != NULL)
+    {
+        delete _pRc;
+    }
+
+    _pRc = ipTreePlan;
+}
+
+// *************************
+// Builders
+// *************************
+
 RC QL_TreePlan::BuildFromQuery(const std::vector<RelAttr> &selAttrs,
                                const std::vector<const char*> &relations,
                                const std::vector<Condition> &conditions)
@@ -61,12 +97,9 @@ RC QL_TreePlan::BuildFromQuery(const std::vector<RelAttr> &selAttrs,
     }
     else
     {
-
-    }
-    else
-    {
         cout << "SELECT detected" << endl;
-        _nodeOperation = SELECT;
+        if((rc = BuildFromSelect(selAttrs, relations, conditions)))
+            goto err_return;
     }
 
     return rc;
@@ -75,11 +108,39 @@ err_return:
     return rc;
 }
 
-RC QL_TreePlan::BuildFromUnion(const std::vector<RelAttr> &selAttrs,
+RC QL_TreePlan::BuildFromSelect(const std::vector<RelAttr> &selAttrs,
                                const std::vector<const char*> &relations,
                                const std::vector<Condition> &conditions)
 {
     RC rc = OK_RC;
+
+
+
+    // more than one condition, have to split them
+    if(conditions.size() > 1)
+    {
+        QL_TreePlan *pProjector = new QL_TreePlan();
+        QL_TreePlan *pSelect = new QL_TreePlan();
+
+        this->SetNodeOperation(COMPARISON);
+        pProjector->SetNodeOperation(PROJECTION);
+        pSelect->SetNodeOperation(SELECT);
+
+        this->SetLeftChild(pProjector);
+        pProjector->SetLeftChild(pSelect);
+
+        if((rc = pProjector->BuildFromProjection(selAttrs, relations, conditions)))
+            goto err_return;
+    }
+    else
+    {
+        QL_TreePlan *pSelect = new QL_TreePlan();
+
+        this->SetNodeOperation(PROJECTION);
+        pSelect->SetNodeOperation(SELECT);
+
+        this->SetLeftChild(pSelect);
+    }
 
 
 
@@ -249,6 +310,10 @@ err_return:
     return rc;
 }
 
+// *************************
+// Operators
+// *************************
+
 RC QL_TreePlan::PerformNodeOperation(int nAttributes, DataAttrInfo *tNodeAttributes,void * pData)
 {
     RC rc = OK_RC;
@@ -306,7 +371,9 @@ RC QL_TreePlan::PerformJoin()
     return rc;
 }
 
-// Tree Printer
+// *************************
+// Printer
+// *************************
 
 void QL_TreePlan::Padding (char ch, int n){
     int i;
