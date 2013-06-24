@@ -408,7 +408,8 @@ RC QL_TreePlan::PerformJoin()
 // Printer
 // *************************
 
-void QL_TreePlan::Padding (char ch, int n){
+void QL_TreePlan::Padding (char ch, int n)
+{
     int i;
     for(i=0;i<n;i++){
         putchar(ch);

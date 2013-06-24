@@ -60,8 +60,25 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     cout << "QL Select\n";
 
     cout << "   nSelAttrs = " << nSelAttrs << "\n";
+    DataAttrInfo *tInfos = new DataAttrInfo[nSelAttrs];
     for (i = 0; i < nSelAttrs; i++)
+    {
         cout << "   selAttrs[" << i << "]:" << selAttrs[i] << "\n";
+
+        RM_Record rec;
+        char *pData;
+        _pSmm->GetAttributeInfo(selAttrs[i].relName, selAttrs[i].attrName, rec, pData);
+
+        _pSmm->ConvertAttr(pData, &tInfos[i]);
+    }
+
+    cout << "--------------------------------- PRINT HEADER" << endl;
+
+    Printer printer(tInfos, nSelAttrs);
+    printer.PrintHeader(cout);
+
+    cout << "--------------------------------- END PRINT HEADER" << endl;
+
 
     cout << "   nRelations = " << nRelations << "\n";
     for (i = 0; i < nRelations; i++)
@@ -70,6 +87,10 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     cout << "   nCondtions = " << nConditions << "\n";
     for (i = 0; i < nConditions; i++)
         cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
+
+
+
+
 
     std::vector<RelAttr> vSelAttrs;
     std::vector<const char*> vRelations;
@@ -181,3 +202,4 @@ void QL_PrintError(RC rc)
 {
     cout << "QL_PrintError\n   rc=" << rc << "\n";
 }
+

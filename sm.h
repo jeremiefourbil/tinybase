@@ -52,6 +52,8 @@ private:
     // Overloaded =
     SM_Manager& operator=(const SM_Manager &manager);
 
+    void ConvertAttr(void* pSM, void *pAttrInfo);
+
     RC GetRelationInfo(const char *relName, RM_Record &rec, char *&data);
     RC SetRelationIndexCount(const char *relName, int value);
     RC GetAttributeInfo(const char *relName, const char *attrName,

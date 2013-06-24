@@ -1096,3 +1096,15 @@ err_return:
    return (rc);
 }
 
+void SM_Manager::ConvertAttr(void* pSM, void *pAttrInfo)
+{
+
+    strcpy(((DataAttrInfo*)pAttrInfo)->relName, ((SM_AttrcatRec *)pSM)->relName);
+    strcpy(((DataAttrInfo*)pAttrInfo)->attrName, ((SM_AttrcatRec *)pSM)->attrName);
+
+
+    ((DataAttrInfo*)pAttrInfo)->attrType = ((SM_AttrcatRec *)pSM)->attrType;
+    ((DataAttrInfo*)pAttrInfo)->attrLength = ((SM_AttrcatRec *)pSM)->attrLength;
+    ((DataAttrInfo*)pAttrInfo)->offset = ((SM_AttrcatRec *)pSM)->offset;
+    ((DataAttrInfo*)pAttrInfo)->indexNo = ((SM_AttrcatRec *)pSM)->indexNo;
+}
