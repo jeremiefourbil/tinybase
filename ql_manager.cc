@@ -68,8 +68,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
         if((rc = _pSmm->GetAttributeStructure(selAttrs[i].relName, selAttrs[i].attrName, tInfos[i])))
             return rc;
     }
-    Printer printer(tInfos, nSelAttrs);
-    printer.PrintHeader(cout);
+
 
     cout << "   nRelations = " << nRelations << "\n";
     for (i = 0; i < nRelations; i++)
@@ -99,13 +98,11 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
         vConditions.push_back(conditions[i]);
     }
 
-    cout << "Building tree from QL_Manager..." << endl;
     _pTreePlan = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
     if((rc = _pTreePlan->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
         return rc;
 
     // print the query plan
-    cout << "Printing the query plan from QL_Manager..." << endl;
     _pTreePlan->Print(' ',0);
 
     // get the information
@@ -113,14 +110,21 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     DataAttrInfo *tAttrInfos = NULL;
     char *pData = NULL;
 
-    cout << "Performing node operations from QL_Manager..." << endl;
-    if((_pTreePlan->PerformNodeOperation(nAttrInfos, tAttrInfos, pData)))
-        return rc;
+    // prepare the printer
+    Printer printer(tInfos, nSelAttrs);
+    printer.PrintHeader(cout);
 
-    printer.Print(cout, pData);
+    for(int k=0; k<3; k++)
+    {
+        rc = _pTreePlan->PerformNodeOperation(nAttrInfos, tAttrInfos, pData);
 
-    delete[] pData;
-    pData = NULL;
+        printer.Print(cout, pData);
+
+        delete[] pData;
+        pData = NULL;
+    }
+
+
 
     if(_pTreePlan != NULL)
     {

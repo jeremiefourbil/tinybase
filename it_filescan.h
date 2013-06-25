@@ -13,7 +13,7 @@ class IT_FileScan : public virtual QL_Iterator {
     virtual ~IT_FileScan();
 
     RC Open();
-    RC GetNext(int &nAttr, DataAttrInfo *&pAttr, char *pData);
+    RC GetNext(int &nAttr, DataAttrInfo *&pAttr, char *&pData);
     RC Close();
   private:
     RM_Manager *_pRmm;

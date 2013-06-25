@@ -41,7 +41,7 @@ RC IT_IndexScan::Open()
   return rc;
 }
 
-RC  IT_IndexScan::GetNext(int &nAttr, DataAttrInfo *&pAttr, char *pData)
+RC  IT_IndexScan::GetNext(int &nAttr, DataAttrInfo *&pAttr, char *&pData)
 {
   RC rc;
 

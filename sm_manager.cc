@@ -1132,7 +1132,6 @@ RC SM_Manager::GetRelationStructure(const char* relName, DataAttrInfo *&attr, in
    char _relName[MAXNAME];
    RM_FileScan fs;
    RM_Record rec;
-   RM_FileHandle fh;
    int i = 0;
 
    // Get the attribute count
@@ -1195,21 +1194,7 @@ RC SM_Manager::GetRelationStructure(const char* relName, DataAttrInfo *&attr, in
       return (rc);
    }
 
-
-   // Close relation file
-   if (rc = pRmm->CloseFile(fh))
-      goto err_delete;
-
    // Return ok
    return (0);
 
-   // Return error
-   err_closescan:
-   fs.CloseScan();
-   err_closefile:
-   pRmm->CloseFile(fh);
-   err_delete:
-   delete [] attributes;
-   //err_return:
-   return (rc);  
 }
