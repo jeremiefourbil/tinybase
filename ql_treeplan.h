@@ -62,7 +62,7 @@ public:
     RC PerformProjection();
     RC PerformJoin();
 
-    void Print(char prefix ,int level);
+    void Print(char prefix, int level);
 
     RC ComputeAttributesStructure(const std::vector<RelAttr> &selAttrs, int &nNodeAttributes, DataAttrInfo *&nodeAttributes);
 

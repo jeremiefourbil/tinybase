@@ -284,6 +284,14 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
                 // join equality treatment
                 _operationAttributes = new DataAttrInfo[2];
                 _nOperationAttributes = 2;
+
+                // left side
+                if((rc = _pSmm->GetAttributeStructure(conditions[i].lhsAttr.relName, conditions[i].lhsAttr.attrName, _operationAttributes[0])))
+                    return rc;
+
+                // right side
+                if((rc = _pSmm->GetAttributeStructure(conditions[i].rhsAttr.relName, conditions[i].rhsAttr.attrName, _operationAttributes[1])))
+                    return rc;
             }
         }
         // the left hand side does not match the iterator
@@ -303,6 +311,16 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
                 if(str.substr(0, found).compare(it->first)==0)
                 {
                     // join equality treatment
+                    _operationAttributes = new DataAttrInfo[2];
+                    _nOperationAttributes = 2;
+
+                    // left side
+                    if((rc = _pSmm->GetAttributeStructure(conditions[i].lhsAttr.relName, conditions[i].lhsAttr.attrName, _operationAttributes[0])))
+                        return rc;
+
+                    // right side
+                    if((rc = _pSmm->GetAttributeStructure(conditions[i].rhsAttr.relName, conditions[i].rhsAttr.attrName, _operationAttributes[1])))
+                        return rc;
                 }
                 // another join is spotted
                 else
