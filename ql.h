@@ -64,6 +64,7 @@ void QL_PrintError(RC rc);
 #define QL_UNKNOWN_TYPE               (START_QL_ERR - 0)
 #define QL_ITERATOR_NOT_OPENED        (START_QL_ERR - 1)
 #define QL_NULL_CHILD                 (START_QL_ERR - 2)
+#define QL_NO_RELATION                (START_QL_ERR - 3)
 #define QL_LASTERROR                  QL_NULL_CHILD
 
 #define QL_LASTWARN                   START_QL_WARN

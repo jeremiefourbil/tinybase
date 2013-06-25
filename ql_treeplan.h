@@ -2,6 +2,7 @@
 #define QL_TREEPLAN_H
 
 #include <vector>
+#include <string>
 
 #include "redbase.h"
 #include "sm.h"
@@ -75,7 +76,7 @@ private:
     RC PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
     RC PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
 
-    RC ComputeAttributesStructure(const std::vector<RelAttr> &selAttrs, int &nNodeAttributes, DataAttrInfo *&nodeAttributes);
+    RC ComputeAttributesStructure(const std::vector<RelAttr> &selAttrs, int &nNodeAttributes, DataAttrInfo *&nodeAttributes, int &bufferSize);
     RC IsAttributeInList(const int nNodeAttributes, const DataAttrInfo *nodeAttributes, const DataAttrInfo &attribute, int &index);
 
     void Padding(char ch, int n);
@@ -95,6 +96,7 @@ private:
 
     int _nOperationAttributes;
     DataAttrInfo *_operationAttributes;
+    std::string _sRelname;
 
     ScanStatus _scanStatus;
     QL_Iterator *_pScanIterator;

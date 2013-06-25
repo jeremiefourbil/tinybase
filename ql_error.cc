@@ -29,7 +29,8 @@ static char *QL_WarnMsg[] = {
 static char *QL_ErrorMsg[] = {
     (char*)"unknown type",
     (char*)"iterator not opened",
-    (char*)"unexpected null child"
+    (char*)"unexpected null child",
+    (char*)"no relation is set"
     //  (char*)"invalid file name"
 };
 

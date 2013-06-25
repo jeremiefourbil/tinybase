@@ -26,7 +26,13 @@ QL_TreePlan::QL_TreePlan(SM_Manager *ipSmm, IX_Manager *ipIxm, RM_Manager *ipRmm
 
     _pLc = NULL;
     _pRc = NULL;
+
+    _nNodeAttributes = 0;
     _nodeAttributes = NULL;
+
+    _bufferSize = 0;
+
+    _nOperationAttributes = 0;
     _operationAttributes = NULL;
 
     _scanStatus = SCANCLOSED;
@@ -122,14 +128,15 @@ err_return:
 }
 
 RC QL_TreePlan::BuildFromSingleRelation(const std::vector<RelAttr> &selAttrs,
-                               const std::vector<const char*> &relations,
-                               const std::vector<Condition> &conditions)
+                                        const std::vector<const char*> &relations,
+                                        const std::vector<Condition> &conditions)
 {
     RC rc = OK_RC;
 
     // more than one condition, have to split them
-    if(conditions.size() > 1)
+    if(conditions.size() >= 1)
     {
+        cout << "Lots of conditions detected" << endl;
         // create the new nodes
         QL_TreePlan *pProjector = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
         QL_TreePlan *pSelect = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
@@ -162,27 +169,31 @@ RC QL_TreePlan::BuildFromSingleRelation(const std::vector<RelAttr> &selAttrs,
 
         // build the projection
         if((rc = pProjector->BuildFromProjection(selAttrs, relations, conditions)))
-            goto err_return;
+            return rc;
 
         // build the selection node
         if((rc = pSelect->BuildFromSelect(selAttrs, relations, vConditions)))
-            goto err_return;
+            return rc;
     }
     else
     {
+        cout << "Few conditions detected..." << endl;
+
+        // create the new nodes
         QL_TreePlan *pSelect = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
 
-        this->SetNodeOperation(PROJECTION);
-        pSelect->SetNodeOperation(SELECT);
-
+        // update the nodes
         this->SetLeftChild(pSelect);
+
+        // build the projection
+        if((rc = this->BuildFromProjection(selAttrs, relations, conditions)))
+            return rc;
+
+        // build the selection node
+        if((rc = pSelect->BuildFromSelect(selAttrs, relations, conditions)))
+            return rc;
     }
 
-
-
-    return rc;
-
-err_return:
     return rc;
 }
 
@@ -192,9 +203,11 @@ RC QL_TreePlan::BuildFromComparison(const std::vector<RelAttr> &selAttrs,
 {
     RC rc = OK_RC;
 
+    cout << "Build from comparison" << endl;
+
     _nodeOperation = COMPARISON;
 
-    if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes)))
+    if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes, _bufferSize)))
         return rc;
 
     return rc;
@@ -209,9 +222,11 @@ RC QL_TreePlan::BuildFromProjection(const std::vector<RelAttr> &selAttrs,
 {
     RC rc = OK_RC;
 
+    cout << "Build from projection" << endl;
+
     _nodeOperation = PROJECTION;
 
-    if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes)))
+    if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes, _bufferSize)))
         return rc;
 
 
@@ -226,6 +241,8 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
                               const std::vector<Condition> &conditions)
 {
     RC rc = OK_RC;
+
+    cout << "Build from join" << endl;
 
     _nodeOperation = JOIN;
     _pLc = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
@@ -386,15 +403,26 @@ err_return:
 }
 
 RC QL_TreePlan::BuildFromSelect(const std::vector<RelAttr> &selAttrs,
-                               const std::vector<const char*> &relations,
-                               const std::vector<Condition> &conditions)
+                                const std::vector<const char*> &relations,
+                                const std::vector<Condition> &conditions)
 {
     RC rc = OK_RC;
 
+    cout << "Build from select" << endl;
+
     _nodeOperation = SELECT;
 
-    if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes)))
+    if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes, _bufferSize)))
         return rc;
+
+    if(relations.size() == 0)
+    {
+        return QL_NO_RELATION;
+    }
+
+    cout << "before cpy" << endl;
+    _sRelname.assign(relations[0]);
+    cout << "after cpy" << endl;
 
     return rc;
 
@@ -438,6 +466,7 @@ RC QL_TreePlan::PerformUnion(int &nAttributes, DataAttrInfo *&tNodeAttributes, c
 {
     RC rc = OK_RC;
 
+    cout << "Perform UNION" << endl;
 
     return rc;
 }
@@ -446,14 +475,15 @@ RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttribut
 {
     RC rc = OK_RC;
 
-
-
+    cout << "Perform COMPARISON" << endl;
     return rc;
 }
 
 RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData)
 {
     RC rc = OK_RC;
+
+    cout << "Perform PROJECTION" << endl;
 
     int left_nAttributes;
     DataAttrInfo *left_nodeAttributes;
@@ -468,8 +498,10 @@ RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttribut
     }
 
     // get the information from left child
+    cout << "\tCalling CHild" << endl;
     if((rc = _pLc->PerformNodeOperation(left_nAttributes, left_nodeAttributes, left_pData)))
         return rc;
+    cout << "\tBack from CHild" << endl;
 
     // create the output buffer
     pData = new char[_bufferSize];
@@ -488,6 +520,13 @@ RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttribut
         }
     }
 
+    // assign the output vars
+    nAttributes = _nNodeAttributes;
+    tNodeAttributes = _nodeAttributes;
+
+    delete[] left_pData;
+    left_pData = NULL;
+
 
     return rc;
 }
@@ -495,6 +534,50 @@ RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttribut
 RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData)
 {
     RC rc = OK_RC;
+
+    int left_nAttributes;
+    DataAttrInfo *left_nodeAttributes;
+    char *left_pData;
+
+    int index;
+
+    cout << "Perform JOIN" << endl;
+
+    // check if left child exists
+    if(_pLc == NULL)
+    {
+        return QL_NULL_CHILD;
+    }
+
+    // get the information from left child
+    cout << "\tCalling CHild" << endl;
+    if((rc = _pLc->PerformNodeOperation(left_nAttributes, left_nodeAttributes, left_pData)))
+        return rc;
+    cout << "\tBack from CHild" << endl;
+
+    // create the output buffer
+    pData = new char[_bufferSize];
+
+    // copy the required attributes in the output buffer
+    for(int i=0; i<left_nAttributes; i++)
+    {
+        if((rc = IsAttributeInList(_nNodeAttributes, _nodeAttributes, left_nodeAttributes[i], index)))
+            return rc;
+
+        if(index >= 0)
+        {
+            memcpy(pData + _nodeAttributes[index].offset,
+                   left_pData + left_nodeAttributes[i].offset,
+                   left_nodeAttributes[i].attrLength);
+        }
+    }
+
+    // assign the output vars
+    nAttributes = _nNodeAttributes;
+    tNodeAttributes = _nodeAttributes;
+
+    delete[] left_pData;
+    left_pData = NULL;
 
 
     return rc;
@@ -504,25 +587,52 @@ RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, 
 {
     RC rc = OK_RC;
 
+    cout << "Perform SELECT" << endl;
+
     // need to open scan
     if(_scanStatus == SCANCLOSED)
     {
+        // Index use
         if(_nNodeAttributes > 0 && _nodeAttributes[0].indexNo >= 0)
         {
+            cout << "Index scan initialization " << _nNodeAttributes << endl;
             _pScanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, _nodeAttributes[0].relName, NO_OP, _nodeAttributes[0], NULL);
-            if((rc = _pScanIterator->Open()))
-                return rc;
         }
+        // RM use
         else
         {
-            _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _nodeAttributes[0].relName, NO_OP, _nodeAttributes[0], NULL);
-            if((rc = _pScanIterator->Open()))
-                return rc;
+            // with a comparison
+            if(_nNodeAttributes > 0)
+            {
+                cout << "RM scan initialization " << _nNodeAttributes << endl;
+                _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _nodeAttributes[0].relName, NO_OP, _nodeAttributes[0], NULL);
+                cout << "RM scan initialized " << endl;
+            }
+            // full scan
+            else
+            {
+                cout << "RM scan initialization with full scan " << _nNodeAttributes <<endl;
+                // TO BE CORRECTED
+                _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _sRelname.c_str(), NO_OP, _nodeAttributes[0], NULL);
+            }
         }
     }
 
+    cout << "Open scan" << endl;
+
+    if(_scanStatus == SCANCLOSED)
+    {
+        if((rc = _pScanIterator->Open()))
+            return rc;
+
+        _scanStatus = SCANOPENED;
+    }
+
+
+    cout << "\t\tCalling GetNext" << endl;
     if((rc = _pScanIterator->GetNext(nAttributes, tNodeAttributes, pData)))
         return rc;
+    cout << "\t\tBack from GetNext" << endl;
 
 
     return rc;
@@ -556,9 +666,10 @@ void QL_TreePlan::Print (char prefix ,int level)
 // Helper
 // *************************
 
-RC QL_TreePlan::ComputeAttributesStructure(const std::vector<RelAttr> &selAttrs, int &nNodeAttributes, DataAttrInfo *&nodeAttributes)
+RC QL_TreePlan::ComputeAttributesStructure(const std::vector<RelAttr> &selAttrs, int &nNodeAttributes, DataAttrInfo *&nodeAttributes, int &bufferSize)
 {
     RC rc = OK_RC;
+    bufferSize = 0;
 
     nNodeAttributes = selAttrs.size();
     nodeAttributes = new DataAttrInfo[nNodeAttributes];
@@ -567,6 +678,9 @@ RC QL_TreePlan::ComputeAttributesStructure(const std::vector<RelAttr> &selAttrs,
     {
         if((rc = _pSmm->GetAttributeStructure(selAttrs[i].relName, selAttrs[i].attrName, nodeAttributes[i])))
             return rc;
+
+        nodeAttributes[i].offset = bufferSize;
+        bufferSize += nodeAttributes[i].attrLength;
     }
 
     return rc;

@@ -1,5 +1,9 @@
 #include "it_filescan.h"
 
+#include <iostream>
+
+using namespace std;
+
 
 IT_FileScan::IT_FileScan(RM_Manager *rmm, SM_Manager *smm,
                          const char* relName, CompOp scanOp, DataAttrInfo &dAttr, void *value):
@@ -21,13 +25,21 @@ RC IT_FileScan::Open()
     if((rc = _pRmm->OpenFile(_relName,_rmfh)))
         return rc;
 
+    cout << "file opened" << endl;
+
     if((rc = _rmfs.OpenScan(_rmfh, _iAttr.attrType, _iAttr.attrLength, _iAttr.offset, _scanOp, _value)))
         return rc;
+
+    cout << "scan opened" << endl;
 
     if((rc = _pSmm->GetRelationStructure(_relName, _dAttr, _nAttr)))
         return rc;
 
+    cout << "got relation structure" << endl;
+
     _bIsOpen = true;
+
+    return rc;
 }
 
 RC  IT_FileScan::GetNext(int &nAttr, DataAttrInfo *&pAttr, char *pData)

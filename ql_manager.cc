@@ -82,7 +82,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
 
 
 
-
+    // buil the tree query plan
     std::vector<RelAttr> vSelAttrs;
     std::vector<const char*> vRelations;
     std::vector<Condition> vConditions;
@@ -99,12 +99,28 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
         vConditions.push_back(conditions[i]);
     }
 
-
+    cout << "Building tree from QL_Manager..." << endl;
     _pTreePlan = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
     if((rc = _pTreePlan->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
-        goto err_return;
+        return rc;
 
+    // print the query plan
+    cout << "Printing the query plan from QL_Manager..." << endl;
     _pTreePlan->Print(' ',0);
+
+    // get the information
+    int nAttrInfos = 0;
+    DataAttrInfo *tAttrInfos = NULL;
+    char *pData = NULL;
+
+    cout << "Performing node operations from QL_Manager..." << endl;
+    if((_pTreePlan->PerformNodeOperation(nAttrInfos, tAttrInfos, pData)))
+        return rc;
+
+    printer.Print(cout, pData);
+
+    delete[] pData;
+    pData = NULL;
 
     if(_pTreePlan != NULL)
     {
@@ -112,9 +128,6 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
         _pTreePlan = NULL;
     }
 
-    return rc;
-
-err_return:
     return rc;
 }
 
