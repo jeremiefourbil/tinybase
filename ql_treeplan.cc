@@ -14,8 +14,9 @@ using namespace std;
 // Constructor & destructor
 // *************************
 
-QL_TreePlan::QL_TreePlan()
+QL_TreePlan::QL_TreePlan(SM_Manager *ipSmm)
 {
+    _pSmm = ipSmm;
     _pLc = NULL;
     _pRc = NULL;
     _nodeAttributes = NULL;
@@ -24,6 +25,8 @@ QL_TreePlan::QL_TreePlan()
 
 QL_TreePlan::~QL_TreePlan()
 {
+    _pSmm = NULL;
+
     if(_pLc != NULL)
     {
         delete _pLc;
@@ -38,13 +41,13 @@ QL_TreePlan::~QL_TreePlan()
 
     if(_nodeAttributes != NULL)
     {
-        delete _nodeAttributes;
+        delete[] _nodeAttributes;
         _nodeAttributes = NULL;
     }
 
     if(_operationAttributes != NULL)
     {
-        delete _operationAttributes;
+        delete[] _operationAttributes;
         _operationAttributes = NULL;
     }
 }
@@ -118,22 +121,24 @@ RC QL_TreePlan::BuildFromSingleRelation(const std::vector<RelAttr> &selAttrs,
     if(conditions.size() > 1)
     {
         // create the new nodes
-        QL_TreePlan *pProjector = new QL_TreePlan();
-        QL_TreePlan *pSelect = new QL_TreePlan();
+        QL_TreePlan *pProjector = new QL_TreePlan(_pSmm);
+        QL_TreePlan *pSelect = new QL_TreePlan(_pSmm);
         QL_TreePlan *pComparison = NULL;
 
         // build the comparisons, the first comparison node is this
         std::vector<Condition> vConditions(conditions);
         pComparison = this;
-        pComparison->BuildFromComparison(selAttrs, relations, vConditions);
+        if((rc = pComparison->BuildFromComparison(selAttrs, relations, vConditions)))
+            return rc;
         vConditions.pop_back();
 
         QL_TreePlan *pFather = this;
         while(vConditions.size()>1)
         {
             // create the new comparison node
-            pComparison = new QL_TreePlan();
-            pComparison->BuildFromComparison(selAttrs, relations, vConditions);
+            pComparison = new QL_TreePlan(_pSmm);
+            if((rc = pComparison->BuildFromComparison(selAttrs, relations, vConditions)))
+                return rc;
 
             // update the father
             pFather->SetLeftChild(pComparison);
@@ -155,7 +160,7 @@ RC QL_TreePlan::BuildFromSingleRelation(const std::vector<RelAttr> &selAttrs,
     }
     else
     {
-        QL_TreePlan *pSelect = new QL_TreePlan();
+        QL_TreePlan *pSelect = new QL_TreePlan(_pSmm);
 
         this->SetNodeOperation(PROJECTION);
         pSelect->SetNodeOperation(SELECT);
@@ -179,6 +184,9 @@ RC QL_TreePlan::BuildFromComparison(const std::vector<RelAttr> &selAttrs,
 
     _nodeOperation = COMPARISON;
 
+    if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes)))
+        return rc;
+
     return rc;
 
 err_return:
@@ -192,6 +200,9 @@ RC QL_TreePlan::BuildFromProjection(const std::vector<RelAttr> &selAttrs,
     RC rc = OK_RC;
 
     _nodeOperation = PROJECTION;
+
+    if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes)))
+        return rc;
 
 
     return rc;
@@ -207,9 +218,10 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
     RC rc = OK_RC;
 
     _nodeOperation = JOIN;
-    _pLc = new QL_TreePlan();
-    _pRc = new QL_TreePlan();
+    _pLc = new QL_TreePlan(_pSmm);
+    _pRc = new QL_TreePlan(_pSmm);
 
+    // initialize children vectors
     std::vector<RelAttr> left_selAttrs;
     std::vector<const char*> left_relations;
     std::vector<Condition> left_conditions;
@@ -220,12 +232,13 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
 
 
     // find the relations that appears once
+    // initialize the hashmap
     std::map<string, int> relationsNb;
     for(unsigned int i=0; i<relations.size(); i++)
     {
         relationsNb.insert(std::pair<string, int>(relations[i], 0));
     }
-
+    // update the hashmap
     for(unsigned int i=0; i<conditions.size(); i++)
     {
         if(conditions[i].bRhsIsAttr && conditions[i].op == EQ_OP)
@@ -242,8 +255,8 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
         }
     }
 
+    // put the iterator on a relation that appears once
     std::map<string,int>::iterator it;
-    // show content:
     for (it=relationsNb.begin(); it!=relationsNb.end(); ++it)
     {
         if(it->second == 1)
@@ -257,32 +270,41 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
     {
         string str(conditions[i].lhsAttr.relName);
         std::size_t found = str.find_first_of(".");
+        // the left hand side matches the iterator
         if(str.substr(0, found).compare(it->first)==0)
         {
+            // the right hand side is only a value
             if(!conditions[i].bRhsIsAttr)
             {
                 right_conditions.push_back(conditions[i]);
             }
+            // the right hand side is an attribute, it corresponds to the join equality
             else
             {
+                // join equality treatment
                 _operationAttributes = new DataAttrInfo[2];
                 _nOperationAttributes = 2;
             }
         }
+        // the left hand side does not match the iterator
         else
         {
+            // the right hand side is only a value
             if(!conditions[i].bRhsIsAttr)
             {
                 left_conditions.push_back(conditions[i]);
             }
+            // the right hand side is an attribute
             else
             {
                 str.assign(conditions[i].rhsAttr.relName);
                 found = str.find_first_of(".");
+                // it corresponds to the join equality
                 if(str.substr(0, found).compare(it->first)==0)
                 {
-                    //
+                    // join equality treatment
                 }
+                // another join is spotted
                 else
                 {
                     left_conditions.push_back(conditions[i]);
@@ -294,10 +316,12 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
     // copy relations in left & right children
     for(unsigned int i=0;i<relations.size();i++)
     {
+        // the relation matches the iterator
         if(strcmp(it->first.c_str(),relations[i])==0)
         {
             right_relations.push_back(relations[i]);
         }
+        // the relation does not match the iterator
         else
         {
             left_relations.push_back(relations[i]);
@@ -307,19 +331,23 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
     // copy attributes in left & right children
     for(unsigned int i=0;i<selAttrs.size();i++)
     {
+        // the attributes belongs to a relation that matches the iterator
         if(strcmp(it->first.c_str(),selAttrs[i].relName)==0)
         {
             right_selAttrs.push_back(selAttrs[i]);
         }
+        // the attributes belongs to a relation that does not match the iterator
         else
         {
             left_selAttrs.push_back(selAttrs[i]);
         }
     }
 
+    // build the left child
     if((rc = _pLc->BuildFromQuery(left_selAttrs, left_relations, left_conditions)))
         goto err_return;
 
+    // build the right child
     if((_pRc->BuildFromQuery(right_selAttrs, right_relations, right_conditions)))
         goto err_return;
 
@@ -336,6 +364,9 @@ RC QL_TreePlan::BuildFromSelect(const std::vector<RelAttr> &selAttrs,
     RC rc = OK_RC;
 
     _nodeOperation = SELECT;
+
+    if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes)))
+        return rc;
 
     return rc;
 
@@ -427,3 +458,26 @@ void QL_TreePlan::Print (char prefix ,int level)
     if(_pRc != NULL)
         _pRc->Print ('\\',level + 1);
 }
+
+// *************************
+// Helper
+// *************************
+
+RC QL_TreePlan::ComputeAttributesStructure(const std::vector<RelAttr> &selAttrs, int &nNodeAttributes, DataAttrInfo *&nodeAttributes)
+{
+    RC rc = OK_RC;
+
+    nNodeAttributes = selAttrs.size();
+    nodeAttributes = new DataAttrInfo[nNodeAttributes];
+
+    for(unsigned int i=0; i<nNodeAttributes; i++)
+    {
+        if((rc = _pSmm->GetAttributeStructure(selAttrs[i].relName, selAttrs[i].attrName, nodeAttributes[i])))
+            return rc;
+    }
+
+    return rc;
+}
+
+
+

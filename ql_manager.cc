@@ -65,20 +65,11 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     {
         cout << "   selAttrs[" << i << "]:" << selAttrs[i] << "\n";
 
-        RM_Record rec;
-        char *pData;
-        _pSmm->GetAttributeInfo(selAttrs[i].relName, selAttrs[i].attrName, rec, pData);
-
-        _pSmm->ConvertAttr(pData, &tInfos[i]);
+        if((rc = _pSmm->GetAttributeStructure(selAttrs[i].relName, selAttrs[i].attrName, tInfos[i])))
+            return rc;
     }
-
-    cout << "--------------------------------- PRINT HEADER" << endl;
-
     Printer printer(tInfos, nSelAttrs);
     printer.PrintHeader(cout);
-
-    cout << "--------------------------------- END PRINT HEADER" << endl;
-
 
     cout << "   nRelations = " << nRelations << "\n";
     for (i = 0; i < nRelations; i++)
@@ -109,7 +100,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     }
 
 
-    _pTreePlan = new QL_TreePlan();
+    _pTreePlan = new QL_TreePlan(_pSmm);
     if((rc = _pTreePlan->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
         goto err_return;
 

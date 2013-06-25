@@ -48,6 +48,8 @@ public:
     RC Set        (const char *paramName,         // set parameter to
                    const char *value);            //   value
 
+    RC GetAttributeStructure(const char* relName, const char* attrName, DataAttrInfo &attr);
+
 private:
     // Copy constructor
     SM_Manager(const SM_Manager &manager);

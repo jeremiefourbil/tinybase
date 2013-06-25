@@ -1109,6 +1109,20 @@ void SM_Manager::ConvertAttr(void* pSM, void *pAttrInfo)
   ((DataAttrInfo*)pAttrInfo)->indexNo = ((SM_AttrcatRec *)pSM)->indexNo;
 }
 
+RC SM_Manager::GetAttributeStructure(const char* relName, const char* attrName, DataAttrInfo &attr)
+{
+    RC rc = OK_RC;
+    RM_Record rec;
+    char *pData = NULL;
+
+    if((rc = GetAttributeInfo(relName, attrName, rec, pData)))
+        return rc;
+
+    ConvertAttr(pData, &attr);
+
+    return rc;
+}
+
 RC SM_Manager::GetRelationStructure(const char* relName, DataAttrInfo *&attr, int &nAttr)
 {
    RC rc;
@@ -1137,13 +1151,15 @@ RC SM_Manager::GetRelationStructure(const char* relName, DataAttrInfo *&attr, in
    memset(_relName, '\0', sizeof(_relName));
    strncpy(_relName, relName, MAXNAME);
    if (rc = fs.OpenScan(fhAttrcat, STRING, MAXNAME,
-      OFFSET(SM_AttrcatRec, relName), EQ_OP, _relName)) {
+      OFFSET(SM_AttrcatRec, relName), EQ_OP, _relName))
+   {
       delete [] attributes;
       return (rc);
    }
 
    // Fill out attributes array
-   while ((rc = fs.GetNextRec(rec)) != RM_EOF) {
+   while ((rc = fs.GetNextRec(rec)) != RM_EOF)
+   {
       char *data;
 
       if (rc != 0) {
@@ -1152,7 +1168,8 @@ RC SM_Manager::GetRelationStructure(const char* relName, DataAttrInfo *&attr, in
          return (rc);
       }
 
-      if (rc = rec.GetData(data)) {
+      if (rc = rec.GetData(data))
+      {
          fs.CloseScan();
          delete [] attributes;
          return (rc);
@@ -1172,7 +1189,8 @@ RC SM_Manager::GetRelationStructure(const char* relName, DataAttrInfo *&attr, in
    attr = attributes;
 
    // Close a file scan for ATTRCAT
-   if (rc = fs.CloseScan()) {
+   if (rc = fs.CloseScan())
+   {
       delete [] attributes;
       return (rc);
    }

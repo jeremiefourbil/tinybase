@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "redbase.h"
+#include "sm.h"
 #include "parser.h"
 #include "printer.h"
 
@@ -19,7 +20,7 @@ public:
     };
 
     // constructor & destructor
-    QL_TreePlan();
+    QL_TreePlan(SM_Manager *ipSmm);
     ~QL_TreePlan();
 
     // setters
@@ -63,12 +64,15 @@ public:
 
     void Print(char prefix ,int level);
 
+    RC ComputeAttributesStructure(const std::vector<RelAttr> &selAttrs, int &nNodeAttributes, DataAttrInfo *&nodeAttributes);
+
 private:
+    SM_Manager *_pSmm;
     QL_TreePlan *_pLc;
     QL_TreePlan *_pRc;
     NodeOperation _nodeOperation;
     void Padding(char ch, int n);
-    int _nNodeAtributes;
+    int _nNodeAttributes;
     DataAttrInfo *_nodeAttributes;
     int _nOperationAttributes;
     DataAttrInfo *_operationAttributes;
