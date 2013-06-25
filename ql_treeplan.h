@@ -8,10 +8,12 @@
 #include "parser.h"
 #include "printer.h"
 
+#include "ql_iterator.h"
+
 class QL_TreePlan
 {
 public:
-    enum NodeOperation{
+    enum NodeOperation {
         UNION,
         COMPARISON,
         PROJECTION,
@@ -19,9 +21,17 @@ public:
         SELECT
     };
 
+    enum ScanStatus {
+        SCANOPENED,
+        SCANCLOSED
+    };
+
     // constructor & destructor
     QL_TreePlan(SM_Manager *ipSmm, IX_Manager *ipIxm, RM_Manager *ipRmm);
     ~QL_TreePlan();
+
+    // getters
+    ScanStatus getScanStatus() { return _scanStatus; }
 
     // setters
     void SetNodeOperation(NodeOperation iNodeOperation);
@@ -80,6 +90,9 @@ private:
     DataAttrInfo *_nodeAttributes;
     int _nOperationAttributes;
     DataAttrInfo *_operationAttributes;
+
+    ScanStatus _scanStatus;
+    QL_Iterator *_pScanIterator;
 };
 
 #endif // QL_TREEPLAN_H

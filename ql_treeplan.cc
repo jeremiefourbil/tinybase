@@ -27,6 +27,9 @@ QL_TreePlan::QL_TreePlan(SM_Manager *ipSmm, IX_Manager *ipIxm, RM_Manager *ipRmm
     _pRc = NULL;
     _nodeAttributes = NULL;
     _operationAttributes = NULL;
+
+    _scanStatus = SCANCLOSED;
+    _pScanIterator = NULL;
 }
 
 QL_TreePlan::~QL_TreePlan()
@@ -467,16 +470,19 @@ RC QL_TreePlan::PerformSelect()
 {
     RC rc = OK_RC;
 
-    QL_Iterator *scanIterator = NULL;
-
-    if(_nNodeAttributes > 0 && _nodeAttributes[0].indexNo >= 0)
+    // need to open scan
+    if(_scanStatus == SCANCLOSED)
     {
-        scanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, _nodeAttributes[0].relName, NO_OP, _nodeAttributes[0], NULL);
-    }
-    else
-    {
+        if(_nNodeAttributes > 0 && _nodeAttributes[0].indexNo >= 0)
+        {
+            _pScanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, _nodeAttributes[0].relName, NO_OP, _nodeAttributes[0], NULL);
+        }
+        else
+        {
 
+        }
     }
+
 
     return rc;
 }

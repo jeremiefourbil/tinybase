@@ -6,14 +6,8 @@
 
 class IT_FileScan : public virtual QL_Iterator {
   public:
-    IT_FileScan(
-      RM_Manager &rmm
-      ,SM_Manager &smm
-      ,const char* relName
-      ,ComOp &scanOp
-      ,DataAttrInfo &dAttr
-      ,void *value
-      ,Rc &rc);
+    IT_FileScan(RM_Manager *rmm, IX_Manager *ixm, SM_Manager *smm,
+                const char* relName, CompOp scanOp, DataAttrInfo &dAttr, void *value);
 
     virtual ~IT_FileScan();
 
