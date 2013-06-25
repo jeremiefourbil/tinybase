@@ -16,22 +16,22 @@ class IT_IndexScan : public virtual QL_Iterator {
     RC GetNext(int &nAttr, DataAttrInfo *&pAttr, char *pData);
     RC Close();
   private:
-    RM_Manager *pRmm;
-    IX_Manager *pIxm;
-    SM_Manager *pSmm;
+    RM_Manager *_pRmm;
+    IX_Manager *_pIxm;
+    SM_Manager *_pSmm;
 
-    RM_FileHandle rmfh;
+    RM_FileHandle _rmfh;
 
-    IX_IndexHandle ixih;
-    IX_IndexScan ixis;
+    IX_IndexHandle _ixih;
+    IX_IndexScan _ixis;
 
-    int nAttr;
-    DataAttrInfo *dAttr;
+    int _nAttr;
+    DataAttrInfo *_dAttr;
 
-    CompOp scanOp;
-    DataAttrInfo *iAttr;
-    void *value;
-    const char* relName;
+    CompOp _scanOp;
+    DataAttrInfo _iAttr;
+    void *_value;
+    const char* _relName;
 };
 
 #endif

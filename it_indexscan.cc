@@ -3,10 +3,10 @@
 
 IT_IndexScan::IT_IndexScan(RM_Manager *rmm, IX_Manager *ixm, SM_Manager *smm,
                            const char* relName, CompOp scanOp, DataAttrInfo &dAttr, void *value):
-    pRmm(rmm), pIxm(ixm), pSmm(smm),
-    relName(relName), scanOp(scanOp), iAttr(&dAttr), value(value)
+    _pRmm(rmm), _pIxm(ixm), _pSmm(smm),
+    _relName(relName), _scanOp(scanOp), _iAttr(dAttr), _value(value)
 {
-
+    _bIsOpen = false;
 }
 
 IT_IndexScan::~IT_IndexScan()
@@ -16,27 +16,27 @@ IT_IndexScan::~IT_IndexScan()
 
 RC IT_IndexScan::Open()
 {
-  if(bIsOpen)
+  if(_bIsOpen)
   {
     return IX_ALREADY_OPEN;
   }
 
   RC rc = OK_RC;
 
-  if((rc = pRmm->OpenFile(relName, rmfh)))
+  if((rc = _pRmm->OpenFile(_relName, _rmfh)))
     return rc;
 
-  if((rc = pIxm->OpenIndex(relName, iAttr->indexNo, ixih)))
+  if((rc = _pIxm->OpenIndex(_relName, _iAttr.indexNo, _ixih)))
     return rc;
 
-  if((rc = ixis.OpenScan(ixih, scanOp, value)))
+  if((rc = _ixis.OpenScan(_ixih, _scanOp, _value)))
     return rc;
 
-  if((rc = pSmm->GetRelationStructure(relName, dAttr, nAttr)))
+  if((rc = _pSmm->GetRelationStructure(_relName, _dAttr, _nAttr)))
       return rc;
 
 
-  bIsOpen = true;
+  _bIsOpen = true;
 
   return rc;
 }
@@ -50,21 +50,21 @@ RC  IT_IndexScan::GetNext(int &nAttr, DataAttrInfo *&pAttr, char *pData)
   int recordSize;
   char *pRecData;
 
-  if(!bIsOpen)
+  if(!_bIsOpen)
   {
     return QL_ITERATOR_NOT_OPENED;
   }
 
   RID rid;
 
-  rc = ixis.GetNextEntry(rid);
+  rc = _ixis.GetNextEntry(rid);
   if (rc != IX_EOF && rc != 0)
     return rc;
 
   if (rc == IX_EOF)
     return QL_EOF;
 
-  rc = rmfh.GetRec(rid, rec);
+  rc = _rmfh.GetRec(rid, rec);
   if (rc != 0 ) return rc;
 
   if((rc = rec.GetRecordSize(recordSize)))
@@ -82,17 +82,17 @@ RC IT_IndexScan::Close()
 {
   RC rc = OK_RC;
 
-  if(!bIsOpen)
+  if(!_bIsOpen)
   {
     return QL_ITERATOR_NOT_OPENED;
   }
 
-  if((rc = ixis.CloseScan()))
+  if((rc = _ixis.CloseScan()))
     return rc;
 
-  if((rc = pRmm->CloseFile(rmfh)))
+  if((rc = _pRmm->CloseFile(_rmfh)))
     return rc;
 
-  bIsOpen = false;
+  _bIsOpen = false;
   return rc;
 }
