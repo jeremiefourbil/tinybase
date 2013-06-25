@@ -8,8 +8,9 @@
 #include <string>
 #include <map>
 
-#include "it_indexscan.h"
 #include "ql_iterator.h"
+#include "it_indexscan.h"
+#include "it_filescan.h"
 
 using namespace std;
 
@@ -454,6 +455,39 @@ RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttribut
 {
     RC rc = OK_RC;
 
+    int left_nAttributes;
+    DataAttrInfo *left_nodeAttributes;
+    char *left_pData;
+
+    int index;
+
+    // check if left child exists
+    if(_pLc == NULL)
+    {
+        return QL_NULL_CHILD;
+    }
+
+    // get the information from left child
+    if((rc = _pLc->PerformNodeOperation(left_nAttributes, left_nodeAttributes, left_pData)))
+        return rc;
+
+    // create the output buffer
+    pData = new char[_bufferSize];
+
+    // copy the required attributes in the output buffer
+    for(int i=0; i<left_nAttributes; i++)
+    {
+        if((rc = IsAttributeInList(_nNodeAttributes, _nodeAttributes, left_nodeAttributes[i], index)))
+            return rc;
+
+        if(index >= 0)
+        {
+            memcpy(pData + _nodeAttributes[index].offset,
+                   left_pData + left_nodeAttributes[i].offset,
+                   left_nodeAttributes[i].attrLength);
+        }
+    }
+
 
     return rc;
 }
@@ -481,7 +515,9 @@ RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, 
         }
         else
         {
-
+            _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _nodeAttributes[0].relName, NO_OP, _nodeAttributes[0], NULL);
+            if((rc = _pScanIterator->Open()))
+                return rc;
         }
     }
 
@@ -532,6 +568,28 @@ RC QL_TreePlan::ComputeAttributesStructure(const std::vector<RelAttr> &selAttrs,
         if((rc = _pSmm->GetAttributeStructure(selAttrs[i].relName, selAttrs[i].attrName, nodeAttributes[i])))
             return rc;
     }
+
+    return rc;
+}
+
+RC QL_TreePlan::IsAttributeInList(const int nNodeAttributes, const DataAttrInfo *nodeAttributes, const DataAttrInfo &attribute, int &index)
+{
+    RC rc = OK_RC;
+
+    bool isIn = false;
+
+    for(index=0; index<nNodeAttributes; index++)
+    {
+        if(strcmp(nodeAttributes[index].relName, attribute.relName) == 0 &&
+                strcmp(nodeAttributes[index].attrName, attribute.attrName) == 0)
+        {
+            isIn = true;
+            break;
+        }
+    }
+
+    if(!isIn)
+        index = -1;
 
     return rc;
 }

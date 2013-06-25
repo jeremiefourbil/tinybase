@@ -48,7 +48,7 @@ public:
     RC Set        (const char *paramName,         // set parameter to
                    const char *value);            //   value
 
-     RC GetRelationStructure(const char* relName, DataAttrInfo *&attr, int &nAttr);
+    RC GetRelationStructure(const char* relName, DataAttrInfo *&attr, int &nAttr);
     RC GetAttributeStructure(const char* relName, const char* attrName, DataAttrInfo &attr);
 
 private:

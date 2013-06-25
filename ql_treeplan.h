@@ -76,6 +76,9 @@ private:
     RC PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
 
     RC ComputeAttributesStructure(const std::vector<RelAttr> &selAttrs, int &nNodeAttributes, DataAttrInfo *&nodeAttributes);
+    RC IsAttributeInList(const int nNodeAttributes, const DataAttrInfo *nodeAttributes, const DataAttrInfo &attribute, int &index);
+
+    void Padding(char ch, int n);
 
     SM_Manager *_pSmm;
     IX_Manager *_pIxm;
@@ -84,9 +87,12 @@ private:
     QL_TreePlan *_pLc;
     QL_TreePlan *_pRc;
     NodeOperation _nodeOperation;
-    void Padding(char ch, int n);
+
     int _nNodeAttributes;
     DataAttrInfo *_nodeAttributes;
+
+    int _bufferSize;
+
     int _nOperationAttributes;
     DataAttrInfo *_operationAttributes;
 

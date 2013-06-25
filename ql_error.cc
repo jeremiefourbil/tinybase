@@ -28,7 +28,8 @@ static char *QL_WarnMsg[] = {
 
 static char *QL_ErrorMsg[] = {
     (char*)"unknown type",
-    (char*)"iterator not opened"
+    (char*)"iterator not opened",
+    (char*)"unexpected null child"
     //  (char*)"invalid file name"
 };
 
