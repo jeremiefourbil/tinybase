@@ -20,7 +20,7 @@ public:
     };
 
     // constructor & destructor
-    QL_TreePlan(SM_Manager *ipSmm);
+    QL_TreePlan(SM_Manager *ipSmm, IX_Manager *ipIxm, RM_Manager *ipRmm);
     ~QL_TreePlan();
 
     // setters
@@ -57,17 +57,21 @@ public:
     RC PerformNodeOperation(int nAttributes, DataAttrInfo *tNodeAttributes,
                       void * pData);
 
+    void Print(char prefix, int level);
+
+private:
     RC PerformUnion();
     RC PerformComparison();
     RC PerformProjection();
     RC PerformJoin();
-
-    void Print(char prefix, int level);
+    RC PerformSelect();
 
     RC ComputeAttributesStructure(const std::vector<RelAttr> &selAttrs, int &nNodeAttributes, DataAttrInfo *&nodeAttributes);
 
-private:
     SM_Manager *_pSmm;
+    IX_Manager *_pIxm;
+    RM_Manager *_pRmm;
+
     QL_TreePlan *_pLc;
     QL_TreePlan *_pRc;
     NodeOperation _nodeOperation;

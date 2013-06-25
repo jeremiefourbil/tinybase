@@ -7,15 +7,8 @@
 
 class IT_IndexScan : public virtual QL_Iterator {
   public:
-    IT_IndexScan(
-        RM_Manager *rmm
-        ,IX_Manager *ixm
-        ,SM_Manager *smm
-        ,const char* relName
-        ,CompOp &scanOp
-        ,DataAttrInfo &dAttr
-        ,void *value
-        ,RC &rc);
+    IT_IndexScan(RM_Manager *rmm, IX_Manager *ixm, SM_Manager *smm,
+                    const char* relName, CompOp scanOp, DataAttrInfo &dAttr, void *value);
 
     virtual ~IT_IndexScan();
 

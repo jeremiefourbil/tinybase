@@ -1,30 +1,23 @@
 #include "it_indexscan.h"
 
 
-IT_IndexScan::IT_IndexScan(
-  RM_Manager *rmm
-  ,IX_Manager *ixm
-  ,SM_Manager *smm
-  ,const char* relName
-  ,CompOp &scanOp
-  ,DataAttrInfo &dAttr
-  ,void *value
-  ,RC &rc):
-    pRmm(rmm)
-    ,pIxm(ixm)
-    ,pSmm(smm)
-    ,relName(relName)
-    ,scanOp(scanOp)
-    ,iAttr(&dAttr)
-    ,value(value){
-}
-
-IT_IndexScan::~IT_IndexScan(){
+IT_IndexScan::IT_IndexScan(RM_Manager *rmm, IX_Manager *ixm, SM_Manager *smm,
+                           const char* relName, CompOp scanOp, DataAttrInfo &dAttr, void *value):
+    pRmm(rmm), pIxm(ixm), pSmm(smm),
+    relName(relName), scanOp(scanOp), iAttr(&dAttr), value(value)
+{
 
 }
 
-RC IT_IndexScan::Open(){
-  if(bIsOpen) {
+IT_IndexScan::~IT_IndexScan()
+{
+
+}
+
+RC IT_IndexScan::Open()
+{
+  if(bIsOpen)
+  {
     return IX_ALREADY_OPEN;
   }
 
@@ -44,10 +37,12 @@ RC IT_IndexScan::Open(){
   return rc;
 }
 
-RC  IT_IndexScan::GetNext(RM_Record &rec){
+RC  IT_IndexScan::GetNext(RM_Record &rec)
+{
   RC rc;
 
-  if(!bIsOpen) {
+  if(!bIsOpen)
+  {
     return QL_ITERATOR_NOT_OPENED;
   }
 
@@ -65,10 +60,12 @@ RC  IT_IndexScan::GetNext(RM_Record &rec){
 
   return rc;
 }
-RC IT_IndexScan::Close(){
+RC IT_IndexScan::Close()
+{
   RC rc = OK_RC;
 
-  if(!bIsOpen) {
+  if(!bIsOpen)
+  {
     return QL_ITERATOR_NOT_OPENED;
   }
 

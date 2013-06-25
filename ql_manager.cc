@@ -100,7 +100,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     }
 
 
-    _pTreePlan = new QL_TreePlan(_pSmm);
+    _pTreePlan = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
     if((rc = _pTreePlan->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
         goto err_return;
 

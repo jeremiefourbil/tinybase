@@ -8,15 +8,21 @@
 #include <string>
 #include <map>
 
+#include "it_indexscan.h"
+#include "ql_iterator.h"
+
 using namespace std;
 
 // *************************
 // Constructor & destructor
 // *************************
 
-QL_TreePlan::QL_TreePlan(SM_Manager *ipSmm)
+QL_TreePlan::QL_TreePlan(SM_Manager *ipSmm, IX_Manager *ipIxm, RM_Manager *ipRmm)
 {
     _pSmm = ipSmm;
+    _pIxm = ipIxm;
+    _pRmm = ipRmm;
+
     _pLc = NULL;
     _pRc = NULL;
     _nodeAttributes = NULL;
@@ -121,8 +127,8 @@ RC QL_TreePlan::BuildFromSingleRelation(const std::vector<RelAttr> &selAttrs,
     if(conditions.size() > 1)
     {
         // create the new nodes
-        QL_TreePlan *pProjector = new QL_TreePlan(_pSmm);
-        QL_TreePlan *pSelect = new QL_TreePlan(_pSmm);
+        QL_TreePlan *pProjector = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
+        QL_TreePlan *pSelect = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
         QL_TreePlan *pComparison = NULL;
 
         // build the comparisons, the first comparison node is this
@@ -136,7 +142,7 @@ RC QL_TreePlan::BuildFromSingleRelation(const std::vector<RelAttr> &selAttrs,
         while(vConditions.size()>1)
         {
             // create the new comparison node
-            pComparison = new QL_TreePlan(_pSmm);
+            pComparison = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
             if((rc = pComparison->BuildFromComparison(selAttrs, relations, vConditions)))
                 return rc;
 
@@ -160,7 +166,7 @@ RC QL_TreePlan::BuildFromSingleRelation(const std::vector<RelAttr> &selAttrs,
     }
     else
     {
-        QL_TreePlan *pSelect = new QL_TreePlan(_pSmm);
+        QL_TreePlan *pSelect = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
 
         this->SetNodeOperation(PROJECTION);
         pSelect->SetNodeOperation(SELECT);
@@ -218,8 +224,8 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
     RC rc = OK_RC;
 
     _nodeOperation = JOIN;
-    _pLc = new QL_TreePlan(_pSmm);
-    _pRc = new QL_TreePlan(_pSmm);
+    _pLc = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
+    _pRc = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
 
     // initialize children vectors
     std::vector<RelAttr> left_selAttrs;
@@ -414,6 +420,9 @@ RC QL_TreePlan::PerformNodeOperation(int nAttributes, DataAttrInfo *tNodeAttribu
     case JOIN:
         rc = PerformJoin();
         break;
+    case SELECT:
+        rc = PerformSelect();
+        break;
     default:
         rc = QL_UNKNOWN_TYPE;
     }
@@ -434,6 +443,7 @@ RC QL_TreePlan::PerformComparison()
     RC rc = OK_RC;
 
 
+
     return rc;
 }
 
@@ -449,6 +459,24 @@ RC QL_TreePlan::PerformJoin()
 {
     RC rc = OK_RC;
 
+
+    return rc;
+}
+
+RC QL_TreePlan::PerformSelect()
+{
+    RC rc = OK_RC;
+
+    QL_Iterator *scanIterator = NULL;
+
+    if(_nNodeAttributes > 0 && _nodeAttributes[0].indexNo >= 0)
+    {
+        scanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, _nodeAttributes[0].relName, NO_OP, _nodeAttributes[0], NULL);
+    }
+    else
+    {
+
+    }
 
     return rc;
 }
