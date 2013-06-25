@@ -405,26 +405,26 @@ err_return:
 // Operators
 // *************************
 
-RC QL_TreePlan::PerformNodeOperation(int nAttributes, DataAttrInfo *tNodeAttributes,void * pData)
+RC QL_TreePlan::PerformNodeOperation(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData)
 {
     RC rc = OK_RC;
 
     switch(_nodeOperation)
     {
     case UNION:
-        rc = PerformUnion();
+        rc = PerformUnion(nAttributes, tNodeAttributes, pData);
         break;
     case COMPARISON:
-        rc = PerformComparison();
+        rc = PerformComparison(nAttributes, tNodeAttributes, pData);
         break;
     case PROJECTION:
-        rc = PerformProjection();
+        rc = PerformProjection(nAttributes, tNodeAttributes, pData);
         break;
     case JOIN:
-        rc = PerformJoin();
+        rc = PerformJoin(nAttributes, tNodeAttributes, pData);
         break;
     case SELECT:
-        rc = PerformSelect();
+        rc = PerformSelect(nAttributes, tNodeAttributes, pData);
         break;
     default:
         rc = QL_UNKNOWN_TYPE;
@@ -433,7 +433,7 @@ RC QL_TreePlan::PerformNodeOperation(int nAttributes, DataAttrInfo *tNodeAttribu
     return rc;
 }
 
-RC QL_TreePlan::PerformUnion()
+RC QL_TreePlan::PerformUnion(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData)
 {
     RC rc = OK_RC;
 
@@ -441,7 +441,7 @@ RC QL_TreePlan::PerformUnion()
     return rc;
 }
 
-RC QL_TreePlan::PerformComparison()
+RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData)
 {
     RC rc = OK_RC;
 
@@ -450,7 +450,7 @@ RC QL_TreePlan::PerformComparison()
     return rc;
 }
 
-RC QL_TreePlan::PerformProjection()
+RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData)
 {
     RC rc = OK_RC;
 
@@ -458,7 +458,7 @@ RC QL_TreePlan::PerformProjection()
     return rc;
 }
 
-RC QL_TreePlan::PerformJoin()
+RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData)
 {
     RC rc = OK_RC;
 
@@ -466,7 +466,7 @@ RC QL_TreePlan::PerformJoin()
     return rc;
 }
 
-RC QL_TreePlan::PerformSelect()
+RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData)
 {
     RC rc = OK_RC;
 
@@ -476,12 +476,17 @@ RC QL_TreePlan::PerformSelect()
         if(_nNodeAttributes > 0 && _nodeAttributes[0].indexNo >= 0)
         {
             _pScanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, _nodeAttributes[0].relName, NO_OP, _nodeAttributes[0], NULL);
+            if((rc = _pScanIterator->Open()))
+                return rc;
         }
         else
         {
 
         }
     }
+
+    if((rc = _pScanIterator->GetNext(nAttributes, tNodeAttributes, pData)))
+        return rc;
 
 
     return rc;

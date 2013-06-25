@@ -13,7 +13,7 @@ class IT_IndexScan : public virtual QL_Iterator {
     virtual ~IT_IndexScan();
 
     RC Open();
-    RC GetNext(RM_Record &record);
+    RC GetNext(int &nAttr, DataAttrInfo *&pAttr, char *pData);
     RC Close();
   private:
     RM_Manager *pRmm;

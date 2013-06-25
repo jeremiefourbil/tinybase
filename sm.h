@@ -48,6 +48,7 @@ public:
     RC Set        (const char *paramName,         // set parameter to
                    const char *value);            //   value
 
+     RC GetRelationStructure(const char* relName, DataAttrInfo *&attr, int &nAttr);
     RC GetAttributeStructure(const char* relName, const char* attrName, DataAttrInfo &attr);
 
 private:
@@ -57,7 +58,6 @@ private:
     SM_Manager& operator=(const SM_Manager &manager);
 
     void ConvertAttr(void* pSM, void *pAttrInfo);
-    RC GetRelationStructure(const char* relName, DataAttrInfo *&attr, int &nAttr);
 
     RC GetRelationInfo(const char *relName, RM_Record &rec, char *&data);
     RC SetRelationIndexCount(const char *relName, int value);

@@ -2,6 +2,7 @@
 #define QL_ITERATOR
 
 #include "rm.h"
+#include "printer.h"
 
 class QL_Iterator {
   public: 
@@ -9,7 +10,7 @@ class QL_Iterator {
     virtual ~QL_Iterator(){}
 
     virtual RC Open() = 0;
-    virtual RC GetNext(RM_Record &rec) = 0;
+    virtual RC GetNext(int &nAttr, DataAttrInfo *&pAttr, char *pData) = 0;
     virtual RC Close() = 0;
   protected:
     bool bIsOpen;

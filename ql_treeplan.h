@@ -64,17 +64,16 @@ public:
                       const std::vector<Condition> &conditions);
 
     // operator
-    RC PerformNodeOperation(int nAttributes, DataAttrInfo *tNodeAttributes,
-                      void * pData);
+    RC PerformNodeOperation(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
 
     void Print(char prefix, int level);
 
 private:
-    RC PerformUnion();
-    RC PerformComparison();
-    RC PerformProjection();
-    RC PerformJoin();
-    RC PerformSelect();
+    RC PerformUnion(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
+    RC PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
+    RC PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
+    RC PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
+    RC PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
 
     RC ComputeAttributesStructure(const std::vector<RelAttr> &selAttrs, int &nNodeAttributes, DataAttrInfo *&nodeAttributes);
 

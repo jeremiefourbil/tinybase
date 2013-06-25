@@ -32,14 +32,23 @@ RC IT_IndexScan::Open()
   if((rc = ixis.OpenScan(ixih, scanOp, value)))
     return rc;
 
+  if((rc = pSmm->GetRelationStructure(relName, dAttr, nAttr)))
+      return rc;
+
+
   bIsOpen = true;
 
   return rc;
 }
 
-RC  IT_IndexScan::GetNext(RM_Record &rec)
+RC  IT_IndexScan::GetNext(int &nAttr, DataAttrInfo *&pAttr, char *pData)
 {
   RC rc;
+
+  RM_Record rec;
+
+  int recordSize;
+  char *pRecData;
 
   if(!bIsOpen)
   {
@@ -57,6 +66,15 @@ RC  IT_IndexScan::GetNext(RM_Record &rec)
 
   rc = rmfh.GetRec(rid, rec);
   if (rc != 0 ) return rc;
+
+  if((rc = rec.GetRecordSize(recordSize)))
+      return rc;
+
+  if((rc = rec.GetData(pRecData)))
+      return rc;
+
+  pData = new char[recordSize];
+  memcpy(pData, pRecData, recordSize);
 
   return rc;
 }
