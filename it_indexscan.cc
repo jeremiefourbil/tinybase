@@ -1,5 +1,8 @@
 #include "it_indexscan.h"
 
+#include <iostream>
+
+using namespace std;
 
 IT_IndexScan::IT_IndexScan(RM_Manager *rmm, IX_Manager *ixm, SM_Manager *smm,
                            const char* relName, CompOp scanOp, DataAttrInfo &dAttr, void *value):
@@ -20,6 +23,8 @@ RC IT_IndexScan::Open()
   {
     return IX_ALREADY_OPEN;
   }
+
+  cout << "IXSTARTS" << endl;
 
   RC rc = OK_RC;
 
@@ -75,6 +80,9 @@ RC  IT_IndexScan::GetNext(int &nAttr, DataAttrInfo *&pAttr, char *&pData)
 
   pData = new char[recordSize];
   memcpy(pData, pRecData, recordSize);
+
+  nAttr = _nAttr;
+  pAttr = _dAttr;
 
   return rc;
 }

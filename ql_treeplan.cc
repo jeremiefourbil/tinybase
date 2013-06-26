@@ -134,7 +134,7 @@ RC QL_TreePlan::BuildFromSingleRelation(const std::vector<RelAttr> &selAttrs,
     RC rc = OK_RC;
 
     // more than one condition, have to split them
-    if(conditions.size() >= 1)
+    if(conditions.size() > 1)
     {
         //cout << "Lots of conditions detected" << endl;
         // create the new nodes
@@ -209,6 +209,9 @@ RC QL_TreePlan::BuildFromComparison(const std::vector<RelAttr> &selAttrs,
 
     if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes, _bufferSize)))
         return rc;
+
+    if(conditions.size() > 0)
+        _conditions.push_back(conditions[0]);
 
     return rc;
 
@@ -422,6 +425,11 @@ RC QL_TreePlan::BuildFromSelect(const std::vector<RelAttr> &selAttrs,
 
     _sRelname.assign(relations[0]);
 
+    if(conditions.size()>0)
+    {
+        _conditions.push_back(conditions.back());
+    }
+
     return rc;
 }
 
@@ -470,7 +478,184 @@ RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttribut
 {
     RC rc = OK_RC;
 
-    //cout << "Perform COMPARISON" << endl;
+    cout << "Perform COMPARISON" << endl;
+
+    int left_nAttributes;
+    DataAttrInfo *left_nodeAttributes;
+    char *left_pData;
+    bool isConditionPassed = false;
+
+    int index;
+
+    // check if left child exists
+    if(_pLc == NULL)
+    {
+        return QL_NULL_CHILD;
+    }
+
+    while(!isConditionPassed)
+    {
+        // get the information from left child
+        if((rc = _pLc->PerformNodeOperation(left_nAttributes, left_nodeAttributes, left_pData)))
+            return rc;
+
+        Printer printer(left_nodeAttributes, left_nAttributes);
+        printer.Print(cout, left_pData);
+
+        // create the output buffer
+        pData = new char[_bufferSize];
+
+        // copy the required attributes in the output buffer
+        for(int i=0; i<left_nAttributes; i++)
+        {
+            if((rc = IsAttributeInList(_nNodeAttributes, _nodeAttributes, left_nodeAttributes[i], index)))
+                return rc;
+
+            if(index >= 0)
+            {
+                if(_conditions.size() > 0)
+                {
+                    if(strcmp(_conditions[0].lhsAttr.relName, left_nodeAttributes[i].relName) == 0 &&
+                            strcmp(_conditions[0].lhsAttr.attrName, left_nodeAttributes[i].attrName) == 0)
+                    {
+                        switch(left_nodeAttributes[i].attrType)
+                        {
+                        case INT:
+                        case FLOAT:
+                            float fAttrValue, fRefValue;
+
+                            if(left_nodeAttributes[i].attrType == INT)
+                            {
+                                int attrValue, refValue;
+                                memcpy(&attrValue,
+                                       left_pData + left_nodeAttributes[i].offset,
+                                       sizeof(int));
+                                memcpy(&refValue,
+                                       _conditions[0].rhsValue.data,
+                                       sizeof(int));
+
+                                fAttrValue = attrValue;
+                                fRefValue = refValue;
+                            }
+                            else
+                            {
+                                memcpy(&fAttrValue,
+                                       left_pData + left_nodeAttributes[i].offset,
+                                       sizeof(float));
+                                memcpy(&fRefValue,
+                                       _conditions[0].rhsValue.data,
+                                       sizeof(float));
+                            }
+
+                            switch(_conditions[0].op)
+                            {
+                            case EQ_OP:
+                                isConditionPassed = fAttrValue == fRefValue;
+                                break;
+                            case LE_OP:
+                                isConditionPassed = fAttrValue <= fRefValue;
+                                break;
+                            case LT_OP:
+                                isConditionPassed = fAttrValue < fRefValue;
+                                break;
+                            case GE_OP:
+                                isConditionPassed = fAttrValue >= fRefValue;
+                                break;
+                            case GT_OP:
+                                isConditionPassed = fAttrValue > fRefValue;
+                                break;
+                            case NE_OP:
+                                isConditionPassed = fAttrValue != fRefValue;
+                                break;
+                            default:
+                                isConditionPassed = true;
+                            }
+
+                            break;
+                        case STRING:
+                            char strAttrValue[MAXSTRINGLEN], strRefValue[MAXSTRINGLEN];
+
+                            memcpy(&strAttrValue,
+                                   left_pData + left_nodeAttributes[i].offset,
+                                   left_nodeAttributes[i].attrLength);
+                            memcpy(&strRefValue,
+                                   _conditions[0].rhsValue.data,
+                                   left_nodeAttributes[i].attrLength);
+
+
+                            switch(_conditions[0].op)
+                            {
+                            case EQ_OP:
+                                isConditionPassed = strcmp(strAttrValue, strRefValue) == 0;
+                                cout << strAttrValue << endl;
+                                cout << strRefValue << endl;
+                                break;
+                            case LE_OP:
+                                isConditionPassed = strcmp(strAttrValue, strRefValue) <= 0;
+                                break;
+                            case LT_OP:
+                                isConditionPassed = strcmp(strAttrValue, strRefValue) < 0;
+                                break;
+                            case GE_OP:
+                                isConditionPassed = strcmp(strAttrValue, strRefValue) >= 0;
+                                break;
+                            case GT_OP:
+                                isConditionPassed = strcmp(strAttrValue, strRefValue) > 0;
+                                break;
+                            case NE_OP:
+                                isConditionPassed = strcmp(strAttrValue, strRefValue) != 0;
+                                break;
+                            default:
+                                isConditionPassed = true;
+                            }
+
+                            break;
+                        default:
+                            isConditionPassed = true;
+                            break;
+                        }
+
+                    }
+                }
+
+
+                memcpy(pData + _nodeAttributes[index].offset,
+                       left_pData + left_nodeAttributes[i].offset,
+                       left_nodeAttributes[i].attrLength);
+
+            }
+        }
+
+        cout << "condition: " << isConditionPassed << endl;
+
+        if(!isConditionPassed)
+        {
+
+            if(pData)
+            {
+                delete[] pData;
+                pData = NULL;
+            }
+
+            if(left_pData)
+            {
+                delete[] left_pData;
+                left_pData = NULL;
+            }
+        }
+    }
+
+
+    // assign the output vars
+    nAttributes = _nNodeAttributes;
+    tNodeAttributes = _nodeAttributes;
+
+    if(left_pData)
+    {
+        delete[] left_pData;
+        left_pData = NULL;
+    }
+
     return rc;
 }
 
@@ -496,6 +681,7 @@ RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttribut
     //cout << "\tCalling CHild" << endl;
     if((rc = _pLc->PerformNodeOperation(left_nAttributes, left_nodeAttributes, left_pData)))
         return rc;
+
     //cout << "\tBack from CHild" << endl;
 
     // create the output buffer
@@ -519,11 +705,11 @@ RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttribut
     nAttributes = _nNodeAttributes;
     tNodeAttributes = _nodeAttributes;
 
-    delete[] left_pData;
-    left_pData = NULL;
-
-    //cout << "Copy done" << endl;
-
+    if(left_pData)
+    {
+        delete[] left_pData;
+        left_pData = NULL;
+    }
 
     return rc;
 }
@@ -592,19 +778,39 @@ RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, 
         // Index use
         if(_nNodeAttributes > 0 && _nodeAttributes[0].indexNo >= 0)
         {
-            //cout << "Index scan initialization " << _nNodeAttributes << endl;
-            _pScanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, _nodeAttributes[0].relName, NO_OP, _nodeAttributes[0], NULL);
+            cout << _nodeAttributes[0].attrName << _nodeAttributes[0].indexNo << endl;
+            // with conditions
+            if(_conditions.size()>0)
+            {
+                DataAttrInfo attr;
+                if((rc = _pSmm->GetAttributeStructure(_conditions[0].lhsAttr.relName, _conditions[0].lhsAttr.attrName, attr)))
+                    return rc;
+
+                _pScanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, _nodeAttributes[0].relName, _conditions[0].op, attr, _conditions[0].rhsValue.data);
+            }
+            else
+            {
+                _pScanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, _nodeAttributes[0].relName, NO_OP, _nodeAttributes[0], NULL);
+            }
         }
         // RM use
         else
         {
-            // with a comparison
-            if(_nNodeAttributes > 0)
+            if(_conditions.size()>0)
             {
-                //cout << "RM scan initialization " << _nNodeAttributes << endl;
-                _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _nodeAttributes[0].relName, NO_OP, _nodeAttributes[0], NULL);
-                //cout << "RM scan initialized " << endl;
+                DataAttrInfo attr;
+                if((rc = _pSmm->GetAttributeStructure(_conditions[0].lhsAttr.relName, _conditions[0].lhsAttr.attrName, attr)))
+                    return rc;
+
+                _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _nodeAttributes[0].relName, _conditions[0].op, attr, _conditions[0].rhsValue.data);
             }
+            //            // with a comparison
+            //            if(_nNodeAttributes > 0)
+            //            {
+            //                //cout << "RM scan initialization " << _nNodeAttributes << endl;
+            //                _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _nodeAttributes[0].relName, NO_OP, _nodeAttributes[0], NULL);
+            //                //cout << "RM scan initialized " << endl;
+            //            }
             // full scan
             else
             {
@@ -625,12 +831,16 @@ RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, 
         _scanStatus = SCANOPENED;
     }
 
+    rc = _pScanIterator->GetNext(nAttributes, tNodeAttributes, pData);
+    if(rc == QL_EOF)
+    {
+        if((rc = _pScanIterator->Close()))
+            return rc;
 
-    //cout << "\t\tCalling GetNext" << endl;
-    if((rc = _pScanIterator->GetNext(nAttributes, tNodeAttributes, pData)))
-        return rc;
-    //cout << "\t\tBack from GetNext" << endl;
+        _scanStatus = SCANCLOSED;
 
+        return QL_EOF;
+    }
 
     return rc;
 }

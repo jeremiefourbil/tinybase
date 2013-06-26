@@ -98,6 +98,8 @@ private:
     DataAttrInfo *_operationAttributes;
     std::string _sRelname;
 
+    std::vector<Condition> _conditions;
+
     ScanStatus _scanStatus;
     QL_Iterator *_pScanIterator;
 };

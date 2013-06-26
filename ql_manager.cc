@@ -61,12 +61,16 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
 
     cout << "   nSelAttrs = " << nSelAttrs << "\n";
     DataAttrInfo *tInfos = new DataAttrInfo[nSelAttrs];
+    int startOffset = 0;
     for (i = 0; i < nSelAttrs; i++)
     {
         cout << "   selAttrs[" << i << "]:" << selAttrs[i] << "\n";
 
         if((rc = _pSmm->GetAttributeStructure(selAttrs[i].relName, selAttrs[i].attrName, tInfos[i])))
             return rc;
+
+        tInfos[i].offset = startOffset;
+        startOffset += tInfos[i].attrLength;
     }
 
 
@@ -114,17 +118,22 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     Printer printer(tInfos, nSelAttrs);
     printer.PrintHeader(cout);
 
-    for(int k=0; k<3; k++)
+    for(int k=0; k<100 && !rc; k++)
     {
         rc = _pTreePlan->PerformNodeOperation(nAttrInfos, tAttrInfos, pData);
 
-        printer.Print(cout, pData);
 
-        delete[] pData;
-        pData = NULL;
+
+        if(!rc && pData)
+        {
+            printer.Print(cout, pData);
+            delete[] pData;
+            pData = NULL;
+        }
     }
 
-
+    if(rc == QL_EOF)
+        rc = OK_RC;
 
     if(_pTreePlan != NULL)
     {
