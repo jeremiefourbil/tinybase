@@ -152,6 +152,24 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
         delete _pTreePlan;
         _pTreePlan = NULL;
     }
+
+
+    for(unsigned int i=0; i<vSelAttrs.size(); i++)
+    {
+        if(vSelAttrs[i].relName != NULL)
+        {
+            delete vSelAttrs[i].relName;
+            vSelAttrs[i].relName = NULL;
+        }
+
+        if(vSelAttrs[i].attrName != NULL)
+        {
+            delete vSelAttrs[i].attrName;
+            vSelAttrs[i].attrName = NULL;
+        }
+    }
+
+
     cout << "END OF QUERY : " << rc << endl;
     return rc;
 }
