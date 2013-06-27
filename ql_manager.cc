@@ -17,6 +17,7 @@
 #include "sm.h"
 #include "ix.h"
 #include "rm.h"
+#include "sm_internal.h"
 
 using namespace std;
 
@@ -57,38 +58,12 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     RC rc = OK_RC;
     int i;
 
-    cout << "QL Select\n";
-
-    cout << "   nSelAttrs = " << nSelAttrs << "\n";
-    DataAttrInfo *tInfos = new DataAttrInfo[nSelAttrs];
-    int startOffset = 0;
-    for (i = 0; i < nSelAttrs; i++)
-    {
-        cout << "   selAttrs[" << i << "]:" << selAttrs[i] << "\n";
-
-        if((rc = _pSmm->GetAttributeStructure(selAttrs[i].relName, selAttrs[i].attrName, tInfos[i])))
-            return rc;
-
-        tInfos[i].offset = startOffset;
-        startOffset += tInfos[i].attrLength;
-    }
-
-
-    cout << "   nRelations = " << nRelations << "\n";
-    for (i = 0; i < nRelations; i++)
-        cout << "   relations[" << i << "] " << relations[i] << "\n";
-
-    cout << "   nCondtions = " << nConditions << "\n";
-    for (i = 0; i < nConditions; i++)
-        cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
-
-
-
-
-    // buil the tree query plan
     std::vector<RelAttr> vSelAttrs;
     std::vector<const char*> vRelations;
     std::vector<Condition> vConditions;
+
+    cout << "nbAttr: " << nSelAttrs << endl;
+
     for(int i=0; i<nSelAttrs; i++)
     {
         vSelAttrs.push_back(selAttrs[i]);
@@ -101,6 +76,40 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     {
         vConditions.push_back(conditions[i]);
     }
+
+    if((rc = PostParse(vSelAttrs, vRelations, vConditions)))
+        return rc;
+
+    cout << "QL Select\n";
+
+    cout << "   nSelAttrs = " << vSelAttrs.size() << "\n";
+    DataAttrInfo *tInfos = new DataAttrInfo[vSelAttrs.size()];
+    int startOffset = 0;
+    for (i = 0; i < vSelAttrs.size(); i++)
+    {
+        cout << "   selAttrs[" << i << "]:" << vSelAttrs[i] << "\n";
+
+        if((rc = _pSmm->GetAttributeStructure(vSelAttrs[i].relName, vSelAttrs[i].attrName, tInfos[i])))
+            return rc;
+
+        tInfos[i].offset = startOffset;
+        startOffset += tInfos[i].attrLength;
+    }
+
+
+    cout << "   nRelations = " << vRelations.size() << "\n";
+    for (i = 0; i < vRelations.size(); i++)
+        cout << "   relations[" << i << "] " << vRelations[i] << "\n";
+
+    cout << "   nCondtions = " << vConditions.size() << "\n";
+    for (i = 0; i < vConditions.size(); i++)
+        cout << "   conditions[" << i << "]:" << vConditions[i] << "\n";
+
+
+
+
+    // buil the tree query plan
+
 
     _pTreePlan = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
     if((rc = _pTreePlan->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
@@ -118,15 +127,15 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     Printer printer(tInfos, nSelAttrs);
     printer.PrintHeader(cout);
 
-    for(int k=0; k<10000 && !rc; k++)
+    while(rc != QL_EOF)
     {
         rc = _pTreePlan->PerformNodeOperation(nAttrInfos, tAttrInfos, pData);
 
-
-
         if(!rc && pData)
         {
+            //            cout << "start print" << endl;
             printer.Print(cout, pData);
+            //            cout << "end print" << endl;
             if(pData != NULL)
             {
                 delete[] pData;
@@ -143,7 +152,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
         delete _pTreePlan;
         _pTreePlan = NULL;
     }
-
+    cout << "END OF QUERY : " << rc << endl;
     return rc;
 }
 
@@ -211,6 +220,80 @@ RC QL_Manager::Update(const char *relName,
 
     return 0;
 }
+
+
+RC QL_Manager::PostParse(std::vector<RelAttr> &vSelAttrs,
+                         std::vector<const char*> &vRelations,
+                         std::vector<Condition> &vConditions)
+{
+    RC rc = OK_RC;
+
+    // select *
+    if(vSelAttrs.size() == 1 && strcmp(vSelAttrs[0].attrName, "*") == 0)
+    {
+        vSelAttrs.pop_back();
+
+        for(unsigned int i=0; i<vRelations.size(); i++)
+        {
+            int nAttr;
+            DataAttrInfo *attr = NULL;
+
+            cout << vRelations[i] << endl;
+
+            if((rc = _pSmm->GetRelationStructure(vRelations[i], attr, nAttr)))
+                return rc;
+
+            for(int j=0; j<nAttr; j++)
+            {
+                cout << "j " << j << endl;
+                RelAttr relAttr;
+                relAttr.relName = new char[MAXSTRINGLEN];
+                relAttr.attrName = new char[MAXSTRINGLEN];
+                strcpy(relAttr.relName, vRelations[i]);
+                strcpy(relAttr.attrName, attr[j].attrName);
+
+                vSelAttrs.push_back(relAttr);
+            }
+
+            if(attr != NULL)
+            {
+                delete[] attr;
+                attr = NULL;
+            }
+        }
+    }
+
+    //    if(vRelations.size() == 1)
+    //    {
+    //        for(unsigned int i=0; i<vSelAttrs.size(); i++)
+    //        {
+    //            if(vSelAttrs[i].relName == NULL)
+    //            {
+    //                vSelAttrs[i].relName = new char[MAXSTRINGLEN];
+    //                strcpy(vSelAttrs[i].relName, vRelations[0]);
+    //            }
+    //        }
+
+    //        for(unsigned int i=0; i<vConditions.size(); i++)
+    //        {
+    //            if(vConditions[i].lhsAttr.relName == NULL)
+    //            {
+    //                vConditions[i].lhsAttr.relName = new char[MAXSTRINGLEN];
+    //                strcpy(vConditions[i].lhsAttr.relName, vRelations[0]);
+    //            }
+
+    //            if(vConditions[i].bRhsIsAttr && vConditions[i].rhsAttr.relName == NULL)
+    //            {
+    //                vConditions[i].rhsAttr.relName = new char[MAXSTRINGLEN];
+    //                strcpy(vConditions[i].rhsAttr.relName, vRelations[0]);
+    //            }
+    //        }
+
+    //    }
+
+    return rc;
+}
+
 
 //
 // void QL_PrintError(RC rc)

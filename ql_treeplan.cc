@@ -346,11 +346,11 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
                 _nOperationAttributes = 2;
 
                 // left side
-                if((rc = _pSmm->GetAttributeStructure(conditions[i].lhsAttr.relName, conditions[i].lhsAttr.attrName, _operationAttributes[0])))
+                if((rc = _pSmm->GetAttributeStructure(conditions[i].lhsAttr.relName, conditions[i].lhsAttr.attrName, _operationAttributes[1])))
                     return rc;
 
                 // right side
-                if((rc = _pSmm->GetAttributeStructure(conditions[i].rhsAttr.relName, conditions[i].rhsAttr.attrName, _operationAttributes[1])))
+                if((rc = _pSmm->GetAttributeStructure(conditions[i].rhsAttr.relName, conditions[i].rhsAttr.attrName, _operationAttributes[0])))
                     return rc;
             }
         }
@@ -726,12 +726,18 @@ RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttribut
                         case STRING:
                             char strAttrValue[MAXSTRINGLEN], strRefValue[MAXSTRINGLEN];
 
-                            memcpy(&strAttrValue,
-                                   left_pData + left_nodeAttributes[i].offset,
-                                   left_nodeAttributes[i].attrLength);
-                            memcpy(&strRefValue,
-                                   _conditions[0].rhsValue.data,
-                                   left_nodeAttributes[i].attrLength);
+                            strcpy(strAttrValue,
+                                   left_pData + left_nodeAttributes[i].offset);
+
+                            strcpy(strRefValue,
+                                   (char*) _conditions[0].rhsValue.data);
+
+//                            memcpy(strAttrValue,
+//                                   left_pData + left_nodeAttributes[i].offset,
+//                                   left_nodeAttributes[i].attrLength);
+//                            memcpy(strRefValue,
+//                                   _conditions[0].rhsValue.data,
+//                                   left_nodeAttributes[i].attrLength);
 
 
                             switch(_conditions[0].op)
@@ -776,8 +782,6 @@ RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttribut
 
             }
         }
-
-        cout << "condition: " << isConditionPassed << endl;
 
         if(!isConditionPassed)
         {
@@ -885,6 +889,7 @@ RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, ch
     }
 
 
+
     // get the information from left child
     while(!joinCondition)
     {
@@ -930,8 +935,8 @@ RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, ch
                 break;
             case STRING:
                 char sTempLeft[MAXSTRINGLEN], sTempRight[MAXSTRINGLEN];
-                memcpy(sTempLeft, _pJoinData+_nodeJoinAttributes[left_index].offset, _nodeJoinAttributes[left_index].attrLength);
-                memcpy(sTempRight, right_pData+right_nodeAttributes[right_index].offset, right_nodeAttributes[right_index].attrLength);
+                strcpy(sTempLeft, _pJoinData+_nodeJoinAttributes[left_index].offset);
+                strcpy(sTempRight, right_pData+right_nodeAttributes[right_index].offset);
                 joinCondition = strcmp(sTempLeft,sTempRight) == 0;
                 break;
             default:

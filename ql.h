@@ -50,6 +50,9 @@ public:
         const Condition conditions[]);   // conditions in where clause
 
 private:
+    RC PostParse(std::vector<RelAttr> &vSelAttrs,
+                          std::vector<const char*> &vRelations,
+                          std::vector<Condition> &vConditions);
     SM_Manager *_pSmm;
     IX_Manager *_pIxm;
     RM_Manager *_pRmm;

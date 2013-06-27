@@ -138,6 +138,8 @@ void Printer::PrintHeader( ostream &c ) const
     c << "\n";
     for (i = 0; i < dashes; i++) c << "-";
     c << "\n";
+
+    c.flush();
 }
 
 //
@@ -147,6 +149,7 @@ void Printer::PrintFooter(ostream &c) const
 {
     c << "\n";
     c << iCount << " tuple(s).\n";
+    c.flush();
 }
 
 //
@@ -208,6 +211,8 @@ void Printer::Print(ostream &c, const void * const data[])
         }
     }
     c << "\n";
+
+    c.flush();
 }
 
 //
@@ -272,5 +277,8 @@ void Printer::Print(ostream &c, const char * const data)
         }
     }
     c << "\n";
+
+
+    c.flush();
 }
 
