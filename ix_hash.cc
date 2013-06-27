@@ -188,10 +188,19 @@ RC IX_Hash::GetBucketNum(const int binary, PageNum &oBucketNum)
     PageNum dirNum, nextDirNum;
     int stillToDo = binary;
     bool keepOn = true;
+    int depth, nbSlots, visitedSlots;
 
     dirNum = _pFileHdr->directoryNum;
 
-    while(keepOn)
+    if(rc = GetPageBuffer(dirNum, pDirBuffer))
+        goto err_return;
+    depth = ((IX_DirectoryHdr *)pDirBuffer)->depth;
+    if(rc = ReleaseBuffer(dirNum, false))
+        goto err_return;
+    nbSlots = pow2(depth);
+
+    visitedSlots = 0;
+    while(keepOn && visitedSlots <= nbSlots)
     {
 
         if(dirNum == IX_EMPTY)
@@ -203,7 +212,7 @@ RC IX_Hash::GetBucketNum(const int binary, PageNum &oBucketNum)
         if(rc = GetPageBuffer(dirNum, pDirBuffer))
             goto err_return;
 
-        if(stillToDo > ((IX_DirectoryHdr *)pDirBuffer)->nbFilledSlots)
+        if(stillToDo >= ((IX_DirectoryHdr *)pDirBuffer)->nbFilledSlots)
         {
             stillToDo = stillToDo - ((IX_DirectoryHdr *)pDirBuffer)->nbFilledSlots;
             nextDirNum = ((IX_DirectoryHdr *)pDirBuffer)->next;
@@ -217,10 +226,18 @@ RC IX_Hash::GetBucketNum(const int binary, PageNum &oBucketNum)
             keepOn = false;
         }
 
+        visitedSlots += ((IX_DirectoryHdr *)pDirBuffer)->nbFilledSlots;
+
         if(rc = ReleaseBuffer(dirNum, false))
             goto err_return;
 
         dirNum = nextDirNum;
+    }
+
+    if(visitedSlots > nbSlots)
+    {
+        cout << "The slot was not found" << endl;
+        return 1;
     }
 
     return rc;
@@ -1159,14 +1176,18 @@ RC IX_Hash::DisplayTree_t()
     // browse each directory slot
     for(int i=0; i<nbSlots; i++)
     {
-        memcpy(&currentNum,
-               pDirBuffer + sizeof(IX_DirectoryHdr) + i * sizeof(PageNum),
-               sizeof(PageNum));
+        if((rc = GetBucketNum(i, currentNum)))
+            return rc;
+
+//        memcpy(&currentNum,
+//               pDirBuffer + sizeof(IX_DirectoryHdr) + i * sizeof(PageNum),
+//               sizeof(PageNum));
 
         cout << "------------------------------" << endl;
         cout << "# slot: " << i;
         printDecomposition(i);
-        cout << "# page: " << currentNum << endl;
+        cout << endl;
+//        cout << "# page: " << currentNum << endl;
 
         if(((rc = DisplayBucket_t<T,n>(currentNum))))
         {
@@ -1204,13 +1225,14 @@ RC IX_Hash::DisplayBucket_t(const PageNum iPageNum)
         goto err_return;
 
     cout << "# bucket depth: " << pBucketBuffer->depth << endl;
-    cout << "# nb filled slots: " << pBucketBuffer->nbFilledSlots << endl;
-    cout << "# max slots: " << n << endl;
+//    cout << "# nb filled slots: " << pBucketBuffer->nbFilledSlots << endl;
+//    cout << "# max slots: " << n << endl;
 
     for(int i=0; i<pBucketBuffer->nbFilledSlots; i++)
     {
-        printGeneric(pBucketBuffer->v[i]);
         printDecomposition(getHash(pBucketBuffer->v[i]));
+        cout << " -> ";
+        printGeneric(pBucketBuffer->v[i]);
     }
 
 

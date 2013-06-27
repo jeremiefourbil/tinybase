@@ -24,7 +24,7 @@ RC IT_IndexScan::Open()
     return IX_ALREADY_OPEN;
   }
 
-  cout << "IXSTARTS" << endl;
+//  cout << "IXSTARTS" << endl;
 
   RC rc = OK_RC;
 
@@ -97,6 +97,9 @@ RC IT_IndexScan::Close()
 
   if((rc = _ixis.CloseScan()))
     return rc;
+
+  if((rc = _pIxm->CloseIndex(_ixih)))
+      return rc;
 
   if((rc = _pRmm->CloseFile(_rmfh)))
     return rc;

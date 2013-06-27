@@ -3,6 +3,8 @@
 #include <iostream>
 #include <string>
 
+#include "math.h"
+
 using namespace std;
 
 void copyGeneric(const int &v1, int &v2) { v2 = v1; }
@@ -226,11 +228,21 @@ int getHash(const char* v1)
     int hash = 0;
     int i = 0;
 
+
+    // 1. simple addition
     while(v1[i] != '\0' && i < MAXSTRINGLEN)
     {
         hash += (int) v1[i];
         i++;
     }
+
+    // 2. complex addition
+//    int c=42;
+//    while(v1[i] != '\0' && i < MAXSTRINGLEN)
+//    {
+//        hash += ((int) v1[i]) * ((int) pow(c, i));
+//        i++;
+//    }
 
     return hash;
 }
@@ -250,5 +262,5 @@ void printDecomposition(const int iNumber)
 
         cout << r;
     }
-    cout << ") " << endl;
+    cout << ")";
 }

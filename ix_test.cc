@@ -33,7 +33,7 @@ using namespace std;
 #define FILENAME     "testrel"        // test file name
 #define BADFILE      "/abc/def/xyz"   // bad file name
 #define STRLEN       39               // length of strings to index
-#define FEW_ENTRIES  3000
+#define FEW_ENTRIES  30
 #define MANY_ENTRIES 30000
 #define NENTRIES     30000        // Size of values array
 #define PROG_UNIT    200              // how frequently to give progress
@@ -65,6 +65,7 @@ RC Test8(void);
 RC Test9(void);
 RC Test10(void);
 RC Test11(void);
+RC Test12(void);
 
 void PrintError(RC rc);
 void LsFiles(char *fileName);
@@ -82,7 +83,7 @@ RC PrintIndex(IX_IndexHandle &ih);
 //
 // Array of pointers to the test functions
 //
-#define NUM_TESTS       11               // number of tests
+#define NUM_TESTS       12               // number of tests
 int (*tests[])() =                      // RC doesn't work on some compilers
 {
         Test1,
@@ -95,7 +96,8 @@ Test7,
 Test8,
 Test9,
 Test10,
-Test11
+Test11,
+Test12
 };
 
 //
@@ -239,7 +241,7 @@ RC InsertIntEntries(IX_IndexHandle &ih, int nEntries)
         value = values[i] + 1;
         RID rid(value, value*2);
 
-//        printf("Value to insert: %d \n", value);
+        printf("Value to insert: %d \n", value);
 
         if ((rc = ih.InsertEntry((void *)&value, rid)))
         {
@@ -247,8 +249,9 @@ RC InsertIntEntries(IX_IndexHandle &ih, int nEntries)
             return (rc);
         }
 
-//        if((rc = ih.DisplayTree()))
-//            return rc;
+
+        if((rc = ih.DisplayTree()))
+            return rc;
 
 //        printf("Value inserted: %d \n", value);
 
@@ -287,6 +290,9 @@ RC InsertSequelOfInt(IX_IndexHandle &ih, int entries[],const int entriesLength)
         RID rid(value, value*2);
         if ((rc = ih.InsertEntry((void *)&value, rid)))
             return (rc);
+
+//        ih.DisplayTree();
+//        if(i==16) return OK_RC;
 
         if((i + 1) % PROG_UNIT == 0){
             // cast to long for PC's
@@ -346,6 +352,11 @@ RC InsertStringEntries(IX_IndexHandle &ih, int nEntries)
         RID rid(values[i] + 1, (values[i] + 1)*2);
         if ((rc = ih.InsertEntry(value, rid)))
             return (rc);
+
+//        ih.DisplayTree();
+
+//        if(i==0)
+//            return OK_RC;
 
         if((i + 1) % PROG_UNIT == 0){
             printf("\r\t%d%%    ", (int)((i+1)*100L/nEntries));
@@ -930,6 +941,10 @@ RC Test6(void)
             (rc = InsertSequelOfInt(ih, sequel, sequelLength)))
         return rc;
 
+    // create the xml file
+    if((rc = ih.DisplayTree()))
+        return (rc);
+
 
     for(int i=0; i<deleteSequelLength; i++)
     {
@@ -937,10 +952,6 @@ RC Test6(void)
         if((rc = ih.DeleteEntry((void *)&deleteSequel[i], rid)))
             return rc;
     }
-
-    // create the xml file
-    if((rc = ih.DisplayTree()))
-        return (rc);
 
     for(int k=0; k<deleteSequelLength; k++)
     {
@@ -1437,4 +1448,108 @@ RC Test11(void)
     return (0);
 }
 
+RC Test12(void)
+{
+    RC rc;
+    IX_IndexHandle ih;
+    int index=0;
+    int m=0;
 
+    int sequelLength = 20;
+    int sequel[20] = {4,8,6,3,9,15,12,13,11,1,5,7,17,20,14,19,2,16,18,10};
+
+    const int deleteSequelLength = 16;
+    int deleteSequel[deleteSequelLength] = {2,4,7,12,16,14,6,5,14,9,15,12,4,3,1,11};
+
+
+    const int sequelLength90 = 90;
+    int sequel90[sequelLength90] = {57,58,9,14,50,43,34,46,20,2,25,32,73,47,13,87,78,18,11,40,75,72,29,70,19,30,6,12,26,36,41,15,60,90,3,7,76,21,77,39,10,81,8,16,51,45,85,82,48,54,68,5,23,27,56,64,62,49,38,74,59,86,67,63,65,22,37,61,79,28,88,17,52,35,84,66,83,69,89,42,80,44,4,33,24,71,55,1,53,31};
+
+    //     const int deleteSequelLength = 43;
+    //     int deleteSequel[deleteSequelLength] = {59,15,33,43,67,28,34,37,23,30,54,26,64,62,46,56,49,53,17,51,48,29,65,16,18,44,3,5,68,52,40,19,20,47,66,61,25,36,9,8,27,35,10};
+
+    const int deleteSequelLength90 = 38;
+    int deleteSequel90[deleteSequelLength90] = {63,62,61,46,74,73,34,37,23,30,54,26,64,62,46,56,49,53,17,51,48,29,65,16,18,44,3,5,68,52,40,19,20,47,66,61,25,36};
+
+
+
+    printf("Test12: exemples de cas particuliers de suppression \n");
+
+    // 20 values
+
+    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
+            (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
+            (rc = InsertSequelOfInt(ih, sequel, sequelLength)) ||
+            false)
+        return rc;
+
+    // create the xml file
+//    if((rc = ih.DisplayTree()))
+//        return (rc);
+
+
+//    for(int i=0; i<7; i++)
+//    {
+//        RID rid(deleteSequel[i], deleteSequel[i]*2);
+//        if((rc = ih.DeleteEntry((void *)&deleteSequel[i], rid)))
+//            return rc;
+//    }
+
+//    if((rc = ih.DisplayTree()))
+//        return (rc);
+
+
+    if((rc = ixm.CloseIndex(ih)))
+        return rc;
+
+    if ((rc = ixm.DestroyIndex(FILENAME, index)))
+        return (rc);
+
+    // 90 values
+
+//    if ((rc = ixm.CreateIndex(FILENAME, index, INT, sizeof(int))) ||
+//            (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
+//            (rc = InsertSequelOfInt(ih, sequel90, sequelLength90)))
+//        return rc;
+
+//    // create the xml file
+//    if((rc = ih.DisplayTree()))
+//        return (rc);
+
+
+//    for(int i=0; i<6; i++)
+//    {
+//        RID rid(deleteSequel90[i], deleteSequel90[i]*2);
+//        if((rc = ih.DeleteEntry((void *)&deleteSequel90[i], rid)))
+//            return rc;
+//    }
+
+//    if((rc = ih.DisplayTree()))
+//        return (rc);
+
+
+//    if((rc = ixm.CloseIndex(ih)))
+//        return rc;
+
+//    if ((rc = ixm.DestroyIndex(FILENAME, index)))
+//        return (rc);
+
+
+    if ((rc = ixm.CreateIndex(FILENAME, index, STRING, sizeof(char[STRLEN]))) ||
+            (rc = ixm.OpenIndex(FILENAME, index, ih)) ||
+            (rc = InsertStringEntries(ih, FEW_ENTRIES)) ||
+            (rc = ixm.CloseIndex(ih)) ||
+            (rc = ixm.OpenIndex(FILENAME, index, ih)))
+        return rc;
+
+
+    if((rc = ixm.CloseIndex(ih)))
+        return rc;
+
+    if ((rc = ixm.DestroyIndex(FILENAME, index)))
+        return (rc);
+
+
+    printf("Passed Test 12\n\n");
+    return (0);
+}

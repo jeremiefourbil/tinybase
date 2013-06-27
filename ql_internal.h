@@ -3,6 +3,6 @@
 
 #include "ql.h"
 
-const char* nodeOperationAsString[] = {"Union","Comp","Proj","Join", "Select"};
+const char* nodeOperationAsString[] = {"Union","Comp","Proj","Join", "Select", "CartesianProduct"};
 
 #endif // QL_INTERNAL_H

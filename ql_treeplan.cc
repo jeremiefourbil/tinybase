@@ -37,6 +37,8 @@ QL_TreePlan::QL_TreePlan(SM_Manager *ipSmm, IX_Manager *ipIxm, RM_Manager *ipRmm
 
     _scanStatus = SCANCLOSED;
     _pScanIterator = NULL;
+
+    _pJoinData = NULL;
 }
 
 QL_TreePlan::~QL_TreePlan()
@@ -65,6 +67,12 @@ QL_TreePlan::~QL_TreePlan()
     {
         delete[] _operationAttributes;
         _operationAttributes = NULL;
+    }
+
+    if(_pJoinData != NULL)
+    {
+        delete[] _pJoinData;
+        _pJoinData = NULL;
     }
 }
 
@@ -110,9 +118,26 @@ RC QL_TreePlan::BuildFromQuery(const std::vector<RelAttr> &selAttrs,
     // if so, the node is a join
     if(relations.size() > 1)
     {
-        //cout << "JOIN detected" << endl;
-        if((rc = BuildFromJoin(selAttrs, relations, conditions)))
-            goto err_return;
+        bool cartesianProduct = true;
+        for(unsigned int i=0; i<conditions.size(); i++)
+        {
+            if(conditions[i].bRhsIsAttr)
+            {
+                cartesianProduct = false;
+                break;
+            }
+        }
+
+        if(cartesianProduct)
+        {
+            if((rc = BuildFromCartesianProduct(selAttrs, relations, conditions)))
+                goto err_return;
+        }
+        else
+        {
+            if((rc = BuildFromJoin(selAttrs, relations, conditions)))
+                goto err_return;
+        }
     }
     else
     {
@@ -245,9 +270,14 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
 {
     RC rc = OK_RC;
 
-    //cout << "Build from join" << endl;
+    cout << "Build from join" << endl;
 
     _nodeOperation = JOIN;
+
+    if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes, _bufferSize)))
+        return rc;
+
+
     _pLc = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
     _pRc = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
 
@@ -399,6 +429,8 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
     if((_pRc->BuildFromQuery(right_selAttrs, right_relations, right_conditions)))
         goto err_return;
 
+    cout << "End Build from join" << endl;
+
     return rc;
 
 err_return:
@@ -433,6 +465,122 @@ RC QL_TreePlan::BuildFromSelect(const std::vector<RelAttr> &selAttrs,
     return rc;
 }
 
+RC QL_TreePlan::BuildFromCartesianProduct(const std::vector<RelAttr> &selAttrs,
+                              const std::vector<const char*> &relations,
+                              const std::vector<Condition> &conditions)
+{
+    RC rc = OK_RC;
+
+    int relationOccurrences = 0;
+
+//    cout << "Build from cartesian product" << endl;
+
+    _nodeOperation = CARTESIANPRODUCT;
+
+    if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes, _bufferSize)))
+        return rc;
+
+
+    _pLc = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
+    _pRc = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
+
+    // initialize children vectors
+    std::vector<RelAttr> left_selAttrs;
+    std::vector<const char*> left_relations;
+    std::vector<Condition> left_conditions;
+
+    std::vector<RelAttr> right_selAttrs;
+    std::vector<const char*> right_relations;
+    std::vector<Condition> right_conditions;
+
+
+    // copy conditions in left & right children
+    for(unsigned int i=0;i<conditions.size();i++)
+    {
+        string str(conditions[i].lhsAttr.relName);
+        std::size_t found = str.find_first_of(".");
+        // the left hand side matches the iterator
+        if(str.substr(0, found).compare(relations[0])==0)
+        {
+            right_conditions.push_back(conditions[i]);
+        }
+        // the left hand side does not match the iterator
+        else
+        {
+            left_conditions.push_back(conditions[i]);
+        }
+    }
+
+    // copy relations in left & right children
+    for(unsigned int i=0;i<relations.size();i++)
+    {
+        // the relation matches the iterator
+        if(strcmp(relations[0],relations[i])==0)
+        {
+            if(relationOccurrences < 1)
+            {
+                right_relations.push_back(relations[i]);
+            }
+
+            relationOccurrences++;
+        }
+        // the relation does not match the iterator
+        else
+        {
+            left_relations.push_back(relations[i]);
+        }
+    }
+
+    // copy attributes in left & right children
+    for(unsigned int i=0;i<selAttrs.size();i++)
+    {
+        // the attributes belongs to a relation that matches the iterator
+        if(strcmp(relations[0],selAttrs[i].relName)==0)
+        {
+            right_selAttrs.push_back(selAttrs[i]);
+        }
+        // the attributes belongs to a relation that does not match the iterator
+        else
+        {
+            left_selAttrs.push_back(selAttrs[i]);
+        }
+    }
+
+    if(relationOccurrences > 1)
+        return QL_EOF;
+
+//    for(int i=1; i<relationOccurrences; i++)
+//    {
+//        left_relations.push_back(right_relations[0]);
+//        cout << "relation copied" << endl;
+//    }
+
+//    if(relationOccurrences > 1)
+//    {
+//        for(unsigned j=0; j<right_selAttrs.size(); j++)
+//        {
+//            left_selAttrs.push_back(right_selAttrs[j]);
+//        }
+//        for(unsigned j=0; j<right_conditions.size(); j++)
+//        {
+//            left_conditions.push_back(right_conditions[j]);
+//        }
+//    }
+
+    // build the left child
+    if((rc = _pLc->BuildFromQuery(left_selAttrs, left_relations, left_conditions)))
+        goto err_return;
+
+    // build the right child
+    if((_pRc->BuildFromQuery(right_selAttrs, right_relations, right_conditions)))
+        goto err_return;
+
+    return rc;
+
+err_return:
+    return rc;
+}
+
 // *************************
 // Operators
 // *************************
@@ -457,6 +605,9 @@ RC QL_TreePlan::PerformNodeOperation(int &nAttributes, DataAttrInfo *&tNodeAttri
         break;
     case SELECT:
         rc = PerformSelect(nAttributes, tNodeAttributes, pData);
+        break;
+    case CARTESIANPRODUCT:
+        rc = PerformCartesianProduct(nAttributes, tNodeAttributes, pData);
         break;
     default:
         rc = QL_UNKNOWN_TYPE;
@@ -679,6 +830,7 @@ RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttribut
 
     // get the information from left child
     //cout << "\tCalling CHild" << endl;
+
     if((rc = _pLc->PerformNodeOperation(left_nAttributes, left_nodeAttributes, left_pData)))
         return rc;
 
@@ -704,12 +856,6 @@ RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttribut
     // assign the output vars
     nAttributes = _nNodeAttributes;
     tNodeAttributes = _nodeAttributes;
-
-    if(left_pData)
-    {
-        delete[] left_pData;
-        left_pData = NULL;
-    }
 
     return rc;
 }
@@ -718,13 +864,13 @@ RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, ch
 {
     RC rc = OK_RC;
 
-    int left_nAttributes;
-    DataAttrInfo *left_nodeAttributes;
-    char *left_pData;
-
+    int right_nAttributes;
+    DataAttrInfo *right_nodeAttributes;
+    char *right_pData;
+    bool joinCondition = false;
     int index;
 
-    //cout << "Perform JOIN" << endl;
+//    cout << "Perform JOIN" << endl;
 
     // check if left child exists
     if(_pLc == NULL)
@@ -732,26 +878,96 @@ RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, ch
         return QL_NULL_CHILD;
     }
 
+    if(_pJoinData == NULL )
+    {
+        if((rc = _pLc->PerformNodeOperation(_nJoinAttributes, _nodeJoinAttributes, _pJoinData)))
+            return rc;
+    }
+
+
     // get the information from left child
-    //cout << "\tCalling CHild" << endl;
-    if((rc = _pLc->PerformNodeOperation(left_nAttributes, left_nodeAttributes, left_pData)))
-        return rc;
+    while(!joinCondition)
+    {
+        if((rc = _pRc->PerformNodeOperation(right_nAttributes, right_nodeAttributes, right_pData)))
+        {
+            if(_pJoinData != NULL)
+            {
+                delete[] _pJoinData;
+                _nodeJoinAttributes = NULL;
+            }
+
+            if((rc = _pLc->PerformNodeOperation(_nJoinAttributes, _nodeJoinAttributes, _pJoinData)))
+            {
+                if(right_pData != NULL)
+                {
+                    delete[] right_pData;
+                    right_nodeAttributes = NULL;
+                }
+                return rc;
+            }
+        }
+        else
+        {
+            // check the join condition
+            int left_index, right_index;
+            if((rc = IsAttributeInList(_nJoinAttributes, _nodeJoinAttributes, _operationAttributes[0], left_index)))
+                return rc;
+            if((rc = IsAttributeInList(right_nAttributes, right_nodeAttributes, _operationAttributes[1], right_index)))
+                return rc;
+            switch (_operationAttributes[0].attrType)
+            {
+            case INT:
+                int tempLeft, tempRight;
+                memcpy(&tempLeft, _pJoinData+_nodeJoinAttributes[left_index].offset, sizeof(int));
+                memcpy(&tempRight, right_pData+right_nodeAttributes[right_index].offset, sizeof(int));
+                joinCondition = tempLeft == tempRight;
+                break;
+            case FLOAT:
+                float fTempLeft, fTempRight;
+                memcpy(&fTempLeft, _pJoinData+_nodeJoinAttributes[left_index].offset, sizeof(float));
+                memcpy(&fTempRight, right_pData+right_nodeAttributes[right_index].offset, sizeof(float));
+                joinCondition = fTempLeft == fTempRight;
+                break;
+            case STRING:
+                char sTempLeft[MAXSTRINGLEN], sTempRight[MAXSTRINGLEN];
+                memcpy(sTempLeft, _pJoinData+_nodeJoinAttributes[left_index].offset, _nodeJoinAttributes[left_index].attrLength);
+                memcpy(sTempRight, right_pData+right_nodeAttributes[right_index].offset, right_nodeAttributes[right_index].attrLength);
+                joinCondition = strcmp(sTempLeft,sTempRight) == 0;
+                break;
+            default:
+                break;
+            }
+        }
+    }
     //cout << "\tBack from CHild" << endl;
 
     // create the output buffer
     pData = new char[_bufferSize];
 
     // copy the required attributes in the output buffer
-    for(int i=0; i<left_nAttributes; i++)
+    for(int i=0; i<_nJoinAttributes; i++)
     {
-        if((rc = IsAttributeInList(_nNodeAttributes, _nodeAttributes, left_nodeAttributes[i], index)))
+        if((rc = IsAttributeInList(_nNodeAttributes, _nodeAttributes, _nodeJoinAttributes[i], index)))
             return rc;
 
         if(index >= 0)
         {
             memcpy(pData + _nodeAttributes[index].offset,
-                   left_pData + left_nodeAttributes[i].offset,
-                   left_nodeAttributes[i].attrLength);
+                   _pJoinData + _nodeJoinAttributes[i].offset,
+                   _nodeJoinAttributes[i].attrLength);
+        }
+    }
+
+    for(int i=0; i<right_nAttributes; i++)
+    {
+        if((rc = IsAttributeInList(_nNodeAttributes, _nodeAttributes, right_nodeAttributes[i], index)))
+            return rc;
+
+        if(index >= 0)
+        {
+            memcpy(pData + _nodeAttributes[index].offset,
+                   right_pData + right_nodeAttributes[i].offset,
+                   right_nodeAttributes[i].attrLength);
         }
     }
 
@@ -759,9 +975,7 @@ RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, ch
     nAttributes = _nNodeAttributes;
     tNodeAttributes = _nodeAttributes;
 
-    delete[] left_pData;
-    left_pData = NULL;
-
+//    cout << "End JOIN" << endl;
 
     return rc;
 }
@@ -770,7 +984,7 @@ RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, 
 {
     RC rc = OK_RC;
 
-    //cout << "Perform SELECT" << endl;
+//    cout << "Perform SELECT" << endl;
 
     // need to open scan
     if(_scanStatus == SCANCLOSED)
@@ -778,7 +992,6 @@ RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, 
         // Index use
         if(_nNodeAttributes > 0 && _nodeAttributes[0].indexNo >= 0)
         {
-            cout << _nodeAttributes[0].attrName << _nodeAttributes[0].indexNo << endl;
             // with conditions
             if(_conditions.size()>0)
             {
@@ -837,10 +1050,109 @@ RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, 
         if((rc = _pScanIterator->Close()))
             return rc;
 
+        if(_pScanIterator != NULL)
+        {
+            delete _pScanIterator;
+            _pScanIterator = NULL;
+        }
+
         _scanStatus = SCANCLOSED;
 
         return QL_EOF;
     }
+
+//    cout << "End SELECT" << endl;
+
+    return rc;
+}
+
+
+RC QL_TreePlan::PerformCartesianProduct(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData)
+{
+    RC rc = OK_RC;
+
+    int right_nAttributes;
+    DataAttrInfo *right_nodeAttributes;
+    char *right_pData;
+
+    int index;
+
+    // check if left child exists
+    if(_pLc == NULL)
+    {
+        return QL_NULL_CHILD;
+    }
+
+    if(_pJoinData == NULL)
+    {
+        if((rc = _pLc->PerformNodeOperation(_nJoinAttributes, _nodeJoinAttributes, _pJoinData)))
+            return rc;
+    }
+
+
+    if((rc = _pRc->PerformNodeOperation(right_nAttributes, right_nodeAttributes, right_pData)))
+    {
+        if(_pJoinData != NULL)
+        {
+            delete[] _pJoinData;
+            _nodeJoinAttributes = NULL;
+        }
+
+        if((rc = _pLc->PerformNodeOperation(_nJoinAttributes, _nodeJoinAttributes, _pJoinData)))
+        {
+            if(right_pData != NULL)
+            {
+                delete[] right_pData;
+                right_nodeAttributes = NULL;
+            }
+            return rc;
+        }
+
+        if((rc = _pRc->PerformNodeOperation(right_nAttributes, right_nodeAttributes, right_pData)))
+        {
+            if(_pJoinData != NULL)
+            {
+                delete[] _pJoinData;
+                _nodeJoinAttributes = NULL;
+            }
+
+            return rc;
+        }
+    }
+
+    // create the output buffer
+    pData = new char[_bufferSize];
+
+    // copy the required attributes in the output buffer
+    for(int i=0; i<_nJoinAttributes; i++)
+    {
+        if((rc = IsAttributeInList(_nNodeAttributes, _nodeAttributes, _nodeJoinAttributes[i], index)))
+            return rc;
+
+        if(index >= 0)
+        {
+            memcpy(pData + _nodeAttributes[index].offset,
+                   _pJoinData + _nodeJoinAttributes[i].offset,
+                   _nodeJoinAttributes[i].attrLength);
+        }
+    }
+
+    for(int i=0; i<right_nAttributes; i++)
+    {
+        if((rc = IsAttributeInList(_nNodeAttributes, _nodeAttributes, right_nodeAttributes[i], index)))
+            return rc;
+
+        if(index >= 0)
+        {
+            memcpy(pData + _nodeAttributes[index].offset,
+                   right_pData + right_nodeAttributes[i].offset,
+                   right_nodeAttributes[i].attrLength);
+        }
+    }
+
+    // assign the output vars
+    nAttributes = _nNodeAttributes;
+    tNodeAttributes = _nodeAttributes;
 
     return rc;
 }

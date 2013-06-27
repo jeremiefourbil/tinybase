@@ -19,7 +19,8 @@ public:
         COMPARISON,
         PROJECTION,
         JOIN,
-        SELECT
+        SELECT,
+        CARTESIANPRODUCT
     };
 
     enum ScanStatus {
@@ -64,6 +65,11 @@ public:
                       const std::vector<const char*> &relations,
                       const std::vector<Condition> &conditions);
 
+
+    RC BuildFromCartesianProduct(const std::vector<RelAttr> &selAttrs,
+                      const std::vector<const char*> &relations,
+                      const std::vector<Condition> &conditions);
+
     // operator
     RC PerformNodeOperation(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
 
@@ -75,6 +81,7 @@ private:
     RC PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
     RC PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
     RC PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
+    RC PerformCartesianProduct(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
 
     RC ComputeAttributesStructure(const std::vector<RelAttr> &selAttrs, int &nNodeAttributes, DataAttrInfo *&nodeAttributes, int &bufferSize);
     RC IsAttributeInList(const int nNodeAttributes, const DataAttrInfo *nodeAttributes, const DataAttrInfo &attribute, int &index);
@@ -102,6 +109,10 @@ private:
 
     ScanStatus _scanStatus;
     QL_Iterator *_pScanIterator;
+
+    char * _pJoinData;
+    int _nJoinAttributes;
+    DataAttrInfo *_nodeJoinAttributes;
 };
 
 #endif // QL_TREEPLAN_H

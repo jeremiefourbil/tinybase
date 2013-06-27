@@ -118,7 +118,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     Printer printer(tInfos, nSelAttrs);
     printer.PrintHeader(cout);
 
-    for(int k=0; k<100 && !rc; k++)
+    for(int k=0; k<10000 && !rc; k++)
     {
         rc = _pTreePlan->PerformNodeOperation(nAttrInfos, tAttrInfos, pData);
 
@@ -127,8 +127,11 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
         if(!rc && pData)
         {
             printer.Print(cout, pData);
-            delete[] pData;
-            pData = NULL;
+            if(pData != NULL)
+            {
+                delete[] pData;
+                pData = NULL;
+            }
         }
     }
 
