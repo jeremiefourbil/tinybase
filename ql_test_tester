@@ -5,7 +5,7 @@
 #
 # DBHOME:  This is the directory where dbcreate, redbase, and dbdestroy are
 #
-set DBHOME = .
+set DBHOME = ../src
 
 #
 # TESTSDIR:  This is the directory where the files of test queries
@@ -31,6 +31,9 @@ set OUTPUT = test.out
 #
 # if no args given, then run all tests
 #
+
+
+rm -Rf $TESTDB
 
 if ( $#argv == 0 ) then
 	echo "QL layer test sequence" >! $OUTPUT

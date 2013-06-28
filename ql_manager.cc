@@ -169,6 +169,33 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
         }
     }
 
+    for(unsigned int i=0; i<vConditions.size(); i++)
+    {
+        if(vConditions[i].rhsAttr.relName != NULL)
+        {
+            delete vConditions[i].rhsAttr.relName;
+            vConditions[i].rhsAttr.relName = NULL;
+        }
+
+        if(vConditions[i].rhsAttr.attrName != NULL)
+        {
+            delete vConditions[i].rhsAttr.attrName;
+            vConditions[i].rhsAttr.attrName = NULL;
+        }
+
+        if(vConditions[i].lhsAttr.relName != NULL)
+        {
+            delete vConditions[i].lhsAttr.relName;
+            vConditions[i].lhsAttr.relName = NULL;
+        }
+
+        if(vConditions[i].lhsAttr.attrName != NULL)
+        {
+            delete vConditions[i].lhsAttr.attrName;
+            vConditions[i].lhsAttr.attrName = NULL;
+        }
+    }
+
 
     cout << "END OF QUERY : " << rc << endl;
     return rc;
