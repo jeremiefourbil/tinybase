@@ -127,7 +127,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     Printer printer(tInfos, nSelAttrs);
     printer.PrintHeader(cout);
 
-    while(rc != QL_EOF)
+    while(!rc)
     {
         rc = _pTreePlan->PerformNodeOperation(nAttrInfos, tAttrInfos, pData);
 
@@ -148,6 +148,16 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
 
     if(rc == QL_EOF)
         rc = OK_RC;
+
+    cout << "delete tInfos" << endl;
+
+    if(tInfos != NULL)
+    {
+        delete[] tInfos;
+        tInfos = NULL;
+    }
+
+    cout << "Delete pTree Plan" << endl;
 
     if(_pTreePlan != NULL)
     {

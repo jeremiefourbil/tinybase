@@ -43,19 +43,8 @@ QL_TreePlan::QL_TreePlan(SM_Manager *ipSmm, IX_Manager *ipIxm, RM_Manager *ipRmm
 
 QL_TreePlan::~QL_TreePlan()
 {
+    cout << "Start delete: " << nodeOperationAsString[_nodeOperation] << endl;
     _pSmm = NULL;
-
-    if(_pLc != NULL)
-    {
-        delete _pLc;
-        _pLc = NULL;
-    }
-
-    if(_pRc != NULL)
-    {
-        delete _pRc;
-        _pRc = NULL;
-    }
 
     if(_nodeAttributes != NULL)
     {
@@ -73,6 +62,18 @@ QL_TreePlan::~QL_TreePlan()
     {
         delete[] _pJoinData;
         _pJoinData = NULL;
+    }
+
+    if(_pLc != NULL)
+    {
+        delete _pLc;
+        _pLc = NULL;
+    }
+
+    if(_pRc != NULL)
+    {
+        delete _pRc;
+        _pRc = NULL;
     }
 }
 
@@ -620,6 +621,10 @@ RC QL_TreePlan::PerformUnion(int &nAttributes, DataAttrInfo *&tNodeAttributes, c
 {
     RC rc = OK_RC;
 
+    nAttributes = 0;
+    tNodeAttributes = NULL;
+    pData = NULL;
+
     //cout << "Perform UNION" << endl;
 
     return rc;
@@ -632,8 +637,8 @@ RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttribut
     cout << "Perform COMPARISON" << endl;
 
     int left_nAttributes;
-    DataAttrInfo *left_nodeAttributes;
-    char *left_pData;
+    DataAttrInfo *left_nodeAttributes = NULL;
+    char *left_pData = NULL;
     bool isConditionPassed = false;
 
     int index;
@@ -644,28 +649,40 @@ RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttribut
         return QL_NULL_CHILD;
     }
 
+    // create the output buffer
+    pData = new char[_bufferSize];
+
     while(!isConditionPassed)
     {
         // get the information from left child
         if((rc = _pLc->PerformNodeOperation(left_nAttributes, left_nodeAttributes, left_pData)))
+        {
+            if(pData != NULL)
+            {
+                delete[] pData;
+                pData = NULL;
+            }
+
             return rc;
+        }
 
         Printer printer(left_nodeAttributes, left_nAttributes);
         printer.Print(cout, left_pData);
 
-        // create the output buffer
-        pData = new char[_bufferSize];
-
         // copy the required attributes in the output buffer
         for(int i=0; i<left_nAttributes; i++)
         {
+            // check if the attribute must be copied
             if((rc = IsAttributeInList(_nNodeAttributes, _nodeAttributes, left_nodeAttributes[i], index)))
                 return rc;
 
+            // the attribute must be copied
             if(index >= 0)
             {
+                // a condition exists
                 if(_conditions.size() > 0)
                 {
+                    // the left hand side of the condition matches the current attribute
                     if(strcmp(_conditions[0].lhsAttr.relName, left_nodeAttributes[i].relName) == 0 &&
                             strcmp(_conditions[0].lhsAttr.attrName, left_nodeAttributes[i].attrName) == 0)
                     {
@@ -675,6 +692,7 @@ RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttribut
                         case FLOAT:
                             float fAttrValue, fRefValue;
 
+                            // subcase: INT
                             if(left_nodeAttributes[i].attrType == INT)
                             {
                                 int attrValue, refValue;
@@ -688,6 +706,7 @@ RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttribut
                                 fAttrValue = attrValue;
                                 fRefValue = refValue;
                             }
+                            // subcase: FLOAT
                             else
                             {
                                 memcpy(&fAttrValue,
@@ -744,8 +763,6 @@ RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttribut
                             {
                             case EQ_OP:
                                 isConditionPassed = strcmp(strAttrValue, strRefValue) == 0;
-                                cout << strAttrValue << endl;
-                                cout << strRefValue << endl;
                                 break;
                             case LE_OP:
                                 isConditionPassed = strcmp(strAttrValue, strRefValue) <= 0;
@@ -775,41 +792,23 @@ RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttribut
                     }
                 }
 
-
+                // copy the attribute to the current buffer
                 memcpy(pData + _nodeAttributes[index].offset,
                        left_pData + left_nodeAttributes[i].offset,
                        left_nodeAttributes[i].attrLength);
-
             }
         }
 
-        if(!isConditionPassed)
+        if(left_pData)
         {
-
-            if(pData)
-            {
-                delete[] pData;
-                pData = NULL;
-            }
-
-            if(left_pData)
-            {
-                delete[] left_pData;
-                left_pData = NULL;
-            }
+            delete[] left_pData;
+            left_pData = NULL;
         }
     }
-
 
     // assign the output vars
     nAttributes = _nNodeAttributes;
     tNodeAttributes = _nodeAttributes;
-
-    if(left_pData)
-    {
-        delete[] left_pData;
-        left_pData = NULL;
-    }
 
     return rc;
 }
@@ -818,11 +817,11 @@ RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttribut
 {
     RC rc = OK_RC;
 
-    //cout << "Perform PROJECTION" << endl;
+//    cout << "Perform PROJECTION" << endl;
 
     int left_nAttributes;
-    DataAttrInfo *left_nodeAttributes;
-    char *left_pData;
+    DataAttrInfo *left_nodeAttributes = NULL;
+    char *left_pData = NULL;
 
     int index;
 
@@ -833,12 +832,8 @@ RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttribut
     }
 
     // get the information from left child
-    //cout << "\tCalling CHild" << endl;
-
     if((rc = _pLc->PerformNodeOperation(left_nAttributes, left_nodeAttributes, left_pData)))
         return rc;
-
-    //cout << "\tBack from CHild" << endl;
 
     // create the output buffer
     pData = new char[_bufferSize];
@@ -847,7 +842,12 @@ RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttribut
     for(int i=0; i<left_nAttributes; i++)
     {
         if((rc = IsAttributeInList(_nNodeAttributes, _nodeAttributes, left_nodeAttributes[i], index)))
+        {
+            delete[] pData;
+            delete[] left_pData;
+
             return rc;
+        }
 
         if(index >= 0)
         {
@@ -861,6 +861,12 @@ RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttribut
     nAttributes = _nNodeAttributes;
     tNodeAttributes = _nodeAttributes;
 
+    if(left_pData != NULL)
+    {
+        delete[] left_pData;
+        left_pData = NULL;
+    }
+
     return rc;
 }
 
@@ -869,8 +875,8 @@ RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, ch
     RC rc = OK_RC;
 
     int right_nAttributes;
-    DataAttrInfo *right_nodeAttributes;
-    char *right_pData;
+    DataAttrInfo *right_nodeAttributes = NULL;
+    char *right_pData = NULL;
     bool joinCondition = false;
     int index;
 
@@ -882,7 +888,7 @@ RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, ch
         return QL_NULL_CHILD;
     }
 
-    if(_pJoinData == NULL )
+    if(_pJoinData == NULL)
     {
         if((rc = _pLc->PerformNodeOperation(_nJoinAttributes, _nodeJoinAttributes, _pJoinData)))
             return rc;
@@ -893,14 +899,25 @@ RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, ch
     // get the information from left child
     while(!joinCondition)
     {
+        // delete the previous right child
+        if(right_pData != NULL)
+        {
+            delete[] right_pData;
+            right_pData = NULL;
+        }
+
+        // get the next right child
         if((rc = _pRc->PerformNodeOperation(right_nAttributes, right_nodeAttributes, right_pData)))
         {
+            // delete the previous left child
             if(_pJoinData != NULL)
             {
                 delete[] _pJoinData;
+                _pJoinData = NULL;
                 _nodeJoinAttributes = NULL;
             }
 
+            // get the next left child
             if((rc = _pLc->PerformNodeOperation(_nJoinAttributes, _nodeJoinAttributes, _pJoinData)))
             {
                 if(right_pData != NULL)
@@ -944,7 +961,6 @@ RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, ch
             }
         }
     }
-    //cout << "\tBack from CHild" << endl;
 
     // create the output buffer
     pData = new char[_bufferSize];
@@ -980,7 +996,12 @@ RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, ch
     nAttributes = _nNodeAttributes;
     tNodeAttributes = _nodeAttributes;
 
-//    cout << "End JOIN" << endl;
+    // delete the children buffers
+    if(right_pData != NULL)
+    {
+        delete[] right_pData;
+        right_pData = NULL;
+    }
 
     return rc;
 }
@@ -989,57 +1010,31 @@ RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, 
 {
     RC rc = OK_RC;
 
-//    cout << "Perform SELECT" << endl;
-
     // need to open scan
     if(_scanStatus == SCANCLOSED)
     {
-        // Index use
-        if(_nNodeAttributes > 0 && _nodeAttributes[0].indexNo >= 0)
+        // with conditions
+        if(_conditions.size()>0)
         {
-            // with conditions
-            if(_conditions.size()>0)
-            {
-                DataAttrInfo attr;
-                if((rc = _pSmm->GetAttributeStructure(_conditions[0].lhsAttr.relName, _conditions[0].lhsAttr.attrName, attr)))
-                    return rc;
+            DataAttrInfo attr;
+            if((rc = _pSmm->GetAttributeStructure(_conditions[0].lhsAttr.relName, _conditions[0].lhsAttr.attrName, attr)))
+                return rc;
 
-                _pScanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, _nodeAttributes[0].relName, _conditions[0].op, attr, _conditions[0].rhsValue.data);
+            // Index use
+            if(attr.indexNo >= 0)
+            {
+                _pScanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, attr.relName, _conditions[0].op, attr, _conditions[0].rhsValue.data);
             }
             else
             {
-                _pScanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, _nodeAttributes[0].relName, NO_OP, _nodeAttributes[0], NULL);
+                _pScanIterator = new IT_FileScan(_pRmm, _pSmm, attr.relName, _conditions[0].op, attr, _conditions[0].rhsValue.data);
             }
         }
-        // RM use
         else
         {
-            if(_conditions.size()>0)
-            {
-                DataAttrInfo attr;
-                if((rc = _pSmm->GetAttributeStructure(_conditions[0].lhsAttr.relName, _conditions[0].lhsAttr.attrName, attr)))
-                    return rc;
-
-                _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _nodeAttributes[0].relName, _conditions[0].op, attr, _conditions[0].rhsValue.data);
-            }
-            //            // with a comparison
-            //            if(_nNodeAttributes > 0)
-            //            {
-            //                //cout << "RM scan initialization " << _nNodeAttributes << endl;
-            //                _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _nodeAttributes[0].relName, NO_OP, _nodeAttributes[0], NULL);
-            //                //cout << "RM scan initialized " << endl;
-            //            }
-            // full scan
-            else
-            {
-                //cout << "RM scan initialization with full scan " << _nNodeAttributes <<endl;
-                // TO BE CORRECTED
-                _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _sRelname.c_str(), NO_OP, _nodeAttributes[0], NULL);
-            }
+           _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _sRelname.c_str(), NO_OP, _nodeAttributes[0], NULL);
         }
     }
-
-    //cout << "Open scan" << endl;
 
     if(_scanStatus == SCANCLOSED)
     {
@@ -1066,8 +1061,6 @@ RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, 
         return QL_EOF;
     }
 
-//    cout << "End SELECT" << endl;
-
     return rc;
 }
 
@@ -1082,8 +1075,8 @@ RC QL_TreePlan::PerformCartesianProduct(int &nAttributes, DataAttrInfo *&tNodeAt
 
     int index;
 
-    // check if left child exists
-    if(_pLc == NULL)
+    // check if children do exist
+    if(_pLc == NULL || _pRc == NULL)
     {
         return QL_NULL_CHILD;
     }
@@ -1158,6 +1151,13 @@ RC QL_TreePlan::PerformCartesianProduct(int &nAttributes, DataAttrInfo *&tNodeAt
     // assign the output vars
     nAttributes = _nNodeAttributes;
     tNodeAttributes = _nodeAttributes;
+
+    // release
+    if(right_pData != NULL)
+    {
+        delete[] right_pData;
+        right_pData = NULL;
+    }
 
     return rc;
 }
