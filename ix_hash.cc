@@ -387,8 +387,8 @@ RC IX_Hash::UpdateDirectoryEntries(const int iBinary, const int iOffset, const P
     RC rc = OK_RC;
     char *pReadBuffer = NULL;
     PageNum readNum, nextNum;
-    int p = iBinary / (2 * iOffset);
-    int start = iBinary - p * 2 * iOffset;
+    int p;
+    int start;
     int slotCounter = 0;
     int m;
 
@@ -430,6 +430,7 @@ RC IX_Hash::UpdateDirectoryEntries(const int iBinary, const int iOffset, const P
         }
 
         nextNum = ((IX_DirectoryHdr *) pReadBuffer)->next;
+        slotCounter += ((IX_DirectoryHdr *) pReadBuffer)->nbFilledSlots;
 
         if(rc = ReleaseBuffer(readNum, true))
             goto err_return;
@@ -656,28 +657,6 @@ RC IX_Hash::DivideBucketInTwo_t(const PageNum iBucketNum, PageNum &oBucketNum)
         }
     }
 
-
-    //    cout << "one: " << endl;
-    //    for(int i=0; i<((IX_BucketHdr *)ipBuffer)->nbFilledSlots; i++)
-    //    {
-    //        memcpy(&tValues[i],
-    //               ipBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
-    //               sizeof(IX_BucketValue));
-    //        cout << tValues[i].v << endl;
-    //    }
-
-    //    cout << "two: " << endl;
-    //    for(int i=0; i<((IX_BucketHdr *)opBuffer)->nbFilledSlots; i++)
-    //    {
-    //        memcpy(&tValues[i],
-    //               opBuffer + sizeof(IX_BucketHdr) + i * sizeof(IX_BucketValue),
-    //               sizeof(IX_BucketValue));
-    //        cout << tValues[i].v << endl;
-    //    }
-
-
-    //    cout << "END Bucket division" << endl;
-
     // release the pages
     if((rc = ReleaseBuffer(iBucketNum, true)))
         goto err_return;
@@ -758,10 +737,13 @@ RC IX_Hash::DeleteEntry_t(T iValue, const RID &rid)
     // get binary decomposition
     binary = getBinaryDecomposition(hash, depth);
 
+    if((rc = GetBucketNum(binary, bucketNum)))
+        goto err_return;
+
     // get the link
-    memcpy(&bucketNum,
-           pDirBuffer + sizeof(IX_DirectoryHdr) + binary * sizeof(PageNum),
-           sizeof(PageNum));
+//    memcpy(&bucketNum,
+//           pDirBuffer + sizeof(IX_DirectoryHdr) + binary * sizeof(PageNum),
+//           sizeof(PageNum));
 
     // the page does not exist
     if(bucketNum == IX_EMPTY)
@@ -831,7 +813,12 @@ RC IX_Hash::DeleteEntryInBucket_t(PageNum iPageNum, T iValue, const RID &rid)
     // the rid bucket is now empty
     if(ridBucketNum == IX_EMPTY)
     {
-        pBuffer->child[index] = IX_EMPTY;
+        pBuffer->nbFilledSlots--;
+        for(int i=index; i<pBuffer->nbFilledSlots; i++)
+        {
+            copyGeneric(pBuffer->v[i+1], pBuffer->v[i]);
+            pBuffer->child[i] = pBuffer->child[i+1];
+        }
 
         if(rc = ReleaseBuffer(iPageNum, true))
             goto err_return;

@@ -144,6 +144,8 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
         }
     }
 
+    cout << "coucou" << endl;
+
     if(rc == QL_EOF)
         rc = OK_RC;
 
@@ -153,48 +155,51 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
         _pTreePlan = NULL;
     }
 
+//    cout << "pplan" << endl;
 
-    for(unsigned int i=0; i<vSelAttrs.size(); i++)
-    {
-        if(vSelAttrs[i].relName != NULL)
-        {
-            delete vSelAttrs[i].relName;
-            vSelAttrs[i].relName = NULL;
-        }
+//    for(unsigned int i=0; i<vSelAttrs.size(); i++)
+//    {
+//        if(vSelAttrs[i].relName != NULL)
+//        {
+//            delete vSelAttrs[i].relName;
+//            vSelAttrs[i].relName = NULL;
+//        }
 
-        if(vSelAttrs[i].attrName != NULL)
-        {
-            delete vSelAttrs[i].attrName;
-            vSelAttrs[i].attrName = NULL;
-        }
-    }
+//        if(vSelAttrs[i].attrName != NULL)
+//        {
+//            delete vSelAttrs[i].attrName;
+//            vSelAttrs[i].attrName = NULL;
+//        }
+//    }
 
-    for(unsigned int i=0; i<vConditions.size(); i++)
-    {
-        if(vConditions[i].rhsAttr.relName != NULL)
-        {
-            delete vConditions[i].rhsAttr.relName;
-            vConditions[i].rhsAttr.relName = NULL;
-        }
+//    cout << "attr" << endl;
 
-        if(vConditions[i].rhsAttr.attrName != NULL)
-        {
-            delete vConditions[i].rhsAttr.attrName;
-            vConditions[i].rhsAttr.attrName = NULL;
-        }
+//    for(unsigned int i=0; i<vConditions.size(); i++)
+//    {
+//        if(vConditions[i].rhsAttr.relName != NULL)
+//        {
+//            delete vConditions[i].rhsAttr.relName;
+//            vConditions[i].rhsAttr.relName = NULL;
+//        }
 
-        if(vConditions[i].lhsAttr.relName != NULL)
-        {
-            delete vConditions[i].lhsAttr.relName;
-            vConditions[i].lhsAttr.relName = NULL;
-        }
+//        if(vConditions[i].rhsAttr.attrName != NULL)
+//        {
+//            delete vConditions[i].rhsAttr.attrName;
+//            vConditions[i].rhsAttr.attrName = NULL;
+//        }
 
-        if(vConditions[i].lhsAttr.attrName != NULL)
-        {
-            delete vConditions[i].lhsAttr.attrName;
-            vConditions[i].lhsAttr.attrName = NULL;
-        }
-    }
+//        if(vConditions[i].lhsAttr.relName != NULL)
+//        {
+//            delete vConditions[i].lhsAttr.relName;
+//            vConditions[i].lhsAttr.relName = NULL;
+//        }
+
+//        if(vConditions[i].lhsAttr.attrName != NULL)
+//        {
+//            delete vConditions[i].lhsAttr.attrName;
+//            vConditions[i].lhsAttr.attrName = NULL;
+//        }
+//    }
 
 
     cout << "END OF QUERY : " << rc << endl;

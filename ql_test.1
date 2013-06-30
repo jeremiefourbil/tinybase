@@ -3,12 +3,11 @@
 /* the mechanism outlined in class and in the          */
 /* handouts) with other students.                      */
 
-!ls
 create table student(no i, name c20, dept c4, GPA f, comment c3);
 load student("../student.data");
-!ls
 
 print student;
-select * from student;
+select student.no, student.name, student.comment
+from student;
 
 exit;
