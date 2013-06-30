@@ -236,8 +236,9 @@ RC QL_TreePlan::BuildFromComparison(const std::vector<RelAttr> &selAttrs,
     if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes, _bufferSize)))
         return rc;
 
+    // copy the last condition
     if(conditions.size() > 0)
-        _conditions.push_back(conditions[0]);
+        _conditions.push_back(conditions.back());
 
     return rc;
 
@@ -634,7 +635,7 @@ RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttribut
 {
     RC rc = OK_RC;
 
-    cout << "Perform COMPARISON" << endl;
+//    cout << "Perform COMPARISON" << endl;
 
     int left_nAttributes;
     DataAttrInfo *left_nodeAttributes = NULL;
@@ -665,9 +666,6 @@ RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttribut
 
             return rc;
         }
-
-        Printer printer(left_nodeAttributes, left_nAttributes);
-        printer.Print(cout, left_pData);
 
         // copy the required attributes in the output buffer
         for(int i=0; i<left_nAttributes; i++)

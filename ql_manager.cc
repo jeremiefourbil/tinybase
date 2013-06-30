@@ -57,6 +57,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
 {
     RC rc = OK_RC;
     int i;
+    int nbTuples = 0;
 
     std::vector<RelAttr> vSelAttrs;
     std::vector<const char*> vRelations;
@@ -124,7 +125,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     char *pData = NULL;
 
     // prepare the printer
-    Printer printer(tInfos, nSelAttrs);
+    Printer printer(tInfos, vSelAttrs.size());
     printer.PrintHeader(cout);
 
     while(!rc)
@@ -141,8 +142,12 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
                 delete[] pData;
                 pData = NULL;
             }
+
+            nbTuples++;
         }
     }
+
+    cout << endl << nbTuples << " tuple(s)" << endl << endl;
 
     cout << "coucou" << endl;
 
