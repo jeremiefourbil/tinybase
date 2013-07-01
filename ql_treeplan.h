@@ -71,7 +71,7 @@ public:
                       const std::vector<Condition> &conditions);
 
     // operator
-    RC PerformNodeOperation(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
+    RC GetNext(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData);
 
     void Print(char prefix, int level);
 

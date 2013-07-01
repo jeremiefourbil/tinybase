@@ -587,7 +587,7 @@ err_return:
 // Operators
 // *************************
 
-RC QL_TreePlan::PerformNodeOperation(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData)
+RC QL_TreePlan::GetNext(int &nAttributes, DataAttrInfo *&tNodeAttributes, char * &pData)
 {
     RC rc = OK_RC;
 
@@ -656,7 +656,7 @@ RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttribut
     while(!isConditionPassed)
     {
         // get the information from left child
-        if((rc = _pLc->PerformNodeOperation(left_nAttributes, left_nodeAttributes, left_pData)))
+        if((rc = _pLc->GetNext(left_nAttributes, left_nodeAttributes, left_pData)))
         {
             if(pData != NULL)
             {
@@ -830,7 +830,7 @@ RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttribut
     }
 
     // get the information from left child
-    if((rc = _pLc->PerformNodeOperation(left_nAttributes, left_nodeAttributes, left_pData)))
+    if((rc = _pLc->GetNext(left_nAttributes, left_nodeAttributes, left_pData)))
         return rc;
 
     // create the output buffer
@@ -888,7 +888,7 @@ RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, ch
 
     if(_pJoinData == NULL)
     {
-        if((rc = _pLc->PerformNodeOperation(_nJoinAttributes, _nodeJoinAttributes, _pJoinData)))
+        if((rc = _pLc->GetNext(_nJoinAttributes, _nodeJoinAttributes, _pJoinData)))
             return rc;
     }
 
@@ -905,7 +905,7 @@ RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, ch
         }
 
         // get the next right child
-        if((rc = _pRc->PerformNodeOperation(right_nAttributes, right_nodeAttributes, right_pData)))
+        if((rc = _pRc->GetNext(right_nAttributes, right_nodeAttributes, right_pData)))
         {
             // delete the previous left child
             if(_pJoinData != NULL)
@@ -916,7 +916,7 @@ RC QL_TreePlan::PerformJoin(int &nAttributes, DataAttrInfo *&tNodeAttributes, ch
             }
 
             // get the next left child
-            if((rc = _pLc->PerformNodeOperation(_nJoinAttributes, _nodeJoinAttributes, _pJoinData)))
+            if((rc = _pLc->GetNext(_nJoinAttributes, _nodeJoinAttributes, _pJoinData)))
             {
                 if(right_pData != NULL)
                 {
@@ -1081,12 +1081,12 @@ RC QL_TreePlan::PerformCartesianProduct(int &nAttributes, DataAttrInfo *&tNodeAt
 
     if(_pJoinData == NULL)
     {
-        if((rc = _pLc->PerformNodeOperation(_nJoinAttributes, _nodeJoinAttributes, _pJoinData)))
+        if((rc = _pLc->GetNext(_nJoinAttributes, _nodeJoinAttributes, _pJoinData)))
             return rc;
     }
 
 
-    if((rc = _pRc->PerformNodeOperation(right_nAttributes, right_nodeAttributes, right_pData)))
+    if((rc = _pRc->GetNext(right_nAttributes, right_nodeAttributes, right_pData)))
     {
         if(_pJoinData != NULL)
         {
@@ -1094,7 +1094,7 @@ RC QL_TreePlan::PerformCartesianProduct(int &nAttributes, DataAttrInfo *&tNodeAt
             _nodeJoinAttributes = NULL;
         }
 
-        if((rc = _pLc->PerformNodeOperation(_nJoinAttributes, _nodeJoinAttributes, _pJoinData)))
+        if((rc = _pLc->GetNext(_nJoinAttributes, _nodeJoinAttributes, _pJoinData)))
         {
             if(right_pData != NULL)
             {
@@ -1104,7 +1104,7 @@ RC QL_TreePlan::PerformCartesianProduct(int &nAttributes, DataAttrInfo *&tNodeAt
             return rc;
         }
 
-        if((rc = _pRc->PerformNodeOperation(right_nAttributes, right_nodeAttributes, right_pData)))
+        if((rc = _pRc->GetNext(right_nAttributes, right_nodeAttributes, right_pData)))
         {
             if(_pJoinData != NULL)
             {

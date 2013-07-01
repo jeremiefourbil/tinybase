@@ -109,9 +109,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
 
 
 
-    // buil the tree query plan
-
-
+    // build the tree query plan
     _pTreePlan = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
     if((rc = _pTreePlan->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
         return rc;
@@ -130,7 +128,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
 
     while(!rc)
     {
-        rc = _pTreePlan->PerformNodeOperation(nAttrInfos, tAttrInfos, pData);
+        rc = _pTreePlan->GetNext(nAttrInfos, tAttrInfos, pData);
 
         if(!rc && pData)
         {
@@ -148,8 +146,6 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     }
 
     cout << endl << nbTuples << " tuple(s)" << endl << endl;
-
-    cout << "coucou" << endl;
 
     if(rc == QL_EOF)
         rc = OK_RC;
