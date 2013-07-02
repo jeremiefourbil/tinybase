@@ -46,7 +46,7 @@ RC IT_IndexScan::Open()
   return rc;
 }
 
-RC  IT_IndexScan::GetNext(int &nAttr, DataAttrInfo *&pAttr, char *&pData)
+RC IT_IndexScan::GetNext(int &nAttr, DataAttrInfo *&pAttr, char *&pData)
 {
   RC rc;
 
@@ -86,6 +86,31 @@ RC  IT_IndexScan::GetNext(int &nAttr, DataAttrInfo *&pAttr, char *&pData)
 
   return rc;
 }
+
+RC IT_IndexScan::GetNext(RM_Record &oRecord)
+{
+  RC rc;
+
+  if(!_bIsOpen)
+  {
+    return QL_ITERATOR_NOT_OPENED;
+  }
+
+  RID rid;
+
+  rc = _ixis.GetNextEntry(rid);
+  if (rc != IX_EOF && rc != 0)
+    return rc;
+
+  if (rc == IX_EOF)
+    return QL_EOF;
+
+  rc = _rmfh.GetRec(rid, oRecord);
+  if (rc != 0 ) return rc;
+
+  return rc;
+}
+
 RC IT_IndexScan::Close()
 {
   RC rc = OK_RC;

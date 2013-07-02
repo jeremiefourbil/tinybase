@@ -36,7 +36,7 @@ RC IT_FileScan::Open()
     return rc;
 }
 
-RC  IT_FileScan::GetNext(int &nAttr, DataAttrInfo *&pAttr, char *&pData)
+RC IT_FileScan::GetNext(int &nAttr, DataAttrInfo *&pAttr, char *&pData)
 {
     RC rc;
 
@@ -68,6 +68,25 @@ RC  IT_FileScan::GetNext(int &nAttr, DataAttrInfo *&pAttr, char *&pData)
 
     nAttr = _nAttr;
     pAttr = _dAttr;
+
+    return rc;
+}
+
+RC IT_FileScan::GetNext(RM_Record &oRecord)
+{
+    RC rc;
+
+    if(!_bIsOpen)
+    {
+        return QL_ITERATOR_NOT_OPENED;
+    }
+
+    rc = _rmfs.GetNextRec(oRecord);
+    if (rc != RM_EOF && rc != 0)
+        return rc;
+
+    if (rc == RM_EOF)
+        return QL_EOF;
 
     return rc;
 }

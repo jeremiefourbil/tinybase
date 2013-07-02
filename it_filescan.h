@@ -14,6 +14,7 @@ class IT_FileScan : public virtual QL_Iterator {
 
     RC Open();
     RC GetNext(int &nAttr, DataAttrInfo *&pAttr, char *&pData);
+    RC GetNext(RM_Record &oRecord);
     RC Close();
   private:
     RM_Manager *_pRmm;
