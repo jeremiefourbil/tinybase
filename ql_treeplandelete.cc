@@ -1,7 +1,5 @@
 #include "ql_treeplandelete.h"
 
-#include "ql_internal.h"
-
 #include <stdio.h>
 #include <cstddef>
 
@@ -11,6 +9,8 @@
 #include "ql_iterator.h"
 #include "it_indexscan.h"
 #include "it_filescan.h"
+
+#include "ql_common.h"
 
 using namespace std;
 
@@ -40,7 +40,7 @@ QL_TreePlanDelete::QL_TreePlanDelete(SM_Manager *ipSmm, IX_Manager *ipIxm, RM_Ma
 
 QL_TreePlanDelete::~QL_TreePlanDelete()
 {
-    cout << "Start delete: " << nodeOperationAsString[_nodeOperation] << endl;
+    cout << "Start delete: " << nodeDeleteOperationAsString[_nodeOperation] << endl;
     _pSmm = NULL;
 
     if(_nodeAttributes != NULL)
@@ -146,6 +146,7 @@ RC QL_TreePlanDelete::BuildFromComparison(const std::vector<RelAttr> &selAttrs,
     //cout << "Build from comparison" << endl;
 
     _nodeOperation = COMPARISON;
+    _sRelName.assign(relations[0]);
 
     if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes, _bufferSize)))
         return rc;
@@ -165,17 +166,18 @@ RC QL_TreePlanDelete::BuildFromSelect(const std::vector<RelAttr> &selAttrs,
 
     //cout << "Build from select" << endl;
 
-    _nodeOperation = SELECT;
-
-    if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes, _bufferSize)))
-        return rc;
 
     if(relations.size() == 0)
     {
         return QL_NO_RELATION;
     }
 
-    _sRelname.assign(relations[0]);
+    _nodeOperation = SELECT;
+    _sRelName.assign(relations[0]);
+
+    if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes, _bufferSize)))
+        return rc;
+
 
     if(conditions.size()>0)
     {
@@ -215,6 +217,7 @@ RC QL_TreePlanDelete::PerformComparison(RM_Record &oRecord)
     char *pData = NULL;
     bool isConditionPassed = false;
 
+
     // check if left child exists
     if(_pLc == NULL)
     {
@@ -236,7 +239,7 @@ RC QL_TreePlanDelete::PerformComparison(RM_Record &oRecord)
             for(int i=0; i<_nNodeAttributes; i++)
             {
                 // the left hand side of the condition matches the current attribute
-                if(strcmp(_conditions[0].lhsAttr.relName, _nodeAttributes[i].relName) == 0 &&
+                if(strcmp(_sRelName.c_str(), _nodeAttributes[i].relName) == 0 &&
                         strcmp(_conditions[0].lhsAttr.attrName, _nodeAttributes[i].attrName) == 0)
                 {
                     switch(_nodeAttributes[i].attrType)
@@ -350,6 +353,7 @@ RC QL_TreePlanDelete::PerformSelect(RM_Record &oRecord)
 {
     RC rc = OK_RC;
 
+
     // need to open scan
     if(_scanStatus == SCANCLOSED)
     {
@@ -357,22 +361,23 @@ RC QL_TreePlanDelete::PerformSelect(RM_Record &oRecord)
         if(_conditions.size()>0)
         {
             DataAttrInfo attr;
-            if((rc = _pSmm->GetAttributeStructure(_conditions[0].lhsAttr.relName, _conditions[0].lhsAttr.attrName, attr)))
+            if((rc = _pSmm->GetAttributeStructure(_sRelName.c_str(), _conditions[0].lhsAttr.attrName, attr)))
                 return rc;
 
             // Index use
-            if(attr.indexNo >= 0)
-            {
-                _pScanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, attr.relName, _conditions[0].op, attr, _conditions[0].rhsValue.data);
-            }
-            else
-            {
-                _pScanIterator = new IT_FileScan(_pRmm, _pSmm, attr.relName, _conditions[0].op, attr, _conditions[0].rhsValue.data);
-            }
+//            if(attr.indexNo >= 0)
+//            {
+//                cout << "index scan" << endl;
+//                _pScanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, _sRelName.c_str(), _conditions[0].op, attr, _conditions[0].rhsValue.data);
+//            }
+//            else
+//            {
+                _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _sRelName.c_str(), _conditions[0].op, attr, _conditions[0].rhsValue.data);
+//            }
         }
         else
         {
-            _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _sRelname.c_str(), NO_OP, _nodeAttributes[0], NULL);
+            _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _sRelName.c_str(), NO_OP, _nodeAttributes[0], NULL);
         }
     }
 
@@ -401,6 +406,7 @@ RC QL_TreePlanDelete::PerformSelect(RM_Record &oRecord)
         return QL_EOF;
     }
 
+
     return rc;
 }
 
@@ -423,7 +429,7 @@ void QL_TreePlanDelete::Print (char prefix ,int level)
     if(_pLc != NULL)
         _pLc->Print ('/',level + 1);
     Padding('\t', level);
-    printf ( "%c %s\n", prefix, nodeOperationAsString[_nodeOperation] );
+    printf ( "%c %s\n", prefix, nodeDeleteOperationAsString[_nodeOperation] );
 }
 
 // *************************

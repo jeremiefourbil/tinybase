@@ -6,6 +6,9 @@
 // simple stub that will allow everything to compile.  Without
 // a QL stub, we would need two parsers.
 
+#include "ql_treeplan.h"
+#include "ql_treeplandelete.h"
+
 #include <cstdio>
 #include <iostream>
 #include <sys/times.h>
@@ -18,6 +21,8 @@
 #include "ix.h"
 #include "rm.h"
 #include "sm_internal.h"
+
+
 
 using namespace std;
 
@@ -195,8 +200,9 @@ RC QL_Manager::Delete(const char *relName,
     int i;
     int nbTuples = 0;
     RelAttr relAttr;
+    RM_FileHandle fh;
 
-    QL_TreePlan *pTreePlan = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
+    QL_TreePlanDelete *pTreePlanDelete = new QL_TreePlanDelete(_pSmm, _pIxm, _pRmm);
 
     std::vector<RelAttr> vSelAttrs;
     std::vector<const char*> vRelations;
@@ -247,41 +253,52 @@ RC QL_Manager::Delete(const char *relName,
 
 
     // build the tree query plan
-    if((rc = pTreePlan->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
+    if((rc = pTreePlanDelete->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
         return rc;
 
     // print the query plan
-    pTreePlan->Print(' ',0);
-
-    // get the information
-    int nAttrInfos = 0;
-    DataAttrInfo *tAttrInfos = NULL;
-    char *pData = NULL;
+    pTreePlanDelete->Print(' ',0);
 
     // prepare the printer
     Printer printer(tInfos, vSelAttrs.size());
     printer.PrintHeader(cout);
 
+
+
+    if (rc = _pRmm->OpenFile(vRelations[0], fh))
+       return rc;
+
+
     while(!rc)
     {
-        rc = pTreePlan->GetNext(nAttrInfos, tAttrInfos, pData);
+        RC rcDelete;
+        RM_Record rec;
+        RID rid;
+        char *pData = NULL;
 
-        if(!rc && pData)
+        rc = pTreePlanDelete->GetNext(rec);
+
+        if(!rc)
         {
-            //            cout << "start print" << endl;
-            printer.Print(cout, pData);
-            //            cout << "end print" << endl;
-            if(pData != NULL)
-            {
-                delete[] pData;
-                pData = NULL;
-            }
+            if((rcDelete = rec.GetData(pData)))
+                return rcDelete;
+            if((rcDelete = rec.GetRid(rid)))
+                return rcDelete;
 
+            printer.Print(cout, pData);
             nbTuples++;
+
+            // delete
+            if((rcDelete = fh.DeleteRec(rid)))
+                return rcDelete;
+
         }
     }
 
     cout << endl << nbTuples << " tuple(s)" << endl << endl;
+
+    if (rc = _pRmm->CloseFile(fh))
+       return rc;
 
     if(rc == QL_EOF)
         rc = OK_RC;
@@ -296,10 +313,10 @@ RC QL_Manager::Delete(const char *relName,
 
     cout << "Delete pTree Plan" << endl;
 
-    if(pTreePlan != NULL)
+    if(pTreePlanDelete != NULL)
     {
-        delete pTreePlan;
-        pTreePlan = NULL;
+        delete pTreePlanDelete;
+        pTreePlanDelete = NULL;
     }
 
 
@@ -360,7 +377,6 @@ RC QL_Manager::PostParse(std::vector<RelAttr> &vSelAttrs,
 
             for(int j=0; j<nAttr; j++)
             {
-                cout << "j " << j << endl;
                 RelAttr relAttr;
                 relAttr.relName = new char[MAXSTRINGLEN];
                 relAttr.attrName = new char[MAXSTRINGLEN];

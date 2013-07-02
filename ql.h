@@ -10,13 +10,13 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <vector>
+
 #include "redbase.h"
 #include "parser.h"
 #include "rm.h"
 #include "ix.h"
 #include "sm.h"
-
-#include "ql_treeplan.h"
 
 //
 // QL_Manager: query language (DML)

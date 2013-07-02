@@ -1,7 +1,5 @@
 #include "ql_treeplan.h"
 
-#include "ql_internal.h"
-
 #include <stdio.h>
 #include <cstddef>
 
@@ -11,6 +9,8 @@
 #include "ql_iterator.h"
 #include "it_indexscan.h"
 #include "it_filescan.h"
+
+#include "ql_common.h"
 
 using namespace std;
 
