@@ -97,7 +97,20 @@ RC IX_BTreeScan::OpenScan_t()
 {
     RC rc = OK_RC;
 
-    _nextValue = new T();
+    switch(_pBTree->_pFileHdr->attrType)
+    {
+    case INT:
+        _nextValue = new int();
+        break;
+    case FLOAT:
+        _nextValue = new float();
+        break;
+    case STRING:
+        _nextValue = new char[MAXSTRINGLEN];
+        break;
+    default:
+        rc = IX_BADTYPE;
+    }
 
     switch(_compOp)
     {

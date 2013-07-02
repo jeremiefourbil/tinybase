@@ -292,6 +292,11 @@ RC QL_Manager::Delete(const char *relName,
             if((rcDelete = fh.DeleteRec(rid)))
                 return rcDelete;
 
+            // -------------------
+            // NB: STILL HAVE TO DELETE FROM INDEX
+            // TO BE DONE
+            // -------------------
+
         }
     }
 
@@ -335,22 +340,175 @@ RC QL_Manager::Update(const char *relName,
                       const Value &rhsValue,
                       int nConditions, const Condition conditions[])
 {
+    RC rc = OK_RC;
     int i;
+    int nbTuples = 0;
+    RelAttr relAttr;
+    RM_FileHandle fh;
+    IX_IndexHandle *pIxh = NULL;
+
+    QL_TreePlanDelete *pTreePlanDelete = new QL_TreePlanDelete(_pSmm, _pIxm, _pRmm);
+
+    DataAttrInfo updatedAttribute;
+
+    std::vector<RelAttr> vSelAttrs;
+    std::vector<const char*> vRelations;
+    std::vector<Condition> vConditions;
 
     cout << "QL Update\n";
 
-    cout << "   relName = " << relName << "\n";
-    cout << "   updAttr:" << updAttr << "\n";
-    if (bIsValue)
-        cout << "   rhs is value: " << rhsValue << "\n";
-    else
-        cout << "   rhs is attribute: " << rhsRelAttr << "\n";
+    relAttr.relName = new char[MAXSTRINGLEN];
+    relAttr.attrName = new char[MAXSTRINGLEN];
+    strcpy(relAttr.relName, relName);
+    strcpy(relAttr.attrName, "*");
+    vSelAttrs.push_back(relAttr);
 
-    cout << "   nCondtions = " << nConditions << "\n";
-    for (i = 0; i < nConditions; i++)
-        cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
+    vRelations.push_back(relName);
 
-    return 0;
+    for(int i=0; i<nConditions; i++)
+    {
+        vConditions.push_back(conditions[i]);
+    }
+
+    if((rc = PostParse(vSelAttrs, vRelations, vConditions)))
+        return rc;
+
+    cout << "   nSelAttrs = " << vSelAttrs.size() << "\n";
+    DataAttrInfo *tInfos = new DataAttrInfo[vSelAttrs.size()];
+    int startOffset = 0;
+    for (i = 0; i < vSelAttrs.size(); i++)
+    {
+        cout << "   selAttrs[" << i << "]:" << vSelAttrs[i] << "\n";
+
+        if((rc = _pSmm->GetAttributeStructure(vSelAttrs[i].relName, vSelAttrs[i].attrName, tInfos[i])))
+            return rc;
+
+        tInfos[i].offset = startOffset;
+        startOffset += tInfos[i].attrLength;
+    }
+
+
+    cout << "   nRelations = " << vRelations.size() << "\n";
+    for (i = 0; i < vRelations.size(); i++)
+        cout << "   relations[" << i << "] " << vRelations[i] << "\n";
+
+    cout << "   nCondtions = " << vConditions.size() << "\n";
+    for (i = 0; i < vConditions.size(); i++)
+        cout << "   conditions[" << i << "]:" << vConditions[i] << "\n";
+
+
+
+
+    // build the tree query plan
+    if((rc = pTreePlanDelete->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
+        return rc;
+
+    // print the query plan
+    pTreePlanDelete->Print(' ',0);
+
+    // prepare the printer
+    Printer printer(tInfos, vSelAttrs.size());
+    printer.PrintHeader(cout);
+
+    // prepare the updatedAttribute
+    if((rc = _pSmm->GetAttributeStructure(relName, updAttr.attrName, updatedAttribute)))
+        return rc;
+
+
+    // open RM file handler
+    if((rc = _pRmm->OpenFile(vRelations[0], fh)))
+       return rc;
+
+    // if needed open index handler
+    for(int i=0; i<vSelAttrs.size(); i++)
+    {
+        if(tInfos[i].indexNo >= 0 && strcmp(tInfos[i].attrName, updatedAttribute.attrName) == 0)
+        {
+            pIxh = new IX_IndexHandle();
+            if((rc = _pIxm->OpenIndex(vRelations[0], tInfos[i].indexNo, *pIxh)))
+                return rc;
+        }
+    }
+
+
+    while(!rc)
+    {
+        RC rcDelete;
+        RM_Record rec;
+        char *pData = NULL;
+
+        rc = pTreePlanDelete->GetNext(rec);
+
+        if(!rc)
+        {
+            if((rcDelete = rec.GetData(pData)))
+                return rcDelete;
+
+            memcpy(pData + updatedAttribute.offset, rhsValue.data, updatedAttribute.attrLength);
+
+            printer.Print(cout, pData);
+            nbTuples++;
+
+            // update
+            if((rcDelete = fh.UpdateRec(rec)))
+                return rcDelete;
+
+            if((pIxh != NULL))
+            {
+
+            }
+
+            // -------------------
+            // NB: STILL HAVE TO DELETE FROM INDEX
+            // TO BE DONE
+            // -------------------
+
+        }
+    }
+
+    cout << endl << nbTuples << " tuple(s)" << endl << endl;
+
+    if(pIxh != NULL)
+    {
+        if((rc = _pIxm->CloseIndex(*pIxh)))
+            return rc;
+    }
+
+    if(pIxh != NULL)
+    {
+        delete pIxh;
+        pIxh = NULL;
+    }
+
+
+    if (rc = _pRmm->CloseFile(fh))
+       return rc;
+
+    if(rc == QL_EOF)
+        rc = OK_RC;
+
+    cout << "delete tInfos" << endl;
+
+    if(tInfos != NULL)
+    {
+        delete[] tInfos;
+        tInfos = NULL;
+    }
+
+    cout << "Delete pTree Plan" << endl;
+
+    if(pTreePlanDelete != NULL)
+    {
+        delete pTreePlanDelete;
+        pTreePlanDelete = NULL;
+    }
+
+
+    cout << "END OF QUERY : " << rc << endl;
+    return rc;
+
+
+
 }
 
 
