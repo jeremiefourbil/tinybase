@@ -31,7 +31,6 @@ QL_Manager::QL_Manager(SM_Manager &smm, IX_Manager &ixm, RM_Manager &rmm)
     _pSmm = &smm;
     _pIxm = &ixm;
     _pRmm = &rmm;
-    _pTreePlan = NULL;
 }
 
 //
@@ -41,11 +40,7 @@ QL_Manager::QL_Manager(SM_Manager &smm, IX_Manager &ixm, RM_Manager &rmm)
 //
 QL_Manager::~QL_Manager()
 {
-    if(_pTreePlan != NULL)
-    {
-        delete _pTreePlan;
-        _pTreePlan = NULL;
-    }
+
 }
 
 //
@@ -58,6 +53,8 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     RC rc = OK_RC;
     int i;
     int nbTuples = 0;
+
+    QL_TreePlan *pTreePlan = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
 
     std::vector<RelAttr> vSelAttrs;
     std::vector<const char*> vRelations;
@@ -110,12 +107,11 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
 
 
     // build the tree query plan
-    _pTreePlan = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
-    if((rc = _pTreePlan->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
+    if((rc = pTreePlan->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
         return rc;
 
     // print the query plan
-    _pTreePlan->Print(' ',0);
+    pTreePlan->Print(' ',0);
 
     // get the information
     int nAttrInfos = 0;
@@ -128,7 +124,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
 
     while(!rc)
     {
-        rc = _pTreePlan->GetNext(nAttrInfos, tAttrInfos, pData);
+        rc = pTreePlan->GetNext(nAttrInfos, tAttrInfos, pData);
 
         if(!rc && pData)
         {
@@ -160,57 +156,11 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
 
     cout << "Delete pTree Plan" << endl;
 
-    if(_pTreePlan != NULL)
+    if(pTreePlan != NULL)
     {
-        delete _pTreePlan;
-        _pTreePlan = NULL;
+        delete pTreePlan;
+        pTreePlan = NULL;
     }
-
-//    cout << "pplan" << endl;
-
-//    for(unsigned int i=0; i<vSelAttrs.size(); i++)
-//    {
-//        if(vSelAttrs[i].relName != NULL)
-//        {
-//            delete vSelAttrs[i].relName;
-//            vSelAttrs[i].relName = NULL;
-//        }
-
-//        if(vSelAttrs[i].attrName != NULL)
-//        {
-//            delete vSelAttrs[i].attrName;
-//            vSelAttrs[i].attrName = NULL;
-//        }
-//    }
-
-//    cout << "attr" << endl;
-
-//    for(unsigned int i=0; i<vConditions.size(); i++)
-//    {
-//        if(vConditions[i].rhsAttr.relName != NULL)
-//        {
-//            delete vConditions[i].rhsAttr.relName;
-//            vConditions[i].rhsAttr.relName = NULL;
-//        }
-
-//        if(vConditions[i].rhsAttr.attrName != NULL)
-//        {
-//            delete vConditions[i].rhsAttr.attrName;
-//            vConditions[i].rhsAttr.attrName = NULL;
-//        }
-
-//        if(vConditions[i].lhsAttr.relName != NULL)
-//        {
-//            delete vConditions[i].lhsAttr.relName;
-//            vConditions[i].lhsAttr.relName = NULL;
-//        }
-
-//        if(vConditions[i].lhsAttr.attrName != NULL)
-//        {
-//            delete vConditions[i].lhsAttr.attrName;
-//            vConditions[i].lhsAttr.attrName = NULL;
-//        }
-//    }
 
 
     cout << "END OF QUERY : " << rc << endl;
@@ -241,16 +191,120 @@ RC QL_Manager::Insert(const char *relName,
 RC QL_Manager::Delete(const char *relName,
                       int nConditions, const Condition conditions[])
 {
+    RC rc = OK_RC;
     int i;
+    int nbTuples = 0;
+    RelAttr relAttr;
+
+    QL_TreePlan *pTreePlan = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
+
+    std::vector<RelAttr> vSelAttrs;
+    std::vector<const char*> vRelations;
+    std::vector<Condition> vConditions;
 
     cout << "QL Delete\n";
 
-    cout << "   relName = " << relName << "\n";
-    cout << "   nCondtions = " << nConditions << "\n";
-    for (i = 0; i < nConditions; i++)
-        cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
+    relAttr.relName = new char[MAXSTRINGLEN];
+    relAttr.attrName = new char[MAXSTRINGLEN];
+    strcpy(relAttr.relName, relName);
+    strcpy(relAttr.attrName, "*");
+    vSelAttrs.push_back(relAttr);
 
-    return 0;
+    vRelations.push_back(relName);
+
+    for(int i=0; i<nConditions; i++)
+    {
+        vConditions.push_back(conditions[i]);
+    }
+
+    if((rc = PostParse(vSelAttrs, vRelations, vConditions)))
+        return rc;
+
+    cout << "   nSelAttrs = " << vSelAttrs.size() << "\n";
+    DataAttrInfo *tInfos = new DataAttrInfo[vSelAttrs.size()];
+    int startOffset = 0;
+    for (i = 0; i < vSelAttrs.size(); i++)
+    {
+        cout << "   selAttrs[" << i << "]:" << vSelAttrs[i] << "\n";
+
+        if((rc = _pSmm->GetAttributeStructure(vSelAttrs[i].relName, vSelAttrs[i].attrName, tInfos[i])))
+            return rc;
+
+        tInfos[i].offset = startOffset;
+        startOffset += tInfos[i].attrLength;
+    }
+
+
+    cout << "   nRelations = " << vRelations.size() << "\n";
+    for (i = 0; i < vRelations.size(); i++)
+        cout << "   relations[" << i << "] " << vRelations[i] << "\n";
+
+    cout << "   nCondtions = " << vConditions.size() << "\n";
+    for (i = 0; i < vConditions.size(); i++)
+        cout << "   conditions[" << i << "]:" << vConditions[i] << "\n";
+
+
+
+
+    // build the tree query plan
+    if((rc = pTreePlan->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
+        return rc;
+
+    // print the query plan
+    pTreePlan->Print(' ',0);
+
+    // get the information
+    int nAttrInfos = 0;
+    DataAttrInfo *tAttrInfos = NULL;
+    char *pData = NULL;
+
+    // prepare the printer
+    Printer printer(tInfos, vSelAttrs.size());
+    printer.PrintHeader(cout);
+
+    while(!rc)
+    {
+        rc = pTreePlan->GetNext(nAttrInfos, tAttrInfos, pData);
+
+        if(!rc && pData)
+        {
+            //            cout << "start print" << endl;
+            printer.Print(cout, pData);
+            //            cout << "end print" << endl;
+            if(pData != NULL)
+            {
+                delete[] pData;
+                pData = NULL;
+            }
+
+            nbTuples++;
+        }
+    }
+
+    cout << endl << nbTuples << " tuple(s)" << endl << endl;
+
+    if(rc == QL_EOF)
+        rc = OK_RC;
+
+    cout << "delete tInfos" << endl;
+
+    if(tInfos != NULL)
+    {
+        delete[] tInfos;
+        tInfos = NULL;
+    }
+
+    cout << "Delete pTree Plan" << endl;
+
+    if(pTreePlan != NULL)
+    {
+        delete pTreePlan;
+        pTreePlan = NULL;
+    }
+
+
+    cout << "END OF QUERY : " << rc << endl;
+    return rc;
 }
 
 

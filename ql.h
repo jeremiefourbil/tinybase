@@ -56,7 +56,6 @@ private:
     SM_Manager *_pSmm;
     IX_Manager *_pIxm;
     RM_Manager *_pRmm;
-    QL_TreePlan *_pTreePlan;
 };
 
 //
