@@ -1,0 +1,55 @@
+Design général
+______________
+
+Nous avons choisi d'utiliser un système d'itérateur plutôt que les tables temporaires. 
+
+Structure choisie
+_________________
+
+Comme expliqué plus haut nous avons décidé d'utiliser un système d'itérateurs. Nous avons deux types d'itérateur qui correspondent au FileScan et à l'IndexScan. Nous itérons donc sur les tuples que nous fournissent le scan sélectionné lors de la requête.
+
+Optimisation
+____________
+
+Nous n'avons pas mis en place de statistiques sur les relations/index telle qu'une estimation du nombre de tuples pour une requête. Cependant, nous avons directement implémenté les règles d'optimation pour la construction de l'arbre d'exécution. Ainsi les filtres s'effectuent avant les jointures afin de les alléger. De plus, nous utilisons dès que possible les index. Par exemple, Si une sélection s'effectue sur un attribut étant indexé nous utilisons l'index correspondant cela permet d'optimiser un peu les requêtes qui sont sélectives. 
+
+Query plans
+___________
+
+  1 . Select
+
+Le select fonctionne de la façon suivante. La construction de l'arbre d'exécution sépare les différentes relations de manière récursive en fonction de la requête. Les feuilles de l'arbre ainsi que les fils droits des noeuds où il y a des jointures initialisent les itérateurs dont ils ont besoin. Ensuite la remontée dans l'arbre s'effectue en fonction du type de noeud rencontré : 
+  - la projection selectionne uniquement un certain nombre d'attributs issus de son fils
+  - la jointure fait appel aux itérateurs en dessous tant que la condition de jointure n'est pas satisfaite
+  - la selection est directemment implémentée au niveau de l'itérateur ainsi un tuple qui sort d'un feuille satisfait les conditions de sélectivité.
+
+  2 . Delete
+
+Le delete fonctionne de la façon suivante: on recherche l'itérateur feuille (IndexScan, FileScan), puis on applique les filtres et enfin on renvoit la racine.
+Ainsi dans la fonction Delete on détruit dans les fichiers et dans les indexes tous les tuples renvoyés.
+
+  3 . Update
+
+L'update s'effectue de la même manière quele delete à ceci près que l'on ne peut pas mettre un attribut indéxé à jour. Ceci est normal, l'intégrité du scan serait alors altérée.
+
+Procédure de test
+_________________
+
+La procédure de test est divisée en 10 tests : 
+
+- test 1  : chargement des données et selections simples
+- test 2  : insertion
+- test 3  : projection
+- test 4  : selections complexes
+- test 5  : produit cartésien
+- test 6  : jointure
+- test 7  : tests hybrides sans utilisations des index
+- test 8  : tests hybrides avec utilisations des index
+- test 9  : suppresion
+- test 10 : update
+
+
+Bug connus
+__________
+
+Les bugs rencontrés ont été fixés. Il n'y a pas de bugs connus à ce jour.
