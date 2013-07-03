@@ -218,6 +218,11 @@ RC QL_Manager::Insert(const char *relName,
     for(int i=0; i<nAttributes; i++)
     {
         memcpy(pData + tAttributes[i].offset, values[i].data, tAttributes[i].attrLength);
+
+        if(tAttributes[i].attrType == STRING)
+        {
+            fillString(pData + tAttributes[i].offset, tAttributes[i].attrLength);
+        }
     }
 
     // open the relation file
@@ -370,6 +375,7 @@ RC QL_Manager::Delete(const char *relName,
             printer.Print(cout, pData);
             nbTuples++;
 
+
             // delete from IX
             if((tpIxh != NULL))
             {
@@ -377,13 +383,20 @@ RC QL_Manager::Delete(const char *relName,
                 {
                     if(tpIxh[i] != NULL)
                     {
-                        char *value = new char[tAttributes[i].attrLength];
-                        memcpy(value, pData + tAttributes[i].offset, tAttributes[i].attrLength);
-                        if((rcDelete = tpIxh[i]->DeleteEntry(value, rid)))
+                        cout << "indexed attribute spotted" << endl;
+                        tpIxh[i]->DisplayTree();
+
+//                        char *value = new char[tAttributes[i].attrLength];
+//                        memcpy(value, pData + tAttributes[i].offset, tAttributes[i].attrLength);
+                        if((rcDelete = tpIxh[i]->DeleteEntry(pData + tAttributes[i].offset, rid)))
                             return rc;
 
-                        delete[] value;
+//                        delete[] value;
+
+                        tpIxh[i]->DisplayTree();
                     }
+                    else
+                        cout << "nononon" << endl;
                 }
             }
 
@@ -409,7 +422,6 @@ RC QL_Manager::Delete(const char *relName,
                     return rc;
             }
         }
-
     }
 
     if (rc = _pRmm->CloseFile(fh))
@@ -745,15 +757,9 @@ RC QL_Manager::PostCheck(std::vector<RelAttr> &vSelAttrs,
                 return QL_NO_MATCHING_RELATION;
             else
             {
-                //                cout << j << endl;
-                //                cout << "copy (" << attr[j].attrLength << ")" << endl;
                 vSelAttrs[i].relName = new char[attr[j].attrLength];
-                //                cout << "from: " << vRelations[0] << " / to: " << vSelAttrs[i].relName << endl;
                 strcpy(vSelAttrs[i].relName, vRelations[0]);
-                //                cout << "copied" << endl;
                 fillString(vSelAttrs[i].relName, attr[j].attrLength);
-                //                cout << vSelAttrs[i].relName << endl;
-                //                cout << "end copy" << endl;
             }
 
             if(attr != NULL)
