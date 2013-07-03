@@ -50,6 +50,10 @@ public:
         const Condition conditions[]);   // conditions in where clause
 
 private:
+    RC PostCheck(std::vector<RelAttr> &vSelAttrs,
+                             std::vector<const char*> &vRelations,
+                             std::vector<Condition> &vConditions);
+
     RC PostParse(std::vector<RelAttr> &vSelAttrs,
                           std::vector<const char*> &vRelations,
                           std::vector<Condition> &vConditions);
@@ -69,7 +73,10 @@ void QL_PrintError(RC rc);
 #define QL_NO_RELATION                (START_QL_ERR - 3)
 #define QL_LASTERROR                  QL_NULL_CHILD
 
-#define QL_LASTWARN                   START_QL_WARN
+#define QL_TWICE_RELATION             (START_QL_WARN + 0)
+#define QL_NO_MATCHING_RELATION       (START_QL_WARN + 1)
+#define QL_UNDEFINED_RELATION         (START_QL_WARN + 2)
+#define QL_LASTWARN                   QL_UNDEFINED_RELATION
 
 #define QL_EOF                        PF_EOF
 

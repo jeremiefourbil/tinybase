@@ -41,7 +41,6 @@ QL_TreePlanDelete::QL_TreePlanDelete(SM_Manager *ipSmm, IX_Manager *ipIxm, RM_Ma
 
 QL_TreePlanDelete::~QL_TreePlanDelete()
 {
-    cout << "Start delete: " << nodeDeleteOperationAsString[_nodeOperation] << endl;
     _pSmm = NULL;
 
     if(_nodeAttributes != NULL)

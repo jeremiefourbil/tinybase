@@ -44,7 +44,6 @@ QL_TreePlan::QL_TreePlan(SM_Manager *ipSmm, IX_Manager *ipIxm, RM_Manager *ipRmm
 
 QL_TreePlan::~QL_TreePlan()
 {
-    cout << "Start delete: " << nodeOperationAsString[_nodeOperation] << endl;
     _pSmm = NULL;
 
     if(_nodeAttributes != NULL)
@@ -233,6 +232,7 @@ RC QL_TreePlan::BuildFromComparison(const std::vector<RelAttr> &selAttrs,
     //cout << "Build from comparison" << endl;
 
     _nodeOperation = COMPARISON;
+    _sRelName.assign(relations[0]);
 
     if((rc = ComputeAttributesStructure(selAttrs, _nNodeAttributes, _nodeAttributes, _bufferSize)))
         return rc;
@@ -458,7 +458,7 @@ RC QL_TreePlan::BuildFromSelect(const std::vector<RelAttr> &selAttrs,
         return QL_NO_RELATION;
     }
 
-    _sRelname.assign(relations[0]);
+    _sRelName.assign(relations[0]);
 
     if(conditions.size()>0)
     {
@@ -1016,7 +1016,7 @@ RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, 
         if(_conditions.size()>0)
         {
             DataAttrInfo attr;
-            if((rc = _pSmm->GetAttributeStructure(_conditions[0].lhsAttr.relName, _conditions[0].lhsAttr.attrName, attr)))
+            if((rc = _pSmm->GetAttributeStructure(_sRelName.c_str(), _conditions[0].lhsAttr.attrName, attr)))
                 return rc;
 
 
@@ -1038,7 +1038,7 @@ RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, 
         }
         else
         {
-           _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _sRelname.c_str(), NO_OP, _nodeAttributes[0], NULL);
+           _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _sRelName.c_str(), NO_OP, _nodeAttributes[0], NULL);
         }
     }
 

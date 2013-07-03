@@ -6,9 +6,6 @@
 
 #include "rm_internal.h"
 
-#include <iostream>
-using namespace std;
-
 // 
 // RM_FileScan
 //

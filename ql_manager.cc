@@ -61,39 +61,38 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     int i;
     int nbTuples = 0;
 
+    // Tree plan
     QL_TreePlan *pTreePlan = new QL_TreePlan(_pSmm, _pIxm, _pRmm);
 
+    // Fill the vectors
     std::vector<RelAttr> vSelAttrs;
     std::vector<const char*> vRelations;
     std::vector<Condition> vConditions;
 
-    cout << "nbAttr: " << nSelAttrs << endl;
-
     for(int i=0; i<nSelAttrs; i++)
-    {
         vSelAttrs.push_back(selAttrs[i]);
-    }
-    for(int i=0; i<nRelations; i++)
-    {
-        vRelations.push_back(relations[i]);
-    }
-    for(int i=0; i<nConditions; i++)
-    {
-        vConditions.push_back(conditions[i]);
-    }
 
+    for(int i=0; i<nRelations; i++)
+        vRelations.push_back(relations[i]);
+
+    for(int i=0; i<nConditions; i++)
+        vConditions.push_back(conditions[i]);
+
+    // Post check the data
+    if((rc = PostCheck(vSelAttrs, vRelations, vConditions)))
+        return rc;
+
+    // Post parse the data
     if((rc = PostParse(vSelAttrs, vRelations, vConditions)))
         return rc;
 
     cout << "QL Select\n";
 
-    cout << "   nSelAttrs = " << vSelAttrs.size() << "\n";
+    // Get the header structure
     DataAttrInfo *tInfos = new DataAttrInfo[vSelAttrs.size()];
     int startOffset = 0;
     for (i = 0; i < vSelAttrs.size(); i++)
     {
-        cout << "   selAttrs[" << i << "]:" << vSelAttrs[i] << "\n";
-
         if((rc = _pSmm->GetAttributeStructure(vSelAttrs[i].relName, vSelAttrs[i].attrName, tInfos[i])))
             return rc;
 
@@ -102,42 +101,34 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     }
 
 
-    cout << "   nRelations = " << vRelations.size() << "\n";
-    for (i = 0; i < vRelations.size(); i++)
-        cout << "   relations[" << i << "] " << vRelations[i] << "\n";
-
-    cout << "   nCondtions = " << vConditions.size() << "\n";
-    for (i = 0; i < vConditions.size(); i++)
-        cout << "   conditions[" << i << "]:" << vConditions[i] << "\n";
-
-
-
-
     // build the tree query plan
     if((rc = pTreePlan->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
         return rc;
 
     // print the query plan
-    pTreePlan->Print(' ',0);
-
-    // get the information
-    int nAttrInfos = 0;
-    DataAttrInfo *tAttrInfos = NULL;
-    char *pData = NULL;
+    if(bQueryPlans)
+        pTreePlan->Print(' ', 0);
 
     // prepare the printer
     Printer printer(tInfos, vSelAttrs.size());
     printer.PrintHeader(cout);
 
+    // prepare the loop vars
+    int nAttrInfos = 0;
+    DataAttrInfo *tAttrInfos = NULL;
+    char *pData = NULL;
+
+    // loop on the entries returned by the query plan
     while(!rc)
     {
+        // get next entry
         rc = pTreePlan->GetNext(nAttrInfos, tAttrInfos, pData);
 
         if(!rc && pData)
         {
-            //            cout << "start print" << endl;
+            // print the tuple
             printer.Print(cout, pData);
-            //            cout << "end print" << endl;
+
             if(pData != NULL)
             {
                 delete[] pData;
@@ -153,15 +144,11 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     if(rc == QL_EOF)
         rc = OK_RC;
 
-    cout << "delete tInfos" << endl;
-
     if(tInfos != NULL)
     {
         delete[] tInfos;
         tInfos = NULL;
     }
-
-    cout << "Delete pTree Plan" << endl;
 
     if(pTreePlan != NULL)
     {
@@ -203,9 +190,12 @@ RC QL_Manager::Delete(const char *relName,
     int nbTuples = 0;
     RelAttr relAttr;
     RM_FileHandle fh;
+    IX_IndexHandle *pIxh = NULL;
 
+    // Tree plan
     QL_TreePlanDelete *pTreePlanDelete = new QL_TreePlanDelete(_pSmm, _pIxm, _pRmm);
 
+    // Fill the vectors
     std::vector<RelAttr> vSelAttrs;
     std::vector<const char*> vRelations;
     std::vector<Condition> vConditions;
@@ -221,38 +211,26 @@ RC QL_Manager::Delete(const char *relName,
     vRelations.push_back(relName);
 
     for(int i=0; i<nConditions; i++)
-    {
         vConditions.push_back(conditions[i]);
-    }
 
+    // Post check the data
+    if((rc = PostCheck(vSelAttrs, vRelations, vConditions)))
+        return rc;
+
+    // Post parse the data
     if((rc = PostParse(vSelAttrs, vRelations, vConditions)))
         return rc;
 
-    cout << "   nSelAttrs = " << vSelAttrs.size() << "\n";
     DataAttrInfo *tInfos = new DataAttrInfo[vSelAttrs.size()];
     int startOffset = 0;
     for (i = 0; i < vSelAttrs.size(); i++)
     {
-        cout << "   selAttrs[" << i << "]:" << vSelAttrs[i] << "\n";
-
         if((rc = _pSmm->GetAttributeStructure(vSelAttrs[i].relName, vSelAttrs[i].attrName, tInfos[i])))
             return rc;
 
         tInfos[i].offset = startOffset;
         startOffset += tInfos[i].attrLength;
     }
-
-
-    cout << "   nRelations = " << vRelations.size() << "\n";
-    for (i = 0; i < vRelations.size(); i++)
-        cout << "   relations[" << i << "] " << vRelations[i] << "\n";
-
-    cout << "   nCondtions = " << vConditions.size() << "\n";
-    for (i = 0; i < vConditions.size(); i++)
-        cout << "   conditions[" << i << "]:" << vConditions[i] << "\n";
-
-
-
 
     // build the tree query plan
     if((rc = pTreePlanDelete->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
@@ -265,12 +243,22 @@ RC QL_Manager::Delete(const char *relName,
     Printer printer(tInfos, vSelAttrs.size());
     printer.PrintHeader(cout);
 
-
-
+    // open the relation file
     if (rc = _pRmm->OpenFile(vRelations[0], fh))
        return rc;
 
+    // if needed open index handler
+//    for(int i=0; i<vSelAttrs.size(); i++)
+//    {
+//        if(tInfos[i].indexNo >= 0 && strcmp(tInfos[i].attrName, updatedAttribute.attrName) == 0)
+//        {
+//            pIxh = new IX_IndexHandle();
+//            if((rc = _pIxm->OpenIndex(vRelations[0], tInfos[i].indexNo, *pIxh)))
+//                return rc;
+//        }
+//    }
 
+    // loop on the entries
     while(!rc)
     {
         RC rcDelete;
@@ -278,6 +266,7 @@ RC QL_Manager::Delete(const char *relName,
         RID rid;
         char *pData = NULL;
 
+        // get next entry
         rc = pTreePlanDelete->GetNext(rec);
 
         if(!rc)
@@ -287,22 +276,36 @@ RC QL_Manager::Delete(const char *relName,
             if((rcDelete = rec.GetRid(rid)))
                 return rcDelete;
 
+            // print the tuple
             printer.Print(cout, pData);
             nbTuples++;
 
-            // delete
+            // delete from RM
             if((rcDelete = fh.DeleteRec(rid)))
                 return rcDelete;
 
-            // -------------------
-            // NB: STILL HAVE TO DELETE FROM INDEX
-            // TO BE DONE
-            // -------------------
+            // delete from IX
+            if((pIxh != NULL))
+            {
 
+            }
         }
     }
 
     cout << endl << nbTuples << " tuple(s)" << endl << endl;
+
+
+    if(pIxh != NULL)
+    {
+        if((rc = _pIxm->CloseIndex(*pIxh)))
+            return rc;
+    }
+
+    if(pIxh != NULL)
+    {
+        delete pIxh;
+        pIxh = NULL;
+    }
 
     if (rc = _pRmm->CloseFile(fh))
        return rc;
@@ -310,15 +313,11 @@ RC QL_Manager::Delete(const char *relName,
     if(rc == QL_EOF)
         rc = OK_RC;
 
-    cout << "delete tInfos" << endl;
-
     if(tInfos != NULL)
     {
         delete[] tInfos;
         tInfos = NULL;
     }
-
-    cout << "Delete pTree Plan" << endl;
 
     if(pTreePlanDelete != NULL)
     {
@@ -348,11 +347,12 @@ RC QL_Manager::Update(const char *relName,
     RelAttr relAttr;
     RM_FileHandle fh;
     IX_IndexHandle *pIxh = NULL;
-
-    QL_TreePlanDelete *pTreePlanDelete = new QL_TreePlanDelete(_pSmm, _pIxm, _pRmm);
-
     DataAttrInfo updatedAttribute;
 
+    // Tree query plan
+    QL_TreePlanDelete *pTreePlanDelete = new QL_TreePlanDelete(_pSmm, _pIxm, _pRmm);
+
+    // Fill the vectors
     std::vector<RelAttr> vSelAttrs;
     std::vector<const char*> vRelations;
     std::vector<Condition> vConditions;
@@ -368,38 +368,26 @@ RC QL_Manager::Update(const char *relName,
     vRelations.push_back(relName);
 
     for(int i=0; i<nConditions; i++)
-    {
         vConditions.push_back(conditions[i]);
-    }
 
+    // Post check the data
+    if((rc = PostCheck(vSelAttrs, vRelations, vConditions)))
+        return rc;
+
+    // Post parse the data
     if((rc = PostParse(vSelAttrs, vRelations, vConditions)))
         return rc;
 
-    cout << "   nSelAttrs = " << vSelAttrs.size() << "\n";
     DataAttrInfo *tInfos = new DataAttrInfo[vSelAttrs.size()];
     int startOffset = 0;
     for (i = 0; i < vSelAttrs.size(); i++)
     {
-        cout << "   selAttrs[" << i << "]:" << vSelAttrs[i] << "\n";
-
         if((rc = _pSmm->GetAttributeStructure(vSelAttrs[i].relName, vSelAttrs[i].attrName, tInfos[i])))
             return rc;
 
         tInfos[i].offset = startOffset;
         startOffset += tInfos[i].attrLength;
     }
-
-
-    cout << "   nRelations = " << vRelations.size() << "\n";
-    for (i = 0; i < vRelations.size(); i++)
-        cout << "   relations[" << i << "] " << vRelations[i] << "\n";
-
-    cout << "   nCondtions = " << vConditions.size() << "\n";
-    for (i = 0; i < vConditions.size(); i++)
-        cout << "   conditions[" << i << "]:" << vConditions[i] << "\n";
-
-
-
 
     // build the tree query plan
     if((rc = pTreePlanDelete->BuildFromQuery(vSelAttrs,vRelations,vConditions)))
@@ -416,7 +404,6 @@ RC QL_Manager::Update(const char *relName,
     if((rc = _pSmm->GetAttributeStructure(relName, updAttr.attrName, updatedAttribute)))
         return rc;
 
-
     // open RM file handler
     if((rc = _pRmm->OpenFile(vRelations[0], fh)))
        return rc;
@@ -432,7 +419,7 @@ RC QL_Manager::Update(const char *relName,
         }
     }
 
-
+    // loop on the entries
     while(!rc)
     {
         RC rcDelete;
@@ -446,28 +433,26 @@ RC QL_Manager::Update(const char *relName,
             if((rcDelete = rec.GetData(pData)))
                 return rcDelete;
 
+            // update the buffer
             memcpy(pData + updatedAttribute.offset, rhsValue.data, updatedAttribute.attrLength);
 
+            // if it's a string, fill with '\0'
             if(updatedAttribute.attrType == STRING)
                 fillString(pData + updatedAttribute.offset, updatedAttribute.attrLength);
 
+            // print the tuple
             printer.Print(cout, pData);
             nbTuples++;
 
-            // update
+            // update from RM
             if((rcDelete = fh.UpdateRec(rec)))
                 return rcDelete;
 
+            // update from IX
             if((pIxh != NULL))
             {
 
             }
-
-            // -------------------
-            // NB: STILL HAVE TO DELETE FROM INDEX
-            // TO BE DONE
-            // -------------------
-
         }
     }
 
@@ -492,15 +477,11 @@ RC QL_Manager::Update(const char *relName,
     if(rc == QL_EOF)
         rc = OK_RC;
 
-    cout << "delete tInfos" << endl;
-
     if(tInfos != NULL)
     {
         delete[] tInfos;
         tInfos = NULL;
     }
-
-    cout << "Delete pTree Plan" << endl;
 
     if(pTreePlanDelete != NULL)
     {
@@ -511,11 +492,64 @@ RC QL_Manager::Update(const char *relName,
 
     cout << "END OF QUERY : " << rc << endl;
     return rc;
-
-
-
 }
 
+
+RC QL_Manager::PostCheck(std::vector<RelAttr> &vSelAttrs,
+                         std::vector<const char*> &vRelations,
+                         std::vector<Condition> &vConditions)
+{
+    RC rc = OK_RC;
+
+    // double relation
+    for(unsigned int i=0; i<vRelations.size(); i++)
+    {
+        for(unsigned int j=i+1; j<vRelations.size(); j++)
+        {
+            if(strcmp(vRelations[i], vRelations[j]) == 0)
+            {
+                return QL_TWICE_RELATION;
+            }
+        }
+    }
+
+    // attribute's relation does not appear in relations list
+    for(unsigned int i=0; i<vSelAttrs.size(); i++)
+    {
+        if(vSelAttrs[i].relName != NULL)
+        {
+            bool inRelationList = false;
+            for(unsigned int j=0; j<vRelations.size(); j++)
+            {
+                if(strcmp(vSelAttrs[i].relName, vRelations[j]) == 0)
+                {
+                    inRelationList = true;
+                    break;
+                }
+            }
+
+            if(!inRelationList)
+                return QL_NO_MATCHING_RELATION;
+
+        }
+        else
+        {
+            if(vRelations.size() != 1)
+                return QL_UNDEFINED_RELATION;
+        }
+
+        for(unsigned int j=i+1; j<vRelations.size(); j++)
+        {
+            if(strcmp(vRelations[i], vRelations[j]) == 0)
+            {
+                return QL_TWICE_RELATION;
+            }
+        }
+    }
+
+
+    return rc;
+}
 
 RC QL_Manager::PostParse(std::vector<RelAttr> &vSelAttrs,
                          std::vector<const char*> &vRelations,
@@ -556,34 +590,6 @@ RC QL_Manager::PostParse(std::vector<RelAttr> &vSelAttrs,
             }
         }
     }
-
-    //    if(vRelations.size() == 1)
-    //    {
-    //        for(unsigned int i=0; i<vSelAttrs.size(); i++)
-    //        {
-    //            if(vSelAttrs[i].relName == NULL)
-    //            {
-    //                vSelAttrs[i].relName = new char[MAXSTRINGLEN];
-    //                strcpy(vSelAttrs[i].relName, vRelations[0]);
-    //            }
-    //        }
-
-    //        for(unsigned int i=0; i<vConditions.size(); i++)
-    //        {
-    //            if(vConditions[i].lhsAttr.relName == NULL)
-    //            {
-    //                vConditions[i].lhsAttr.relName = new char[MAXSTRINGLEN];
-    //                strcpy(vConditions[i].lhsAttr.relName, vRelations[0]);
-    //            }
-
-    //            if(vConditions[i].bRhsIsAttr && vConditions[i].rhsAttr.relName == NULL)
-    //            {
-    //                vConditions[i].rhsAttr.relName = new char[MAXSTRINGLEN];
-    //                strcpy(vConditions[i].rhsAttr.relName, vRelations[0]);
-    //            }
-    //        }
-
-    //    }
 
     return rc;
 }

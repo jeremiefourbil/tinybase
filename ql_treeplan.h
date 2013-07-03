@@ -103,7 +103,7 @@ private:
 
     int _nOperationAttributes;
     DataAttrInfo *_operationAttributes;
-    std::string _sRelname;
+    std::string _sRelName;
 
     std::vector<Condition> _conditions;
 

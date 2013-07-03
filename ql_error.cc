@@ -14,9 +14,9 @@ using namespace std;
 // Error table
 //
 static char *QL_WarnMsg[] = {
-    //  (char*)"page pinned in buffer",
-    //  (char*)"page is not in the buffer",
-    //  (char*)"invalid page number",
+      (char*)"a relation appears more than once",
+      (char*)"an attribute's relation does not appear in relations list",
+      (char*)"an attribute's relation is NULL and the relation could not be identified"
     //  (char*)"file open",
     //  (char*)"invalid file descriptor (file closed)",
     //  (char*)"page already free",

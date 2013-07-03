@@ -28,8 +28,8 @@ RC IT_FileScan::Open()
     if((rc = _rmfs.OpenScan(_rmfh, _iAttr.attrType, _iAttr.attrLength, _iAttr.offset, _scanOp, _value)))
         return rc;
 
-    cout << "type: " << _iAttr.attrType << endl;
-    cout << "length: " << _iAttr.attrLength << endl;
+//    cout << "type: " << _iAttr.attrType << endl;
+//    cout << "length: " << _iAttr.attrLength << endl;
 
     if((rc = _pSmm->GetRelationStructure(_relName, _dAttr, _nAttr)))
         return rc;
@@ -69,7 +69,7 @@ RC IT_FileScan::GetNext(int &nAttr, DataAttrInfo *&pAttr, char *&pData)
     pData = new char[recordSize];
     memcpy(pData, pRecData, recordSize);
 
-    cout << "one" << endl;
+//    cout << "one" << endl;
 
     nAttr = _nAttr;
     pAttr = _dAttr;
