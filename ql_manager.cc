@@ -22,6 +22,8 @@
 #include "rm.h"
 #include "sm_internal.h"
 
+#include "ql_internal.h"
+
 
 
 using namespace std;

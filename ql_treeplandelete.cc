@@ -11,6 +11,7 @@
 #include "it_filescan.h"
 
 #include "ql_common.h"
+#include "ql_internal.h"
 
 using namespace std;
 
@@ -366,24 +367,7 @@ RC QL_TreePlanDelete::PerformSelect(RM_Record &oRecord)
 
             if(_conditions[0].rhsValue.type == STRING)
             {
-                char nullChar = '\0';
-                bool fillString = false;
-                for(int i=0; i<attr.attrLength; i++)
-                {
-                    if(fillString)
-                    {
-                        memcpy(_conditions[0].rhsValue.data + i, &nullChar, sizeof(char));
-                    }
-                    else
-                    {
-                        char c;
-                        memcpy(&c, _conditions[0].rhsValue.data + i, sizeof(char));
-                        if(c == '\0')
-                        {
-                            fillString = true;
-                        }
-                    }
-                }
+                fillString((char*) _conditions[0].rhsValue.data, attr.attrLength);
             }
 
             // Index use
