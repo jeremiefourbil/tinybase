@@ -36,6 +36,19 @@ from student
 where student.no <= 6;
 /* ==> 6 tuples */
 
+/* <= & > */
+select *
+from student
+where student.no <= 6 and student.no > 6;
+/* ==> 0 tuple */
+
+/* = & = */
+select *
+from student
+where student.no = 6 and student.no = 5;
+/* ==> 0 tuple */
+
+
 /** string type **/
 select *
 from student

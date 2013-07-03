@@ -1,0 +1,41 @@
+/**************************/
+/* mixed tests w/ indexes*/
+/**************************/
+
+create table stars(starid  i, stname  c20, plays  c12, soapid  i);
+create index stars(starid);
+load stars("../stars.data");
+
+create table soaps(soapid  i, sname  c28, network  c4, rating  f);
+load soaps("../soaps.data");
+
+select stars.soapid, soaps.soapid
+from stars, soaps
+where stars.soapid = soaps.soapid and stars.soapid = 0;
+/* ==> 3 tuples */
+
+select stars.soapid, soaps.soapid
+from stars, soaps
+where stars.soapid = soaps.soapid and soaps.soapid = 0;
+/* ==> 3 tuples */
+
+select stars.soapid, soaps.soapid
+from stars, soaps
+where stars.soapid = soaps.soapid and stars.soapid > 5;
+/* ==> 8 tuples */
+
+select stars.soapid, soaps.soapid
+from stars, soaps
+where stars.soapid = soaps.soapid and stars.soapid > 5 and soaps.soapid < 8;
+/* ==> 4 tuples */
+
+select stars.soapid, soaps.soapid, stars.starid
+from stars, soaps
+where stars.soapid = soaps.soapid and stars.starid < 6 and soaps.soapid = 6;
+/* ==> 2 tuples */
+
+/* cleaning up */
+drop table soaps;
+drop table stars;
+
+exit;
