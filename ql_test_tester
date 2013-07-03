@@ -5,7 +5,7 @@
 #
 # DBHOME:  This is the directory where dbcreate, redbase, and dbdestroy are
 #
-set DBHOME = ../src
+set DBHOME = .
 
 #
 # TESTSDIR:  This is the directory where the files of test queries

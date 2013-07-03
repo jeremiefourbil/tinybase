@@ -3,15 +3,65 @@
 /* the mechanism outlined in class and in the          */
 /* handouts) with other students.                      */
 
+/**************************/
+/* load and first select */
+/**************************/
 create table student(no i, name c20, dept c4, GPA f, comment c3);
 load student("../student.data");
 
 print student;
+
+
 select student.no, student.name, student.comment
 from student;
+/* ==> 15 tuples */
 
 select *
 from student
 where student.no > 5;
+/* ==> 10 tuples */
+
+/*************/
+/* OUR TESTS */
+/*************/
+
+/* select all fields by their explicit names */
+select student.no, student.name, student.dept, student.GPA, student.comment
+from student;
+/* ==> 15 tuples */
+
+/* select all fields by their implicit names */
+select no, name, dept, GPA, comment
+from student;
+/* ==> 15 tuples */
+
+
+/* test if the star is well parsed */
+select *
+from student;
+/* ==> 15 tuples */
+
+/* test select with indexes */
+create table stars(starid  i, stname  c20, plays  c12, soapid  i);
+/* build some indices on stars */
+create index stars(starid);
+create index stars(stname);
+
+/* load tuples from ./tests/stars.data */
+load stars("../stars.data");
+
+/* select all fields by their explicit names */
+select stars.starid, stars.stname, stars.plays, stars.soapid
+from stars;
+/* ==> 29 tuples */
+
+/* test if the star is well parsed */
+select *
+from stars;
+/* ==> 29 tuples */
+
+/* cleaning up */
+drop table student;
+drop table stars;
 
 exit;
