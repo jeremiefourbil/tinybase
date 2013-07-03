@@ -44,9 +44,6 @@ QL_TreePlan::QL_TreePlan(SM_Manager *ipSmm, IX_Manager *ipIxm, RM_Manager *ipRmm
 
 QL_TreePlan::~QL_TreePlan()
 {
-
-    cout << "Start delete: " << nodeOperationAsString[_nodeOperation] << endl;
-
     _pSmm = NULL;
 
     if(_nodeAttributes != NULL)
@@ -55,23 +52,17 @@ QL_TreePlan::~QL_TreePlan()
         _nodeAttributes = NULL;
     }
 
-    cout << "1" << endl;
-
     if(_operationAttributes != NULL)
     {
         delete[] _operationAttributes;
         _operationAttributes = NULL;
     }
 
-    cout << "2" << endl;
-
     if(_pJoinData != NULL)
     {
         delete[] _pJoinData;
         _pJoinData = NULL;
     }
-
-    cout << "3" << endl;
 
     if(_pLc != NULL)
     {
