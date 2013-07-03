@@ -51,4 +51,7 @@ delete from foo where name = "bar1";
 print foo;
 /* ==> 6 tuples */
 
+/* cleaning up */
+drop table foo;
+
 exit;

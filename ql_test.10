@@ -1,0 +1,30 @@
+/**********/
+/* update */
+/**********/
+create table foo(fooid i, name c20);
+create index foo(fooid);
+
+insert into foo values(0,"bar0");
+insert into foo values(1,"bar1");
+insert into foo values(2,"bar2");
+insert into foo values(3,"bar3");
+insert into foo values(4,"bar4");
+insert into foo values(5,"bar5");
+insert into foo values(6,"bar6");
+
+print foo;
+/* ==> 7 tuples */
+
+update foo set name = "bar00" where fooid = 0;
+/* ==> 1 tuple */
+print foo;
+
+update foo set name = "barbar" where fooid > 0;
+/* ==> 1 tuple */
+print foo;
+
+
+/* cleaning up */
+drop table foo;
+
+exit;
