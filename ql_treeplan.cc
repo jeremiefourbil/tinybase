@@ -1018,6 +1018,30 @@ RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, 
             if((rc = _pSmm->GetAttributeStructure(_conditions[0].lhsAttr.relName, _conditions[0].lhsAttr.attrName, attr)))
                 return rc;
 
+
+            if(_conditions[0].rhsValue.type == STRING)
+            {
+                char nullChar = '\0';
+                bool fillString = false;
+                for(int i=0; i<attr.attrLength; i++)
+                {
+                    if(fillString)
+                    {
+                        memcpy(_conditions[0].rhsValue.data + i, &nullChar, sizeof(char));
+                    }
+                    else
+                    {
+                        char c;
+                        memcpy(&c, _conditions[0].rhsValue.data + i, sizeof(char));
+                        if(c == '\0')
+                        {
+                            fillString = true;
+                        }
+                    }
+                }
+            }
+
+
             // Index use
             if(attr.indexNo >= 0)
             {

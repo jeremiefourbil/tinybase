@@ -6,6 +6,9 @@
 
 #include "rm_internal.h"
 
+#include <iostream>
+using namespace std;
+
 // 
 // RM_FileScan
 //
@@ -284,10 +287,41 @@ void RM_FileScan::FindNextRecInCurPage(char *pData)
 
       case STRING:
          cmp = memcmp(pData + pFileHandle->fileHdr.pageHeaderSize
-                      + curSlotNum * pFileHandle->fileHdr.recordSize 
+                      + curSlotNum * pFileHandle->fileHdr.recordSize
                       + attrOffset,
                       value,
                       attrLength);
+          char *str1 = new char[MAXSTRINGLEN];
+          char *str2 = new char[MAXSTRINGLEN];
+
+          strcpy(str1, (char*) (pData + pFileHandle->fileHdr.pageHeaderSize
+                                + curSlotNum * pFileHandle->fileHdr.recordSize
+                                + attrOffset));
+
+          strcpy(str2, (char*) value);
+
+//         if(strncmp(str1, str2, attrLength) == 0 && cmp != 0)
+//         {
+             cout << "new strings: " << str1 << " / " << str2 << endl;
+             for(int m=0; m<attrLength; m++)
+             {
+                 char c1, c2;
+                 memcpy(&c1,
+                        pData + pFileHandle->fileHdr.pageHeaderSize
+                        + curSlotNum * pFileHandle->fileHdr.recordSize
+                        + attrOffset + m,
+                        sizeof(char));
+                 memcpy(&c2,
+                        value + m,
+                        sizeof(char));
+
+                 cout << c1 << " vs " << c2 << endl;
+             }
+//         }
+
+         delete str1;
+         delete str2;
+
          break;
       }
 

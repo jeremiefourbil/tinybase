@@ -364,16 +364,38 @@ RC QL_TreePlanDelete::PerformSelect(RM_Record &oRecord)
             if((rc = _pSmm->GetAttributeStructure(_sRelName.c_str(), _conditions[0].lhsAttr.attrName, attr)))
                 return rc;
 
+            if(_conditions[0].rhsValue.type == STRING)
+            {
+                char nullChar = '\0';
+                bool fillString = false;
+                for(int i=0; i<attr.attrLength; i++)
+                {
+                    if(fillString)
+                    {
+                        memcpy(_conditions[0].rhsValue.data + i, &nullChar, sizeof(char));
+                    }
+                    else
+                    {
+                        char c;
+                        memcpy(&c, _conditions[0].rhsValue.data + i, sizeof(char));
+                        if(c == '\0')
+                        {
+                            fillString = true;
+                        }
+                    }
+                }
+            }
+
             // Index use
-//            if(attr.indexNo >= 0)
-//            {
-//                cout << "index scan" << endl;
-//                _pScanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, _sRelName.c_str(), _conditions[0].op, attr, _conditions[0].rhsValue.data);
-//            }
-//            else
-//            {
-                _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _sRelName.c_str(), _conditions[0].op, attr, _conditions[0].rhsValue.data);
-//            }
+            //            if(attr.indexNo >= 0)
+            //            {
+            //                cout << "index scan" << endl;
+            //                _pScanIterator = new IT_IndexScan(_pRmm, _pIxm, _pSmm, _sRelName.c_str(), _conditions[0].op, attr, _conditions[0].rhsValue.data);
+            //            }
+            //            else
+            //            {
+            _pScanIterator = new IT_FileScan(_pRmm, _pSmm, _sRelName.c_str(), _conditions[0].op, attr, _conditions[0].rhsValue.data);
+            //            }
         }
         else
         {
