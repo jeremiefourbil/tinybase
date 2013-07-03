@@ -482,8 +482,6 @@ RC QL_TreePlan::BuildFromCartesianProduct(const std::vector<RelAttr> &selAttrs,
 {
     RC rc = OK_RC;
 
-    int relationOccurrences = 0;
-
 //    cout << "Build from cartesian product" << endl;
 
     _nodeOperation = CARTESIANPRODUCT;
@@ -528,12 +526,7 @@ RC QL_TreePlan::BuildFromCartesianProduct(const std::vector<RelAttr> &selAttrs,
         // the relation matches the iterator
         if(strcmp(relations[0],relations[i])==0)
         {
-            if(relationOccurrences < 1)
-            {
-                right_relations.push_back(relations[i]);
-            }
-
-            relationOccurrences++;
+            right_relations.push_back(relations[i]);
         }
         // the relation does not match the iterator
         else
@@ -556,27 +549,6 @@ RC QL_TreePlan::BuildFromCartesianProduct(const std::vector<RelAttr> &selAttrs,
             left_selAttrs.push_back(selAttrs[i]);
         }
     }
-
-    if(relationOccurrences > 1)
-        return QL_EOF;
-
-//    for(int i=1; i<relationOccurrences; i++)
-//    {
-//        left_relations.push_back(right_relations[0]);
-//        cout << "relation copied" << endl;
-//    }
-
-//    if(relationOccurrences > 1)
-//    {
-//        for(unsigned j=0; j<right_selAttrs.size(); j++)
-//        {
-//            left_selAttrs.push_back(right_selAttrs[j]);
-//        }
-//        for(unsigned j=0; j<right_conditions.size(); j++)
-//        {
-//            left_conditions.push_back(right_conditions[j]);
-//        }
-//    }
 
     // build the left child
     if((rc = _pLc->BuildFromQuery(left_selAttrs, left_relations, left_conditions)))
@@ -1111,6 +1083,8 @@ RC QL_TreePlan::PerformCartesianProduct(int &nAttributes, DataAttrInfo *&tNodeAt
         if(_pJoinData != NULL)
         {
             delete[] _pJoinData;
+            _pJoinData = NULL;
+
             _nodeJoinAttributes = NULL;
         }
 
@@ -1119,6 +1093,8 @@ RC QL_TreePlan::PerformCartesianProduct(int &nAttributes, DataAttrInfo *&tNodeAt
             if(right_pData != NULL)
             {
                 delete[] right_pData;
+                right_pData = NULL;
+
                 right_nodeAttributes = NULL;
             }
             return rc;
@@ -1129,6 +1105,8 @@ RC QL_TreePlan::PerformCartesianProduct(int &nAttributes, DataAttrInfo *&tNodeAt
             if(_pJoinData != NULL)
             {
                 delete[] _pJoinData;
+                _pJoinData = NULL;
+
                 _nodeJoinAttributes = NULL;
             }
 
