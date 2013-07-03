@@ -65,8 +65,6 @@ RC IT_IndexScan::Open()
     return IX_ALREADY_OPEN;
   }
 
-//  cout << "IXSTARTS" << endl;
-
   RC rc = OK_RC;
 
   if((rc = _pRmm->OpenFile(_relName, _rmfh)))
