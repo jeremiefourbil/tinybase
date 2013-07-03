@@ -1,0 +1,54 @@
+/*************/
+/* selection */
+/*************/
+
+create table student(no i, name c20, dept c4, GPA f, comment c3);
+load student("../student.data");
+
+/** numeric type **/
+/* = */
+select *
+from student
+where student.no = 1;
+/* ==> 1 tuple */
+
+/* > */
+select *
+from student
+where student.no > 6;
+/* ==> 9 tuples */
+
+/* >= */
+select *
+from student
+where student.no >= 6;
+/* ==> 10 tuples */
+
+/* < */
+select *
+from student
+where student.no < 6;
+/* ==> 5 tuples */
+
+/* <= */
+select *
+from student
+where student.no <= 6;
+/* ==> 6 tuples */
+
+/** string type **/
+select *
+from student
+where student.name = "Adams";
+/* ==> 1 tuple */
+
+
+select *
+from student
+where student.name >= "Noorda";
+/* ==> 2 tuples */
+
+/* cleaning up */
+drop table student;
+
+exit;
