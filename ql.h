@@ -76,7 +76,8 @@ void QL_PrintError(RC rc);
 #define QL_TWICE_RELATION             (START_QL_WARN + 0)
 #define QL_NO_MATCHING_RELATION       (START_QL_WARN + 1)
 #define QL_UNDEFINED_RELATION         (START_QL_WARN + 2)
-#define QL_LASTWARN                   QL_UNDEFINED_RELATION
+#define QL_BAD_JOIN                   (START_QL_WARN + 3)
+#define QL_LASTWARN                   QL_BAD_JOIN
 
 #define QL_EOF                        PF_EOF
 
