@@ -1004,12 +1004,6 @@ RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, 
                 return rc;
 
 
-//            if(_conditions[0].rhsValue.type == STRING)
-//            {
-//                fillString((char*) _conditions[0].rhsValue.data, attr.attrLength);
-//            }
-
-
             // Index use
             if(attr.indexNo >= 0)
             {

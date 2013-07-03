@@ -383,20 +383,9 @@ RC QL_Manager::Delete(const char *relName,
                 {
                     if(tpIxh[i] != NULL)
                     {
-                        cout << "indexed attribute spotted" << endl;
-                        tpIxh[i]->DisplayTree();
-
-//                        char *value = new char[tAttributes[i].attrLength];
-//                        memcpy(value, pData + tAttributes[i].offset, tAttributes[i].attrLength);
                         if((rcDelete = tpIxh[i]->DeleteEntry(pData + tAttributes[i].offset, rid)))
                             return rc;
-
-//                        delete[] value;
-
-                        tpIxh[i]->DisplayTree();
                     }
-                    else
-                        cout << "nononon" << endl;
                 }
             }
 
@@ -411,6 +400,7 @@ RC QL_Manager::Delete(const char *relName,
 
     cout << endl << nbTuples << " tuple(s)" << endl << endl;
 
+    cout << "tpixh" << endl;
 
     if(tpIxh != NULL)
     {
@@ -424,11 +414,13 @@ RC QL_Manager::Delete(const char *relName,
         }
     }
 
+    cout << "close" << endl;
+
     if (rc = _pRmm->CloseFile(fh))
         return rc;
 
 
-
+    cout << "tinfos" << endl;
 
     delete[] tInfos;
     tInfos = NULL;
