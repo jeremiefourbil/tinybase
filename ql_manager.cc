@@ -78,14 +78,16 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     for(int i=0; i<nConditions; i++)
         vConditions.push_back(conditions[i]);
 
+    // Post parse the data
+    if((rc = PostParse(vSelAttrs, vRelations, vConditions)))
+        return rc;
+
 
     // Post check the data
     if((rc = PostCheck(vSelAttrs, vRelations, vConditions)))
         return rc;
 
-    // Post parse the data
-    if((rc = PostParse(vSelAttrs, vRelations, vConditions)))
-        return rc;
+
 
     cout << "QL Select\n";
 
