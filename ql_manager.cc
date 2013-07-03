@@ -147,11 +147,15 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     if(rc == QL_EOF)
         rc = OK_RC;
 
+    cout << "tinfos" << endl;
+
     if(tInfos != NULL)
     {
         delete[] tInfos;
         tInfos = NULL;
     }
+
+    cout << "ptreeplan" << endl;
 
     if(pTreePlan != NULL)
     {
