@@ -1,0 +1,25 @@
+/**************/
+/* projection */
+/**************/
+
+create table student(no i, name c20, dept c4, GPA f, comment c3);
+load student("../student.data");
+
+select student.no, student.name, student.comment
+from student;
+/* ==> 15 tuples */
+
+/* explicit name */
+select student.name
+from student;
+/* ==> 15 tuples */
+
+/* implicit name */
+select name
+from student;
+/* ==> 15 tuples */
+
+/* cleaning up */
+drop table student;
+
+exit;

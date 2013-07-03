@@ -1,0 +1,19 @@
+/*****************/
+/* cross-product */
+/*****************/
+
+create table student(no i, name c20, dept c4, GPA f, comment c3);
+load student("../student.data");
+
+create table soaps(soapid  i, sname  c28, network  c4, rating  f);
+load soaps("../soaps.data");
+
+select student.no, soaps.soapid
+from student, soaps;
+/* ==> 135 tuples */
+
+/* cleaning up */
+drop table soaps;
+drop table student;
+
+exit;

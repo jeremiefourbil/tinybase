@@ -1,0 +1,18 @@
+/**********/
+/* insert */
+/**********/
+create table foo(fooid i, name c20);
+create index foo(fooid);
+
+insert into foo values(0,"bar0");
+insert into foo values(1,"bar1");
+insert into foo values(2,"bar2");
+
+/* print the content */
+print foo;
+/* ==> 3 tuples */
+
+/* cleaning up */
+drop table foo;
+
+exit;
