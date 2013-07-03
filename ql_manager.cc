@@ -448,6 +448,9 @@ RC QL_Manager::Update(const char *relName,
 
             memcpy(pData + updatedAttribute.offset, rhsValue.data, updatedAttribute.attrLength);
 
+            if(updatedAttribute.attrType == STRING)
+                fillString(pData + updatedAttribute.offset, updatedAttribute.attrLength);
+
             printer.Print(cout, pData);
             nbTuples++;
 
