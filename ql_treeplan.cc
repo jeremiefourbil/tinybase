@@ -229,7 +229,7 @@ RC QL_TreePlan::BuildFromComparison(const std::vector<RelAttr> &selAttrs,
 {
     RC rc = OK_RC;
 
-    //cout << "Build from comparison" << endl;
+//    cout << "Build from comparison" << endl;
 
     _nodeOperation = COMPARISON;
     _sRelName.assign(relations[0]);
@@ -253,7 +253,7 @@ RC QL_TreePlan::BuildFromProjection(const std::vector<RelAttr> &selAttrs,
 {
     RC rc = OK_RC;
 
-    //cout << "Build from projection" << endl;
+//    cout << "Build from projection" << endl;
 
     _nodeOperation = PROJECTION;
 
@@ -273,7 +273,7 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
 {
     RC rc = OK_RC;
 
-    cout << "Build from join" << endl;
+//    cout << "Build from join" << endl;
 
     _nodeOperation = JOIN;
 
@@ -432,7 +432,7 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
     if((_pRc->BuildFromQuery(right_selAttrs, right_relations, right_conditions)))
         goto err_return;
 
-    cout << "End Build from join" << endl;
+//    cout << "End Build from join" << endl;
 
     return rc;
 
@@ -446,7 +446,7 @@ RC QL_TreePlan::BuildFromSelect(const std::vector<RelAttr> &selAttrs,
 {
     RC rc = OK_RC;
 
-    //cout << "Build from select" << endl;
+//    cout << "Build from select" << endl;
 
     _nodeOperation = SELECT;
 
@@ -809,6 +809,8 @@ RC QL_TreePlan::PerformComparison(int &nAttributes, DataAttrInfo *&tNodeAttribut
     nAttributes = _nNodeAttributes;
     tNodeAttributes = _nodeAttributes;
 
+//    cout << "End COMPARISON" << endl;
+
     return rc;
 }
 
@@ -865,6 +867,8 @@ RC QL_TreePlan::PerformProjection(int &nAttributes, DataAttrInfo *&tNodeAttribut
         delete[] left_pData;
         left_pData = NULL;
     }
+
+//    cout << "End PROJECTION" << endl;
 
     return rc;
 }
@@ -1020,10 +1024,10 @@ RC QL_TreePlan::PerformSelect(int &nAttributes, DataAttrInfo *&tNodeAttributes, 
                 return rc;
 
 
-            if(_conditions[0].rhsValue.type == STRING)
-            {
-                fillString((char*) _conditions[0].rhsValue.data, attr.attrLength);
-            }
+//            if(_conditions[0].rhsValue.type == STRING)
+//            {
+//                fillString((char*) _conditions[0].rhsValue.data, attr.attrLength);
+//            }
 
 
             // Index use

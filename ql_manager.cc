@@ -78,6 +78,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
     for(int i=0; i<nConditions; i++)
         vConditions.push_back(conditions[i]);
 
+
     // Post check the data
     if((rc = PostCheck(vSelAttrs, vRelations, vConditions)))
         return rc;
@@ -212,10 +213,6 @@ RC QL_Manager::Delete(const char *relName,
 
     for(int i=0; i<nConditions; i++)
         vConditions.push_back(conditions[i]);
-
-    // Post check the data
-    if((rc = PostCheck(vSelAttrs, vRelations, vConditions)))
-        return rc;
 
     // Post parse the data
     if((rc = PostParse(vSelAttrs, vRelations, vConditions)))
@@ -370,10 +367,6 @@ RC QL_Manager::Update(const char *relName,
     for(int i=0; i<nConditions; i++)
         vConditions.push_back(conditions[i]);
 
-    // Post check the data
-    if((rc = PostCheck(vSelAttrs, vRelations, vConditions)))
-        return rc;
-
     // Post parse the data
     if((rc = PostParse(vSelAttrs, vRelations, vConditions)))
         return rc;
@@ -513,9 +506,10 @@ RC QL_Manager::PostCheck(std::vector<RelAttr> &vSelAttrs,
         }
     }
 
-    // attribute's relation does not appear in relations list
+    // attribute's relation does appear in relations list?
     for(unsigned int i=0; i<vSelAttrs.size(); i++)
     {
+        // not null relation name
         if(vSelAttrs[i].relName != NULL)
         {
             bool inRelationList = false;
@@ -530,19 +524,80 @@ RC QL_Manager::PostCheck(std::vector<RelAttr> &vSelAttrs,
 
             if(!inRelationList)
                 return QL_NO_MATCHING_RELATION;
+            else
+            {
+                // check if the attribute exists in the relation
+                int nAttr;
+                DataAttrInfo *attr = NULL;
+                bool inAttributeList = false;
 
+                if((rc = _pSmm->GetRelationStructure(vRelations[0], attr, nAttr)))
+                    return rc;
+
+                int j=0;
+                for(j=0; j<nAttr; j++)
+                {
+                    if(strcmp(attr[j].attrName, vSelAttrs[i].attrName) == 0)
+                    {
+                        inAttributeList = true;
+                        break;
+                    }
+                }
+
+                if(attr != NULL)
+                {
+                    delete[] attr;
+                    attr = NULL;
+                }
+
+                if(!inAttributeList)
+                    return QL_NO_MATCHING_RELATION;
+            }
         }
+        // null relation name
         else
         {
+            // should be only one relation in the list
             if(vRelations.size() != 1)
                 return QL_UNDEFINED_RELATION;
-        }
 
-        for(unsigned int j=i+1; j<vRelations.size(); j++)
-        {
-            if(strcmp(vRelations[i], vRelations[j]) == 0)
+            // check if the attribute exists in the relation
+            int nAttr;
+            DataAttrInfo *attr = NULL;
+            bool inAttributeList = false;
+
+            if((rc = _pSmm->GetRelationStructure(vRelations[0], attr, nAttr)))
+                return rc;
+
+            int j=0;
+            for(j=0; j<nAttr; j++)
             {
-                return QL_TWICE_RELATION;
+                if(strcmp(attr[j].attrName, vSelAttrs[i].attrName) == 0)
+                {
+                    inAttributeList = true;
+                    break;
+                }
+            }
+
+            if(!inAttributeList)
+                return QL_NO_MATCHING_RELATION;
+            else
+            {
+//                cout << j << endl;
+//                cout << "copy (" << attr[j].attrLength << ")" << endl;
+                vSelAttrs[i].relName = new char[attr[j].attrLength];
+//                cout << "from: " << vRelations[0] << " / to: " << vSelAttrs[i].relName << endl;
+                strcpy(vSelAttrs[i].relName, vRelations[0]);
+//                cout << "copied" << endl;
+                fillString(vSelAttrs[i].relName, attr[j].attrLength);
+//                cout << vSelAttrs[i].relName << endl;
+//                cout << "end copy" << endl;
+            }
+
+            if(attr != NULL)
+            {
+                delete[] attr;
+                attr = NULL;
             }
         }
     }
@@ -567,7 +622,7 @@ RC QL_Manager::PostParse(std::vector<RelAttr> &vSelAttrs,
             int nAttr;
             DataAttrInfo *attr = NULL;
 
-            cout << vRelations[i] << endl;
+//            cout << vRelations[i] << endl;
 
             if((rc = _pSmm->GetRelationStructure(vRelations[i], attr, nAttr)))
                 return rc;

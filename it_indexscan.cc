@@ -1,5 +1,7 @@
 #include "it_indexscan.h"
 
+#include "ql_internal.h"
+
 #include <iostream>
 
 using namespace std;
@@ -7,14 +9,53 @@ using namespace std;
 IT_IndexScan::IT_IndexScan(RM_Manager *rmm, IX_Manager *ixm, SM_Manager *smm,
                            const char* relName, CompOp scanOp, DataAttrInfo &dAttr, void *value):
     _pRmm(rmm), _pIxm(ixm), _pSmm(smm),
-    _relName(relName), _scanOp(scanOp), _iAttr(dAttr), _value(value)
+    _relName(relName), _scanOp(scanOp), _iAttr(dAttr)
 {
     _bIsOpen = false;
+
+    if(value == NULL)
+        _value = NULL;
+    else
+    {
+        switch(_iAttr.attrType)
+        {
+        case INT:
+            _value = new int();
+            memcpy(_value, value, sizeof(int));
+            break;
+        case FLOAT:
+            _value = new float();
+            memcpy(_value, value, sizeof(float));
+            break;
+        case STRING:
+            _value = new char[_iAttr.attrLength];
+            strcpy((char*)_value, (char*) value);
+            fillString((char*)_value, _iAttr.attrLength);
+            break;
+        default:
+            _value = NULL;
+            break;
+        }
+    }
 }
 
 IT_IndexScan::~IT_IndexScan()
 {
-
+    switch(_iAttr.attrType)
+    {
+    case INT:
+        delete ((int *) _value);
+        break;
+    case FLOAT:
+        delete ((float *) _value);
+        break;
+    case STRING:
+        delete[] ((char *) _value);
+        break;
+    default:
+        _value = NULL;
+        break;
+    }
 }
 
 RC IT_IndexScan::Open()

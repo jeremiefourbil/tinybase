@@ -217,6 +217,9 @@ RC QL_TreePlanDelete::PerformComparison(RM_Record &oRecord)
     char *pData = NULL;
     bool isConditionPassed = false;
 
+//    cout << "COMPARISON: " << _conditions[0].lhsAttr.attrName << endl;
+//    cout << "COMPARISON: " << _conditions[0].op << endl;
+
 
     // check if left child exists
     if(_pLc == NULL)
@@ -234,7 +237,6 @@ RC QL_TreePlanDelete::PerformComparison(RM_Record &oRecord)
 
         if(_conditions.size() > 0)
         {
-
             // copy the required attributes in the output buffer
             for(int i=0; i<_nNodeAttributes; i++)
             {
@@ -346,6 +348,8 @@ RC QL_TreePlanDelete::PerformComparison(RM_Record &oRecord)
     // no need to delete, done with RM_Record destructor
     pData = NULL;
 
+//    cout << "COMPARISON END" << endl;
+
     return rc;
 }
 
@@ -364,10 +368,10 @@ RC QL_TreePlanDelete::PerformSelect(RM_Record &oRecord)
             if((rc = _pSmm->GetAttributeStructure(_sRelName.c_str(), _conditions[0].lhsAttr.attrName, attr)))
                 return rc;
 
-            if(_conditions[0].rhsValue.type == STRING)
-            {
-                fillString((char*) _conditions[0].rhsValue.data, attr.attrLength);
-            }
+//            if(!_conditions[0].bRhsIsAttr && _conditions[0].rhsValue.type == STRING)
+//            {
+//                fillString((char*) _conditions[0].rhsValue.data, attr.attrLength);
+//            }
 
             // Index use
             //            if(attr.indexNo >= 0)
