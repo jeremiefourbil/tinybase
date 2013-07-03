@@ -531,7 +531,7 @@ RC QL_Manager::PostCheck(std::vector<RelAttr> &vSelAttrs,
                 DataAttrInfo *attr = NULL;
                 bool inAttributeList = false;
 
-                if((rc = _pSmm->GetRelationStructure(vRelations[0], attr, nAttr)))
+                if((rc = _pSmm->GetRelationStructure(vSelAttrs[i].relName, attr, nAttr)))
                     return rc;
 
                 int j=0;
@@ -605,6 +605,8 @@ RC QL_Manager::PostCheck(std::vector<RelAttr> &vSelAttrs,
 
     return rc;
 }
+
+
 
 RC QL_Manager::PostParse(std::vector<RelAttr> &vSelAttrs,
                          std::vector<const char*> &vRelations,
