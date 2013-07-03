@@ -6,7 +6,7 @@
 #include <iostream>
 #include <fstream>
 
-#define XML_FILE "tree.graphml"
+#define XML_FILE "~/Documents/val.graphml"
 
 using namespace std;
 
@@ -536,6 +536,8 @@ RC IX_BTree::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
     char *pBuffer;
     RID tempRID;
 
+
+
     // get the current bucket
     if(rc = GetPageBuffer(iPageNum, pBuffer))
         goto err_return;
@@ -552,8 +554,9 @@ RC IX_BTree::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
     // check if the RID is already in there
     for(int i=0; i<((IX_PageBucketHdr *)pBuffer)->nbFilledSlots; i++)
     {
-        memcpy(pBuffer + sizeof(IX_PageBucketHdr) + i * sizeof(RID),
-         &tempRID, sizeof(RID));
+        memcpy(&tempRID,
+               pBuffer + sizeof(IX_PageBucketHdr) + i * sizeof(RID),
+               sizeof(RID));
 
         if(rid == tempRID)
         {
@@ -569,13 +572,28 @@ RC IX_BTree::InsertEntryInBucket(PageNum iPageNum, const RID &rid)
 
     ((IX_PageBucketHdr *)pBuffer)->nbFilledSlots++;
 
+
+//    for(int i=0; i<((IX_PageBucketHdr *)pBuffer)->nbFilledSlots; i++)
+//    {
+//        memcpy(pBuffer + sizeof(IX_PageBucketHdr) + i * sizeof(RID),
+//         &tempRID, sizeof(RID));
+
+//        if(rid == tempRID)
+//        {
+//            if(rc = ReleaseBuffer(iPageNum, false))
+//                goto err_return;
+
+//            return IX_RID_ALREADY_IN_BUCKET;
+//        }
+//    }
+
     if(rc = ReleaseBuffer(iPageNum, true))
         goto err_return;
 
     return rc;
 
     err_release:
-    rc = ReleaseBuffer(iPageNum, false);
+    ReleaseBuffer(iPageNum, false);
     err_return:
     return (rc);
 }
@@ -1523,7 +1541,7 @@ RC IX_BTree::DeleteEntryInBucket(PageNum &ioPageNum, const RID &rid)
     i=0;
     for(i=0; i<((IX_PageBucketHdr *)pBuffer)->nbFilledSlots; i++)
     {
-        memcpy((void*) &tempRid,
+        memcpy(&tempRid,
            pBuffer + sizeof(IX_PageBucketHdr) + i * sizeof(RID),
            sizeof(RID));
 
@@ -1795,6 +1813,8 @@ RC IX_BTree::DisplayTree()
 {
     RC rc = OK_RC;
 
+    cout << "display tree" << endl;
+
     switch(_pFileHdr->attrType)
     {
         case INT:
@@ -1820,10 +1840,6 @@ RC IX_BTree::DisplayTree_t()
     int fatherNodeId = 0;
     int currentEdgeId = 0;
     ofstream xmlFile;
-
-    // cout << "-----------------------" << endl;
-    // cout << "Display tree" << endl;
-    // cout << "-----------------------" << endl;
 
     xmlFile.open(XML_FILE);
     xmlFile << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
@@ -1864,6 +1880,8 @@ RC IX_BTree::DisplayNode_t(const PageNum pageNum, const int fatherNodeId, int &c
     int slotChildIndex;
     int newFatherNodeId = currentNodeId;
     ofstream xmlFile;
+
+    cout << "node" << endl;
 
     // get the current node
     if(rc = GetPageBuffer(pageNum, pBuffer))
@@ -1937,6 +1955,8 @@ RC IX_BTree::DisplayLeaf_t(const PageNum pageNum,const int fatherNodeId, int &cu
     ofstream xmlFile;
     RID rid;
 
+    cout << "leaf" << endl;
+
     if(rc = GetPageBuffer(pageNum, pBuffer))
         goto err_return;
 
@@ -1957,11 +1977,20 @@ RC IX_BTree::DisplayLeaf_t(const PageNum pageNum,const int fatherNodeId, int &cu
         if(rc = GetPageBuffer(((IX_PageLeaf<T,n> *)pBuffer)->bucket[slotIndex], pBucketBuffer))
             goto err_return;
 
-        memcpy((void*) &rid,
-               pBucketBuffer + sizeof(IX_PageBucketHdr), sizeof(RID));
 
-        rid.GetPageNum(rid_pnum);
-        rid.GetSlotNum(rid_snum);
+
+        printGeneric(((IX_PageLeaf<T,n> *)pBuffer)->v[slotIndex]);
+
+        for(int k=0; k<((IX_PageBucketHdr*)pBucketBuffer)->nbFilledSlots; k++)
+        {
+            memcpy(&rid,
+                   pBucketBuffer + k * sizeof(IX_PageBucketHdr), sizeof(RID));
+
+            rid.GetPageNum(rid_pnum);
+            rid.GetSlotNum(rid_snum);
+
+            cout << "\t rid: " << rid_pnum << " / " << rid_snum << endl;
+        }
 
 
         xmlFile << ((IX_PageLeaf<T,n> *)pBuffer)->v[slotIndex] << "-" << ((IX_PageBucketHdr *)pBucketBuffer)->nbFilledSlots << "(" << rid_pnum << ";" << rid_snum << ")" << endl;

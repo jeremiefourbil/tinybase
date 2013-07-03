@@ -22,9 +22,9 @@ const int order_INT = (int) ((PF_PAGE_SIZE - 2 * sizeof(int) - 10) / (sizeof(int
 const int order_FLOAT = (int) ((PF_PAGE_SIZE - 2 * sizeof(int) - 10) / (sizeof(int) + sizeof(float)));
 const int order_STRING = (int) ((PF_PAGE_SIZE - 2 * sizeof(int) - 10) / (sizeof(int) + MAXSTRINGLEN * sizeof(char)));
 
-const int order_hash_INT = 4;
-const int order_hash_FLOAT = 4;
-const int order_hash_STRING = 4;
+const int order_hash_INT = 5;
+const int order_hash_FLOAT = 5;
+const int order_hash_STRING = 5;
 
 //const int order_hash_INT = (int) ((PF_PAGE_SIZE - 2 * sizeof(int) - 10) / (sizeof(int) + sizeof(int)));
 //const int order_hash_FLOAT = (int) ((PF_PAGE_SIZE - 2 * sizeof(int) - 10) / (sizeof(int) + sizeof(float)));

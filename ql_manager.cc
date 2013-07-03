@@ -170,6 +170,15 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[],
 RC QL_Manager::Insert(const char *relName,
                       int nValues, const Value values[])
 {
+    RC rc = OK_RC;
+    int nAttributes = 0;
+    DataAttrInfo *tAttributes = NULL;
+    IX_IndexHandle **tpIxh = NULL;
+    RM_FileHandle fh;
+
+    char *pData = NULL;
+    RID rid;
+
     int i;
 
     cout << "QL Insert\n";
@@ -179,7 +188,79 @@ RC QL_Manager::Insert(const char *relName,
     for (i = 0; i < nValues; i++)
         cout << "   values[" << i << "]:" << values[i] << "\n";
 
-    return 0;
+
+
+    // store in an array the attributes that are indexed
+    if((rc = _pSmm->GetRelationStructure(relName, tAttributes, nAttributes)))
+        return rc;
+
+    // if needed open index handler
+    tpIxh = new IX_IndexHandle*[nAttributes];
+    for(int i=0; i<nAttributes; i++)
+    {
+        if(tAttributes[i].indexNo >= 0)
+        {
+            tpIxh[i] = new IX_IndexHandle();
+            if((rc = _pIxm->OpenIndex(tAttributes[i].relName, tAttributes[i].indexNo, *tpIxh[i])))
+                return rc;
+        }
+        else
+            tpIxh[i] = NULL;
+    }
+
+    // fill the buffer
+    int bufferSize = 0;
+    for(int i=0; i<nAttributes; i++)
+    {
+        bufferSize += tAttributes[i].attrLength;
+    }
+    pData = new char[bufferSize];
+    for(int i=0; i<nAttributes; i++)
+    {
+        memcpy(pData + tAttributes[i].offset, values[i].data, tAttributes[i].attrLength);
+    }
+
+    // open the relation file
+    if((rc = _pRmm->OpenFile(relName, fh)))
+        return rc;
+
+    if((rc = fh.InsertRec(pData, rid)))
+        return rc;
+
+    for(int i=0; i<nAttributes; i++)
+    {
+        if(tpIxh[i] != NULL)
+        {
+            char *value = new char[tAttributes[i].attrLength];
+            memcpy(value, pData + tAttributes[i].offset, tAttributes[i].attrLength);
+
+            if((rc = tpIxh[i]->InsertEntry(value, rid)))
+                return rc;
+
+            delete[] value;
+        }
+    }
+
+
+    delete[] pData;
+
+    delete[] tAttributes;
+    tAttributes = NULL;
+
+    if(tpIxh != NULL)
+    {
+        for(int i=0; i<nAttributes; i++)
+        {
+            delete tpIxh[i];
+        }
+
+        delete[] tpIxh;
+    }
+
+    if (rc = _pRmm->CloseFile(fh))
+        return rc;
+
+    return rc;
 }
 
 //
@@ -193,7 +274,10 @@ RC QL_Manager::Delete(const char *relName,
     int nbTuples = 0;
     RelAttr relAttr;
     RM_FileHandle fh;
-    IX_IndexHandle *pIxh = NULL;
+
+    int nAttributes = 0;
+    DataAttrInfo *tAttributes = NULL;
+    IX_IndexHandle **tpIxh = NULL;
 
     // Tree plan
     QL_TreePlanDelete *pTreePlanDelete = new QL_TreePlanDelete(_pSmm, _pIxm, _pRmm);
@@ -244,18 +328,25 @@ RC QL_Manager::Delete(const char *relName,
 
     // open the relation file
     if (rc = _pRmm->OpenFile(vRelations[0], fh))
-       return rc;
+        return rc;
+
+    // store in an array the attributes that are indexed
+    if((rc = _pSmm->GetRelationStructure(relName, tAttributes, nAttributes)))
+        return rc;
 
     // if needed open index handler
-//    for(int i=0; i<vSelAttrs.size(); i++)
-//    {
-//        if(tInfos[i].indexNo >= 0 && strcmp(tInfos[i].attrName, updatedAttribute.attrName) == 0)
-//        {
-//            pIxh = new IX_IndexHandle();
-//            if((rc = _pIxm->OpenIndex(vRelations[0], tInfos[i].indexNo, *pIxh)))
-//                return rc;
-//        }
-//    }
+    tpIxh = new IX_IndexHandle*[nAttributes];
+    for(int i=0; i<nAttributes; i++)
+    {
+        if(tAttributes[i].indexNo >= 0)
+        {
+            tpIxh[i] = new IX_IndexHandle();
+            if((rc = _pIxm->OpenIndex(tAttributes[i].relName, tAttributes[i].indexNo, *tpIxh[i])))
+                return rc;
+        }
+        else
+            tpIxh[i] = NULL;
+    }
 
     // loop on the entries
     while(!rc)
@@ -279,51 +370,72 @@ RC QL_Manager::Delete(const char *relName,
             printer.Print(cout, pData);
             nbTuples++;
 
+            // delete from IX
+            if((tpIxh != NULL))
+            {
+                for(int i=0; i<nAttributes; i++)
+                {
+                    if(tpIxh[i] != NULL)
+                    {
+                        char *value = new char[tAttributes[i].attrLength];
+                        memcpy(value, pData + tAttributes[i].offset, tAttributes[i].attrLength);
+                        if((rcDelete = tpIxh[i]->DeleteEntry(value, rid)))
+                            return rc;
+
+                        delete[] value;
+                    }
+                }
+            }
+
             // delete from RM
             if((rcDelete = fh.DeleteRec(rid)))
                 return rcDelete;
-
-            // delete from IX
-            if((pIxh != NULL))
-            {
-
-            }
         }
     }
-
-    cout << endl << nbTuples << " tuple(s)" << endl << endl;
-
-
-    if(pIxh != NULL)
-    {
-        if((rc = _pIxm->CloseIndex(*pIxh)))
-            return rc;
-    }
-
-    if(pIxh != NULL)
-    {
-        delete pIxh;
-        pIxh = NULL;
-    }
-
-    if (rc = _pRmm->CloseFile(fh))
-       return rc;
 
     if(rc == QL_EOF)
         rc = OK_RC;
 
-    if(tInfos != NULL)
+    cout << endl << nbTuples << " tuple(s)" << endl << endl;
+
+
+    if(tpIxh != NULL)
     {
-        delete[] tInfos;
-        tInfos = NULL;
+        for(int i=0; i<nAttributes; i++)
+        {
+            if(tpIxh[i])
+            {
+                if((rc = _pIxm->CloseIndex(*tpIxh[i])))
+                    return rc;
+            }
+        }
+
     }
 
-    if(pTreePlanDelete != NULL)
-    {
-        delete pTreePlanDelete;
-        pTreePlanDelete = NULL;
-    }
+    if (rc = _pRmm->CloseFile(fh))
+        return rc;
 
+
+
+
+    delete[] tInfos;
+    tInfos = NULL;
+
+    delete pTreePlanDelete;
+    pTreePlanDelete = NULL;
+
+    delete[] tAttributes;
+    tAttributes = NULL;
+
+    if(tpIxh != NULL)
+    {
+        for(int i=0; i<nAttributes; i++)
+        {
+            delete tpIxh[i];
+        }
+
+        delete[] tpIxh;
+    }
 
     cout << "END OF QUERY : " << rc << endl;
     return rc;
@@ -395,24 +507,23 @@ RC QL_Manager::Update(const char *relName,
     Printer printer(tInfos, vSelAttrs.size());
     printer.PrintHeader(cout);
 
+    // open RM file handler
+    if((rc = _pRmm->OpenFile(vRelations[0], fh)))
+        return rc;
+
     // prepare the updatedAttribute
     if((rc = _pSmm->GetAttributeStructure(relName, updAttr.attrName, updatedAttribute)))
         return rc;
 
-    // open RM file handler
-    if((rc = _pRmm->OpenFile(vRelations[0], fh)))
-       return rc;
-
     // if needed open index handler
-    for(int i=0; i<vSelAttrs.size(); i++)
+    if(updatedAttribute.indexNo>=0)
     {
-        if(tInfos[i].indexNo >= 0 && strcmp(tInfos[i].attrName, updatedAttribute.attrName) == 0)
-        {
-            pIxh = new IX_IndexHandle();
-            if((rc = _pIxm->OpenIndex(vRelations[0], tInfos[i].indexNo, *pIxh)))
-                return rc;
-        }
+        pIxh = new IX_IndexHandle();
+        if((rc = _pIxm->OpenIndex(relName, updatedAttribute.indexNo, *pIxh)))
+            return rc;
     }
+    else
+        pIxh = NULL;
 
     // loop on the entries
     while(!rc)
@@ -420,6 +531,7 @@ RC QL_Manager::Update(const char *relName,
         RC rcDelete;
         RM_Record rec;
         char *pData = NULL;
+        RID rid;
 
         rc = pTreePlanDelete->GetNext(rec);
 
@@ -427,6 +539,46 @@ RC QL_Manager::Update(const char *relName,
         {
             if((rcDelete = rec.GetData(pData)))
                 return rcDelete;
+
+            if((rcDelete = rec.GetRid(rid)))
+                return rcDelete;
+
+
+
+            // delete from IX
+            if((pIxh != NULL))
+            {
+                char *value = new char[updatedAttribute.attrLength];
+                memcpy(value, pData + updatedAttribute.offset, updatedAttribute.attrLength);
+
+//                switch(updatedAttribute.attrType)
+//                {
+//                case INT:
+//                    cout << "value to delete: " << *((int*)value) << endl;
+//                    break;
+//                case FLOAT:
+//                    cout << "value to delete: " << *((float*)value) << endl;
+//                    break;
+//                case STRING:
+//                    cout << "value to delete: " << ((char*)value) << endl;
+//                    break;
+//                }
+
+//                int rid_p, rid_s;
+//                rid.GetPageNum(rid_p);
+//                rid.GetSlotNum(rid_s);
+
+//                cout << "RID to delete: " << rid_p << " / " << rid_s << endl;
+
+//                pIxh->DisplayTree();
+
+                if((rcDelete = pIxh->DeleteEntry(pData + updatedAttribute.offset, rid)))
+                    return rcDelete;
+
+//                pIxh->DisplayTree();
+
+                delete[] value;
+            }
 
             // update the buffer
             memcpy(pData + updatedAttribute.offset, rhsValue.data, updatedAttribute.attrLength);
@@ -439,15 +591,23 @@ RC QL_Manager::Update(const char *relName,
             printer.Print(cout, pData);
             nbTuples++;
 
+            // insert to IX
+            if(pIxh != NULL)
+            {
+                char *value = new char[updatedAttribute.attrLength];
+                memcpy(value, pData + updatedAttribute.offset, updatedAttribute.attrLength);
+
+                if((rcDelete = pIxh->InsertEntry(pData + updatedAttribute.offset, rid)))
+                    return rcDelete;
+
+                delete[] value;
+            }
+
             // update from RM
             if((rcDelete = fh.UpdateRec(rec)))
                 return rcDelete;
 
-            // update from IX
-            if((pIxh != NULL))
-            {
 
-            }
         }
     }
 
@@ -467,7 +627,7 @@ RC QL_Manager::Update(const char *relName,
 
 
     if (rc = _pRmm->CloseFile(fh))
-       return rc;
+        return rc;
 
     if(rc == QL_EOF)
         rc = OK_RC;
@@ -585,15 +745,15 @@ RC QL_Manager::PostCheck(std::vector<RelAttr> &vSelAttrs,
                 return QL_NO_MATCHING_RELATION;
             else
             {
-//                cout << j << endl;
-//                cout << "copy (" << attr[j].attrLength << ")" << endl;
+                //                cout << j << endl;
+                //                cout << "copy (" << attr[j].attrLength << ")" << endl;
                 vSelAttrs[i].relName = new char[attr[j].attrLength];
-//                cout << "from: " << vRelations[0] << " / to: " << vSelAttrs[i].relName << endl;
+                //                cout << "from: " << vRelations[0] << " / to: " << vSelAttrs[i].relName << endl;
                 strcpy(vSelAttrs[i].relName, vRelations[0]);
-//                cout << "copied" << endl;
+                //                cout << "copied" << endl;
                 fillString(vSelAttrs[i].relName, attr[j].attrLength);
-//                cout << vSelAttrs[i].relName << endl;
-//                cout << "end copy" << endl;
+                //                cout << vSelAttrs[i].relName << endl;
+                //                cout << "end copy" << endl;
             }
 
             if(attr != NULL)
@@ -626,7 +786,7 @@ RC QL_Manager::PostParse(std::vector<RelAttr> &vSelAttrs,
             int nAttr;
             DataAttrInfo *attr = NULL;
 
-//            cout << vRelations[i] << endl;
+            //            cout << vRelations[i] << endl;
 
             if((rc = _pSmm->GetRelationStructure(vRelations[i], attr, nAttr)))
                 return rc;
