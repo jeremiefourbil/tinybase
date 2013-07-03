@@ -273,6 +273,8 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
 {
     RC rc = OK_RC;
 
+    bool oneRelationIsFine = false;
+
 //    cout << "Build from join" << endl;
 
     _nodeOperation = JOIN;
@@ -324,8 +326,14 @@ RC QL_TreePlan::BuildFromJoin(const std::vector<RelAttr> &selAttrs,
     {
         if(it->second == 1)
         {
+            oneRelationIsFine = true;
             break;
         }
+    }
+
+    if(!oneRelationIsFine)
+    {
+        return QL_BAD_JOIN;
     }
 
     // copy conditions in left & right children

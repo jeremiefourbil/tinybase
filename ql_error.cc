@@ -16,8 +16,8 @@ using namespace std;
 static char *QL_WarnMsg[] = {
       (char*)"a relation appears more than once",
       (char*)"an attribute's relation does not appear in relations list",
-      (char*)"an attribute's relation is NULL and the relation could not be identified"
-    //  (char*)"file open",
+      (char*)"an attribute's relation is NULL and the relation could not be identified",
+      (char*)"the join is invalid"
     //  (char*)"invalid file descriptor (file closed)",
     //  (char*)"page already free",
     //  (char*)"page already unpinned",
