@@ -1,0 +1,54 @@
+/**********/
+/* delete */
+/**********/
+create table foo(fooid i, name c20);
+create index foo(fooid);
+
+insert into foo values(0,"bar0");
+insert into foo values(1,"bar1");
+insert into foo values(2,"bar2");
+insert into foo values(3,"bar3");
+insert into foo values(4,"bar4");
+insert into foo values(5,"bar5");
+insert into foo values(6,"bar6");
+
+/* print the content */
+print foo;
+/* ==> 7 tuples */
+
+delete from foo where fooid = 0;
+print foo;
+/* ==> 6 tuples */
+
+delete from foo where fooid >2 and fooid < 4;
+print foo;
+/* ==> 5 tuples */
+
+delete from foo;
+print foo;
+/* ==> 0 tuple */
+
+/* cleaning up */
+drop table foo;
+
+/* reset */
+create table foo(fooid i, name c20);
+create index foo(fooid);
+
+insert into foo values(0,"bar0");
+insert into foo values(1,"bar1");
+insert into foo values(2,"bar2");
+insert into foo values(3,"bar3");
+insert into foo values(4,"bar4");
+insert into foo values(5,"bar5");
+insert into foo values(6,"bar6");
+
+/* print the content */
+print foo;
+/* ==> 7 tuples */
+
+delete from foo where name = "bar1";
+print foo;
+/* ==> 6 tuples */
+
+exit;
