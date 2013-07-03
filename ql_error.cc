@@ -17,8 +17,8 @@ static char *QL_WarnMsg[] = {
       (char*)"a relation appears more than once",
       (char*)"an attribute's relation does not appear in relations list",
       (char*)"an attribute's relation is NULL and the relation could not be identified",
-      (char*)"the join is invalid"
-    //  (char*)"invalid file descriptor (file closed)",
+      (char*)"the join is invalid",
+      (char*)"non treated case"
     //  (char*)"page already free",
     //  (char*)"page already unpinned",
     //  (char*)"end of file",

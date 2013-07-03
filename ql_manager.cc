@@ -765,6 +765,55 @@ RC QL_Manager::PostCheck(std::vector<RelAttr> &vSelAttrs,
     }
 
 
+    // the conditions belong to the attributes
+    for(unsigned int i=0; i<vConditions.size(); i++)
+    {
+        bool inList = false;
+
+        // left hand side
+        for(unsigned int j=0; j<vSelAttrs.size(); j++)
+        {
+            if(strcmp(vConditions[i].lhsAttr.attrName, vSelAttrs[j].attrName) == 0)
+            {
+                inList = true;
+                break;
+            }
+        }
+
+        if(!inList)
+            return QL_NON_TREATED_CASE;
+    }
+
+
+    return rc;
+}
+
+RC QL_Manager::PostConditionsCheck(std::vector<RelAttr> &vSelAttrs,
+                         std::vector<const char*> &vRelations,
+                         std::vector<Condition> &vConditions)
+{
+    RC rc = OK_RC;
+
+
+    // the conditions belong to the attributes
+    for(unsigned int i=0; i<vConditions.size(); i++)
+    {
+        bool inList = false;
+
+        // left hand side
+        for(unsigned int j=0; j<vSelAttrs.size(); j++)
+        {
+            if(strcmp(vConditions[i].lhsAttr.attrName, vSelAttrs[j].attrName) == 0)
+            {
+                inList = true;
+                break;
+            }
+        }
+
+        if(!inList)
+            return QL_NON_TREATED_CASE;
+    }
+
     return rc;
 }
 
